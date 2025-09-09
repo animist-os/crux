@@ -88,7 +88,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   FollowedByExpr_fby(x, _comma, y) {
-    return new FollowedBy(x.parse(), y.parse);
+    return new FollowedBy(x.parse(), y.parse());
   },
 
   MulExpr_mul(x, _times, y) {

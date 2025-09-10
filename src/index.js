@@ -248,16 +248,13 @@ TODOs:
     4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
     
 
-  * bugs
-
-    I think there's a bug in my implementaiton of "^" because of the way this evaluates -- the second A isnt spread?
-
-    A = [0, 1, 0] ^ [2]
-    B = A * A
 
 
 
 */
+
+
+
 const g = ohm.grammar(String.raw`
   Andy {
   
@@ -284,6 +281,7 @@ const g = ohm.grammar(String.raw`
     MulExpr
       = MulExpr "*" PriExpr  -- mul
       | MulExpr "^" PriExpr  -- expand
+      | MulExpr "." PriExpr  -- dot
       | PriExpr
   
     PriExpr
@@ -325,6 +323,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_expand(x, _hat, y) {
     return new Expand(x.parse(), y.parse());
+  },
+
+  MulExpr_dot(x, _dot, y) {
+    return new Dot(x.parse(), y.parse());
   },
 
   PriExpr_ref(name) {
@@ -446,6 +448,27 @@ class Expand {
     return new Motif(values);
   }
 }
+
+class Dot {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const xv = requireMotif(this.x.eval(env));
+    const yv = requireMotif(this.y.eval(env));
+    const values = [];
+
+    for (let xi =0; xi < xv.values.length; xi++) {
+      let yi = xi % yv.values.length;
+      values.push(xv.values[xi].mul(yv.values[yi]));
+    }
+    return new Motif(values);
+  }
+}
+
+
 function requireMotif(value) {
   if (!(value instanceof Motif)) {
     throw new Error('Motif required!');
@@ -500,6 +523,12 @@ class Pip {
       : '' + this.step;
   }
 }
+
+
+
+
+
+
 
 function parse(input) {
   const matchResult = g.match(input);

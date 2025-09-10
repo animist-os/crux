@@ -25,10 +25,69 @@ TODOs:
   (could be a method in Motif)
 
 * think about unifying pips and motifs
-    9/.5
+
+    1 === [1]
+
+    [1, [2, 3], 7] ==> [1, 2/2, 3/2, 7]
+    [1, [2, 3, 4], 7] ==> [1, 2/3, 3/3, 4/3, 7]
+    [1, [2, 3, 4, 5], 7] ==> [1, 2/4, 3/4, 4/4, 5/4, 7]
+
+    [1, 2, 3] === [[1], [2], [3]]
+    [1, [2, 3], 7] === [[1], [2, 3], [7]]
+    [1, [2, 3], 7], [8] === [1, [2, 3], 7, 8]
+    [1, [2, 3], 7], 8 === [1, [2, 3], 7, 8]
+    [[1, [2, 3], 7], 8] ===
+
+    [1, [2, 3], 7], 8 === [1, [2, 3], 7], [8] === [1, [2, 3], 7, 8]
+    A, B
+
+    [1, 2, 7], [8] === [1, 2, 7, 8]
+
+    [1, 2, 7]/2, [8] === [1/2, 2/2, 7/2, 8]
+    [1, 2, 7]/2, [8]/3 === ???
+
+    A = [1, 2, 3]/3
+    B = [4, 5]/7
+    [A, B]
+    [...A, ...B]
+
+    [0, 1, 2] x [_, 0] ===> [_, _, _, 0, 1, 2]
+    [_, 0] x [0, 1, 2] ===> [_, 0, _, 1, _, 2]
+    [_, 0, 0] x [0, 1, 2] ===> [_, 0, 0, _, 1, 1, _, 2, 2]
+
+    [0, 1, 2] . [_, 0, 0] ===> [_, 1, 2]
+    [0, 1, 2] . [0, _, 0] ===> [0, _, 2]
+    [0, 1, 2] . [0, _] ===> [0, _]
+    [0, 1, 2, 3] . [0, 0, 0] => [0, 1, 2]
+    [0, 1, 2, 3] . [-1, 1, 3] => [-1, 2, 5]
+
+    rotate operator?
+
+    shift left operator?
+
+    shift right operator?
+
+
+
+    f([0, 1, 2]) ===> [_, 1, 2, 1, _, 2, 1, 2, _]
+
+    [0, 1, 2] x [X, 0] ===> [0, 1, 2]
+
+    [X, 0] x [0, 1, 2] ===> [X, 0, X, 1, X, 2]
+
+    [X, 0, X, 1, X, 2] * [0, 1, 2] ===> [X, 0, X, 1, X, 2, X, 1, X, 2, X, 3, X, 2, X, 3, X, 4]
+
+    [0, 1, 2] * [X, 0, X, 1, X, 2] ===> [0, 1, 2, 1, 2, 3, 2, 3, 4]
+
+
+    [3, 4] > 1 === [_/8, 3, 4]
+    [...xs[...n], ...xs[(n+5)...]
+    [1, 2], ([3, 4] > 1)
+
+  9/.5
     [9]/.5
     [1, 2/.5]/.5 -> [1/.5, 2/.25]
-    [1, [2, 3]/.5, 4]/2
+    [1, [2, 3]/.5, 4]/2 ==> [1, 2/.5, 3/.5, 4]/2
 
 
 
@@ -230,6 +289,7 @@ const g = ohm.grammar(String.raw`
     PriExpr
       = ident                     -- ref
       | "[" ListOf<Pip, ","> "]"  -- motif
+      | "(" Expr ")"              -- parens
   
     Pip
       = number "/" number  -- timeScale
@@ -246,198 +306,200 @@ const g = ohm.grammar(String.raw`
   }
   `);
 
-  const s = g.createSemantics().addOperation('parse', {
-      Prog(stmts) {
-          return new Prog(stmts.parse());
-      },
+const s = g.createSemantics().addOperation('parse', {
+  Prog(stmts) {
+    return new Prog(stmts.parse());
+  },
 
-      AssignStmt(name, _equals, expr) {
-          return new Assign(name.sourceString, expr.parse());
-      },
+  AssignStmt(name, _equals, expr) {
+    return new Assign(name.sourceString, expr.parse());
+  },
 
-      FollowedByExpr_fby(x, _comma, y) {
-          return new FollowedBy(x.parse(), y.parse());
-      },
+  FollowedByExpr_fby(x, _comma, y) {
+    return new FollowedBy(x.parse(), y.parse());
+  },
 
-      MulExpr_mul(x, _times, y) {
-          return new Mul(x.parse(), y.parse());
-      },
+  MulExpr_mul(x, _times, y) {
+    return new Mul(x.parse(), y.parse());
+  },
 
-      MulExpr_expand(x, _hat, y) {
-          return new Expand(x.parse(), y.parse());
-      },
+  MulExpr_expand(x, _hat, y) {
+    return new Expand(x.parse(), y.parse());
+  },
 
-      PriExpr_ref(name) {
-          return new Ref(name.sourceString);
-      },
+  PriExpr_ref(name) {
+    return new Ref(name.sourceString);
+  },
 
-      PriExpr_motif(_openBracket, values, _closeBracket) {
-          return new Motif(values.parse());
-      },
+  PriExpr_motif(_openBracket, values, _closeBracket) {
+    return new Motif(values.parse());
+  },
 
-      number(_sign, _wholeDigits, _point, _fracDigits) {
-          return parseFloat(this.sourceString);
-      },
+  PriExpr_parens(_openParen, e, _closeParen) {
+    return e.parse();
+  },
 
-      Pip_timeScale(n, _slash, d) {
-          return new Pip(n.parse(), d.parse());
-      },
+  number(_sign, _wholeDigits, _point, _fracDigits) {
+    return parseFloat(this.sourceString);
+  },
 
-      Pip_noTimeScale(n) {
-          return new Pip(n.parse(), 1);
-      },
+  Pip_timeScale(n, _slash, d) {
+    return new Pip(n.parse(), d.parse());
+  },
 
-      NonemptyListOf(x, _sep, xs) {
-          return [x.parse()].concat(xs.parse());
-      },
+  Pip_noTimeScale(n) {
+    return new Pip(n.parse(), 1);
+  },
 
-      EmptyListOf() {
-          return [];
-      },
+  NonemptyListOf(x, _sep, xs) {
+    return [x.parse()].concat(xs.parse());
+  },
 
-      _iter(...children) {
-          return children.map(c => c.parse());
-      },
+  EmptyListOf() {
+    return [];
+  },
 
-      _terminal() {
-          return this.sourceString;
-      },
-  });
+  _iter(...children) {
+    return children.map(c => c.parse());
+  },
 
-  class Prog {
-      constructor(stmts) {
-          this.stmts = stmts;
-      }
+  _terminal() {
+    return this.sourceString;
+  },
+});
 
-      interp() {
-          const env = new Map();
-          let lastValue = new Motif([]);
-          for (const stmt of this.stmts) {
-              lastValue = stmt.eval(env);
-          }
-          return lastValue;
-      }
+class Prog {
+  constructor(stmts) {
+    this.stmts = stmts;
   }
 
-  class Assign {
-      constructor(name, expr) {
-          this.name = name;
-          this.expr = expr;
-      }
+  interp() {
+    const env = new Map();
+    let lastValue = new Motif([]);
+    for (const stmt of this.stmts) {
+      lastValue = stmt.eval(env);
+    }
+    return lastValue;
+  }
+}
 
-      eval(env) {
-          const value = this.expr.eval(env);
-          env.set(this.name, value);
-          return value;
-      }
+class Assign {
+  constructor(name, expr) {
+    this.name = name;
+    this.expr = expr;
   }
 
-  class FollowedBy {
-      constructor(x, y) {
-          this.x = x;
-          this.y = y;
-      }
+  eval(env) {
+    const value = this.expr.eval(env);
+    env.set(this.name, value);
+    return value;
+  }
+}
 
-      eval(env) {
-          const xv = requireMotif(this.x.eval(env));
-          const yv = requireMotif(this.y.eval(env));
-          return new Motif([...xv.values, ...yv.values]);
-      }
+class FollowedBy {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
 
-  class Mul {
-      constructor(x, y) {
-          this.x = x;
-          this.y = y;
-      }
+  eval(env) {
+    const xv = requireMotif(this.x.eval(env));
+    const yv = requireMotif(this.y.eval(env));
+    return new Motif([...xv.values, ...yv.values]);
+  }
+}
 
-      eval(env) {
-          const xv = requireMotif(this.x.eval(env));
-          const yv = requireMotif(this.y.eval(env));
-          const values = [];
-          for (let yi of yv.values) {
-              for (let xi of xv.values) {
-                  values.push(xi.mul(yi));
-              }
-          }
-          return new Motif(values);
-      }
+class Mul {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
 
-
-  class Expand {
-      constructor(x, y) {
-          this.x = x;
-          this.y = y;
+  eval(env) {
+    const xv = requireMotif(this.x.eval(env));
+    const yv = requireMotif(this.y.eval(env));
+    const values = [];
+    for (let yi of yv.values) {
+      for (let xi of xv.values) {
+        values.push(xi.mul(yi));
       }
-  
-      eval(env) {
-          const xv = requireMotif(this.x.eval(env));
-          const yv = requireMotif(this.y.eval(env));
-          const values = [];
-          for (let yi of yv.values) {
-              for (let xi of xv.values) {
-                  values.push(xi.expand(yi));
-              }
-          }
-          return new Motif(values);
-      }
+    }
+    return new Motif(values);
   }
-  function requireMotif(value) {
-      if (!(value instanceof Motif)) {
-          throw new Error('Motif required!');
-      }
-      return value;
+}
+
+class Expand {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
   }
 
-
-  class Ref {
-      constructor(name) {
-          this.name = name;
+  eval(env) {
+    const xv = requireMotif(this.x.eval(env));
+    const yv = requireMotif(this.y.eval(env));
+    const values = [];
+    for (let yi of yv.values) {
+      for (let xi of xv.values) {
+        values.push(xi.expand(yi));
       }
+    }
+    return new Motif(values);
+  }
+}
+function requireMotif(value) {
+  if (!(value instanceof Motif)) {
+    throw new Error('Motif required!');
+  }
+  return value;
+}
 
-      eval(env) {
-          if (!env.has(this.name)) {
-              throw new Error('undeclared identifier: ' + this.name);
-          }
-          return env.get(this.name);
-      }
+class Ref {
+  constructor(name) {
+    this.name = name;
   }
 
-  class Motif {
-      constructor(values) {
-          this.values = values;
-      }
+  eval(env) {
+    if (!env.has(this.name)) {
+      throw new Error('undeclared identifier: ' + this.name);
+    }
+    return env.get(this.name);
+  }
+}
 
-      eval(env) {
-          return this;
-      }
-
-      toString() {
-          return '[' + this.values.map(value => value.toString()).join(', ') + ']';
-      }
+class Motif {
+  constructor(values) {
+    this.values = values;
   }
 
-  class Pip {
-      constructor(step, timeScale = 1) {
-          this.step = step;
-          this.timeScale = timeScale;
-      }
-
-      mul(that) {
-          return new Pip(this.step + that.step, this.timeScale * that.timeScale);
-      }
-
-      expand(that) {
-          return new Pip(this.step * that.step, this.timeScale * that.timeScale);
-      }
-
-      toString() {
-          return this.timeScale !== 1
-              ? `${this.step}/${this.timeScale}`
-              : '' + this.step;
-      }
+  eval(env) {
+    return this;
   }
+
+  toString() {
+    return '[' + this.values.map(value => value.toString()).join(', ') + ']';
+  }
+}
+
+class Pip {
+  constructor(step, timeScale = 1) {
+    this.step = step;
+    this.timeScale = timeScale;
+  }
+
+  mul(that) {
+    return new Pip(this.step + that.step, this.timeScale * that.timeScale);
+  }
+
+  expand(that) {
+    return new Pip(this.step * that.step, this.timeScale * that.timeScale);
+  }
+
+  toString() {
+    return this.timeScale !== 1
+      ? `${this.step}/${this.timeScale}`
+      : '' + this.step;
+  }
+}
 
 function parse(input) {
   const matchResult = g.match(input);
@@ -474,9 +536,9 @@ function interp(input) {
 //   B
 // `);
 
-// interp(`[4, 9/.5, 8, 7]`);
+interp(`[4, 9/.5, 8, 7]`);
 
-interp(`
-  A = [4, 9/.5, 8, 7]/.5
-  A * A * [-4]
-`);
+// interp(`
+//   A = [4, 9/.5, 8, 7]/.5
+//   A * A * [-4]
+// `);

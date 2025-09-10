@@ -36,6 +36,10 @@ TODOs:
 
     [a, b, c] . [d, e] === [a + d, e + b, c + d]
 
+    2nd motif "loops" as needed
+    
+    could have alt flavor that truncates but we should have different set of slice / rotate / shift / truncate ops?
+
 
   * repeat
 
@@ -135,6 +139,8 @@ TODOs:
 
     [a, [b, c] / (1/2)] === [a, b, c] (needlessly obtuse illustration of the time scaling + subdivision relationship)
 
+    4[a, b, c] . [0, 0 / 2] === [a, b/2, c, a/2, b, c/2, a, b/2, c, a/2, b, c/2] -- 6/8!
+
 
   * grouping / order of operations
 
@@ -153,6 +159,42 @@ TODOs:
       is same as:
 
       B = [1, 2] * ([0, 1] * [3, 4, 5])
+
+
+  * maybe curly bracket for slice rotate etc
+
+    [a, b, c, d, e] {-3,-1} === [c, d, e]
+    [a, b, c, d, e] {1,} === [b, c, d, e]
+    [a, b, c, d, e] 1{} === [e, a, b, c, d]
+    [a, b, c, d, e] -1{2} === [d, e, c] chop off first 2 then rotate left 1
+
+    think about a way for this to "lens" through live mutations, instead of simply repeating
+    A = [a, b, c, d] -1{1,} ===  [c, d, b]
+    4A === [c, d, b, c, d, b, c, d, b, c, d, b]  
+
+    BUT
+
+    how could we let the rotation keep happening on each iteration of the outer 4 operator to get the more musically interesting
+
+        4$A === [c, d, b,  d, b, c,  b, c, d,  c, d, b]
+
+      instead of
+
+        4A === [c, d, b,  c, d, b,  c, d, b,  c, d, b]  
+
+
+    some ops could recompute each iteration, how to determine which ones you want?
+    maybe left assigning to a variable "freezes" it, otherwise it always recomputes, but the the reductive bracket operators might need to be an exception
+
+    4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
+    
+
+  * bugs
+
+    I think there's a bug in my implementaiton of "^" because of the way this evaluates -- the second A isnt spread?
+
+    A = [0, 1, 0] ^ [2]
+    B = A * A
 
 
 

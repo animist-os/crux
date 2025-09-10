@@ -36,11 +36,18 @@ TODOs:
 
     [a, b, c] . [d, e] === [da, eb, dc]
 
-    4[0] === [0, 0, 0, 0]
 
-    [a, [b, c]] == [a, b/2, c/2] (Tidal)
+  * repeat
 
-    [{a, b}, c] * 8[0] === [a, c, b, c, a, c, b, c]
+    4[a] === [a, a, a, a]
+
+    of course:
+    
+    [a] * [0, 0, 0, 0] === [a, a, a, a] so it's just a sugar?   
+
+    could also be a way to avoid parens here: 
+
+    [b, c] * ([a] * [0, 0, 0, 0]) sugars to [b, c] * 4[a]
 
 
   * reverse
@@ -93,10 +100,22 @@ TODOs:
 
     step [0, 3] === [0,1,2,3]
     neighbor [0] === [0, 1, 0] or [0, -1, 0] 
-    how can we express foo[0] === [-1/2, 0/2] — anticparoty lower neighbor, subdividing the time spane (very schenker)
+    how can we express ...
+      a_neighbor[0] => [-1/2, 0/2] — anticipatory lower neighbor, subdividing the time span (very schenker)
+      m_neighboor[0] / (1 / 3) => [0, -1, 0] 
+
+
+  * subdivision
+
+    [a, [b, c]] == [a, b/2, c/2] (Tidal sugar)
+
+    [a, [b, c] / (1/2)] === [a, b, c] (needlessly obtuse illustration of the time scaling + subdivision relationship)
 
 
   * grouping / order of operations
+
+    
+    [{a, b}, c] * 8[0] === [a, c, b, c, a, c, b, c]
 
     maybe time-operators are concatenative? 
 

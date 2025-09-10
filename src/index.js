@@ -30,6 +30,89 @@ TODOs:
     [1, 2/.5]/.5 -> [1/.5, 2/.25]
     [1, [2, 3]/.5, 4]/2
 
+
+
+  * dot
+
+    [a, b, c] . [d, e] === [da, eb, dc]
+
+    4[0] === [0, 0, 0, 0]
+
+    [a, [b, c]] == [a, b/2, c/2] (Tidal)
+
+    [{a, b}, c] * 8[0] === [a, c, b, c, a, c, b, c]
+
+
+  * reverse
+
+    [a,b,c] * [R] === [c,b,a]
+
+    [a,b,c] * [0, R] === [a,b,c,c,b,a]
+
+    [a,b,c] * [0, R2] === [a,b,c,c+2, b+2, a+2]
+
+    maybe /-1 is R?   then /-2 is timescaling AND reversing? (so no need for the letter R, just divide by negative numbers)
+
+
+  * & for diads
+
+    [a & b, c] 
+
+    [a & b, c] * [0, 1] === [a + b, c, a * 1 + b * 1, c * 1]
+
+    [a & b, c] * [e & f,] ]=== [a * e + a * c + b * e + b * f, e  * c + f * c, e + f]
+
+    [a & b & c, 1] * [0, 1] == [a & b & c, 1, a+1 & b+1 & c+1, 2]
+
+
+  * x for ommision
+
+    [a,b,c] * [e, x, g] === [a + e, g + c]
+
+    [a, b] * [e, x, g] === [a+e, a+g, b+e]
+
+
+  ? for ranged random inclusive
+
+    4[0, -1?1] ~= [0, 1, 0, -1, 0, -1, 0, 0]
+
+
+  | for random choice
+
+    4[0 | 1 | 2] ~= [2, 0, 1, 1]
+    
+    N.B. the random operators suggests a need for optional seedability of the rng
+
+
+  ... for serial choice inclusive
+
+    4[0..3] === [0, 1, 2, 3]
+
+
+  * schenker ops
+
+    step [0, 3] === [0,1,2,3]
+    neighbor [0] === [0, 1, 0] or [0, -1, 0] 
+    how can we express foo[0] === [-1/2, 0/2] — anticparoty lower neighbor, subdividing the time spane (very schenker)
+
+
+  * grouping / order of operations
+
+    maybe time-operators are concatenative? 
+
+    OR maybe concatenative operators fire BEFORE the others
+
+    and/or order of operataions is what we use parens to control, default is always L to R regardless of operator type
+
+      A = [0, 1] * [3, 4, 5]
+      B = [1, 2] * A
+
+      is same as:
+
+      B = [1, 2] * ([0, 1] * [3, 4, 5])
+
+
+
 */
 const g = ohm.grammar(String.raw`
   Andy {

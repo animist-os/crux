@@ -31,217 +31,245 @@ TODOs:
     [1, [2, 3]/.5, 4]/2
 
 */
-
 const g = ohm.grammar(String.raw`
-Andy {
-
-  Prog
-    = Stmt*
-
-  Stmt
-    = AssignStmt
-    | ExprStmt
-
-  AssignStmt
-    = ident "=" Expr
-
-  ExprStmt
-    = Expr
-
-  Expr
-    = FollowedByExpr
-
-  FollowedByExpr
-    = FollowedByExpr "," MulExpr  -- fby
-    | MulExpr
-
-  MulExpr
-    = MulExpr "*" PriExpr  -- mul
-    | PriExpr
-
-  PriExpr
-    = ident                     -- ref
-    | "[" ListOf<Pip, ","> "]"  -- motif
-
-  Pip
-    = number "/" number  -- timeScale
-    | number             -- noTimeScale
-
-  ident = alnum+
-
-  number
-    = sign? digit+ ("." digit*)?
-    | sign? digit* "." digit+
-
-  sign = "+" | "-"
-
-}
-`);
-
-const s = g.createSemantics().addOperation('parse', {
-  Prog(stmts) {
-    return new Prog(stmts.parse());
-  },
-
-  AssignStmt(name, _equals, expr) {
-    return new Assign(name.sourceString, expr.parse());
-  },
-
-  FollowedByExpr_fby(x, _comma, y) {
-    return new FollowedBy(x.parse(), y.parse());
-  },
-
-  MulExpr_mul(x, _times, y) {
-    return new Mul(x.parse(), y.parse());
-  },
-
-  PriExpr_ref(name) {
-    return new Ref(name.sourceString);
-  },
-
-  PriExpr_motif(_openBracket, values, _closeBracket) {
-    return new Motif(values.parse());
-  },
-
-  number(_sign, _wholeDigits, _point, _fracDigits) {
-    return parseFloat(this.sourceString);
-  },
-
-  Pip_timeScale(n, _slash, d) {
-    return new Pip(n.parse(), d.parse());
-  },
-
-  Pip_noTimeScale(n) {
-    return new Pip(n.parse(), 1);
-  },
-
-  NonemptyListOf(x, _sep, xs) {
-    return [x.parse()].concat(xs.parse());
-  },
-
-  EmptyListOf() {
-    return [];
-  },
-
-  _iter(...children) {
-    return children.map(c => c.parse());
-  },
-
-  _terminal() {
-    return this.sourceString;
-  },
-});
-
-class Prog {
-  constructor(stmts) {
-    this.stmts = stmts;
+  Andy {
+  
+    Prog
+      = Stmt*
+  
+    Stmt
+      = AssignStmt
+      | ExprStmt
+  
+    AssignStmt
+      = ident "=" Expr
+  
+    ExprStmt
+      = Expr
+  
+    Expr
+      = FollowedByExpr
+  
+    FollowedByExpr
+      = FollowedByExpr "," MulExpr  -- fby
+      | MulExpr
+  
+    MulExpr
+      = MulExpr "*" PriExpr  -- mul
+      | MulExpr "^" PriExpr  -- expand
+      | PriExpr
+  
+    PriExpr
+      = ident                     -- ref
+      | "[" ListOf<Pip, ","> "]"  -- motif
+  
+    Pip
+      = number "/" number  -- timeScale
+      | number             -- noTimeScale
+  
+    ident = alnum+
+  
+    number
+      = sign? digit+ ("." digit*)?
+      | sign? digit* "." digit+
+  
+    sign = "+" | "-"
+  
   }
+  `);
 
-  interp() {
-    const env = new Map();
-    let lastValue = new Motif([]);
-    for (const stmt of this.stmts) {
-      lastValue = stmt.eval(env);
-    }
-    return lastValue;
-  }
-}
+  const s = g.createSemantics().addOperation('parse', {
+      Prog(stmts) {
+          return new Prog(stmts.parse());
+      },
 
-class Assign {
-  constructor(name, expr) {
-    this.name = name;
-    this.expr = expr;
-  }
+      AssignStmt(name, _equals, expr) {
+          return new Assign(name.sourceString, expr.parse());
+      },
 
-  eval(env) {
-    const value = this.expr.eval(env);
-    env.set(this.name, value);
-    return value;
-  }
-}
+      FollowedByExpr_fby(x, _comma, y) {
+          return new FollowedBy(x.parse(), y.parse());
+      },
 
-class FollowedBy {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
+      MulExpr_mul(x, _times, y) {
+          return new Mul(x.parse(), y.parse());
+      },
 
-  eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
-    return new Motif([...xv.values, ...yv.values]);
-  }
-}
+      MulExpr_expand(x, _hat, y) {
+          return new Expand(x.parse(), y.parse());
+      },
 
-class Mul {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
+      PriExpr_ref(name) {
+          return new Ref(name.sourceString);
+      },
 
-  eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
-    const values = [];
-    for (let yi of yv.values) {
-      for (let xi of xv.values) {
-        values.push(xi.mul(yi));
+      PriExpr_motif(_openBracket, values, _closeBracket) {
+          return new Motif(values.parse());
+      },
+
+      number(_sign, _wholeDigits, _point, _fracDigits) {
+          return parseFloat(this.sourceString);
+      },
+
+      Pip_timeScale(n, _slash, d) {
+          return new Pip(n.parse(), d.parse());
+      },
+
+      Pip_noTimeScale(n) {
+          return new Pip(n.parse(), 1);
+      },
+
+      NonemptyListOf(x, _sep, xs) {
+          return [x.parse()].concat(xs.parse());
+      },
+
+      EmptyListOf() {
+          return [];
+      },
+
+      _iter(...children) {
+          return children.map(c => c.parse());
+      },
+
+      _terminal() {
+          return this.sourceString;
+      },
+  });
+
+  class Prog {
+      constructor(stmts) {
+          this.stmts = stmts;
       }
-    }
-    return new Motif(values);
-  }
-}
 
-function requireMotif(value) {
-  if (!(value instanceof Motif)) {
-    throw new Error('Motif required!');
-  }
-  return value;
-}
-
-class Ref {
-  constructor(name) {
-    this.name = name;
+      interp() {
+          const env = new Map();
+          let lastValue = new Motif([]);
+          for (const stmt of this.stmts) {
+              lastValue = stmt.eval(env);
+          }
+          return lastValue;
+      }
   }
 
-  eval(env) {
-    if (!env.has(this.name)) {
-      throw new Error('undeclared identifier: ' + this.name);
-    }
-    return env.get(this.name);
-  }
-}
+  class Assign {
+      constructor(name, expr) {
+          this.name = name;
+          this.expr = expr;
+      }
 
-class Motif {
-  constructor(values) {
-    this.values = values;
-  }
-
-  eval(env) {
-    return this;
+      eval(env) {
+          const value = this.expr.eval(env);
+          env.set(this.name, value);
+          return value;
+      }
   }
 
-  toString() {
-    return '[' + this.values.map(value => value.toString()).join(', ') + ']';
-  }
-}
+  class FollowedBy {
+      constructor(x, y) {
+          this.x = x;
+          this.y = y;
+      }
 
-class Pip {
-  constructor(step, timeScale = 1) {
-    this.step = step;
-    this.timeScale = timeScale;
-  }
-
-  mul(that) {
-    return new Pip(this.step + that.step, this.timeScale * that.timeScale);
+      eval(env) {
+          const xv = requireMotif(this.x.eval(env));
+          const yv = requireMotif(this.y.eval(env));
+          return new Motif([...xv.values, ...yv.values]);
+      }
   }
 
-  toString() {
-    return this.timeScale !== 1
-      ? `${this.step}/${this.timeScale}`
-      : '' + this.step;
+  class Mul {
+      constructor(x, y) {
+          this.x = x;
+          this.y = y;
+      }
+
+      eval(env) {
+          const xv = requireMotif(this.x.eval(env));
+          const yv = requireMotif(this.y.eval(env));
+          const values = [];
+          for (let yi of yv.values) {
+              for (let xi of xv.values) {
+                  values.push(xi.mul(yi));
+              }
+          }
+          return new Motif(values);
+      }
   }
-}
+
+
+  class Expand {
+      constructor(x, y) {
+          this.x = x;
+          this.y = y;
+      }
+  
+      eval(env) {
+          const xv = requireMotif(this.x.eval(env));
+          const yv = requireMotif(this.y.eval(env));
+          const values = [];
+          for (let yi of yv.values) {
+              for (let xi of xv.values) {
+                  values.push(xi.expand(yi));
+              }
+          }
+          return new Motif(values);
+      }
+  }
+  function requireMotif(value) {
+      if (!(value instanceof Motif)) {
+          throw new Error('Motif required!');
+      }
+      return value;
+  }
+
+
+  class Ref {
+      constructor(name) {
+          this.name = name;
+      }
+
+      eval(env) {
+          if (!env.has(this.name)) {
+              throw new Error('undeclared identifier: ' + this.name);
+          }
+          return env.get(this.name);
+      }
+  }
+
+  class Motif {
+      constructor(values) {
+          this.values = values;
+      }
+
+      eval(env) {
+          return this;
+      }
+
+      toString() {
+          return '[' + this.values.map(value => value.toString()).join(', ') + ']';
+      }
+  }
+
+  class Pip {
+      constructor(step, timeScale = 1) {
+          this.step = step;
+          this.timeScale = timeScale;
+      }
+
+      mul(that) {
+          return new Pip(this.step + that.step, this.timeScale * that.timeScale);
+      }
+
+      expand(that) {
+          return new Pip(this.step * that.step, this.timeScale * that.timeScale);
+      }
+
+      toString() {
+          return this.timeScale !== 1
+              ? `${this.step}/${this.timeScale}`
+              : '' + this.step;
+      }
+  }
 
 function parse(input) {
   const matchResult = g.match(input);

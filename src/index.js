@@ -34,7 +34,7 @@ TODOs:
 
   * dot
 
-    [a, b, c] . [d, e] === [da, eb, dc]
+    [a, b, c] . [d, e] === [a + d, e + b, c + d]
 
 
   * repeat
@@ -45,7 +45,7 @@ TODOs:
     
     [a] * [0, 0, 0, 0] === [a, a, a, a] so it's just a sugar?   
 
-    could also be a way to avoid parens here: 
+    could also be a way to avoid needing parens here: 
 
     [b, c] * ([a] * [0, 0, 0, 0]) sugars to [b, c] * 4[a]
 
@@ -60,6 +60,14 @@ TODOs:
 
     maybe /-1 is R?   then /-2 is timescaling AND reversing? (so no need for the letter R, just divide by negative numbers)
 
+    [a, b, c] * [0 / -1] === [c, b, a]
+
+    [a, b, c] * [0 / 2] === [a / 2, b / 2, c / 2]
+
+    [a, b, c] * [1 / -1] === [c+1, b+1, a+1]
+
+    [a, b, c] * [1 / -4] === [c+1 / 4, b+1 / 4, a+1 / 4]
+
 
   * & for diads
 
@@ -72,11 +80,27 @@ TODOs:
     [a & b & c, 1] * [0, 1] == [a & b & c, 1, a+1 & b+1 & c+1, 2]
 
 
-  * x for ommision
+  * x for ommision - noop for mul BUT cool for dot
 
-    [a,b,c] * [e, x, g] === [a + e, g + c]
+    4[a, b] * [c, x] results in the same thing as  4[a, b] * [c]
 
-    [a, b] * [e, x, g] === [a+e, a+g, b+e]
+    4[a, b] . [x, d, e] == [xa, db, ea, xb, da, eb, xa, db] == [db, ea, da, eb, db]
+
+
+
+  * r for rest - ommision without splicing time
+
+      [a,b,c] * [e, r, g] === [a + e, b + e, c + e, r, r, r, a + g, b + g, c + g]
+
+      [a,b,c] . [e, r, g] === [a + e, r,  g + c]
+
+  * d for displacement (or delay) -  no ommision, inserting time
+
+      [a,b,c] * [e, d, g] === [a + e, b + e, c + e, r, a, r, b, r, c, a + g, b + h, c + g]
+
+      [a,b,c] . [e, d, g] === [a + e, r, b,  g + c]
+
+      [a,b,c] . [e, d / 2, g] === [a + e, r / 2, b,  g + c]
 
 
   ? for ranged random inclusive

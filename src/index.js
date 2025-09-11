@@ -91,7 +91,7 @@ TODOs:
 
 
 
-  * dot
+  * dot (tiled add)
 
     [a, b, c] . [d, e] === [a + d, e + b, c + d]
 
@@ -157,13 +157,13 @@ TODOs:
 
       [a,b,c] . [e, r, g] === [a + e, r,  g + c]
 
-  * d for displacement (or delay) -  no ommision, inserting time
+  * D for displacement (or delay) -  no ommision, inserting time  TODO -- how do we get simple offset.  delay / anticipation?
 
-      [a,b,c] * [e, d, g] === [a + e, b + e, c + e, r, a, r, b, r, c, a + g, b + h, c + g]
+      [a,b,c] * [e, D, g] === [a + e, b + e, c + e, r, a, r, b, r, c, a + g, b + h, c + g]
 
-      [a,b,c] . [e, d, g] === [a + e, r, b,  g + c]
+      [a,b,c] . [e, D, g] === [a + e, r, b,  g + c]
 
-      [a,b,c] . [e, d / 2, g] === [a + e, r / 2, b,  g + c]
+      [a,b,c] . [e, D / 2, g] === [a + e, r / 2, b,  g + c]
 
 
 
@@ -223,6 +223,11 @@ TODOs:
 
       B = [1, 2] * ([0, 1] * [3, 4, 5])
 
+      {?, +4} means random insk, duration 4 or {?-4, +4}  TBD
+
+
+
+
 
   * maybe curly bracket for slice rotate etc
 
@@ -253,6 +258,20 @@ TODOs:
     
 
 
+    * degrees
+
+    [i, iii, v] - chord elements in functional harmony (the i is the root of our current chord)  NOTE that these remain unreified throughout the parse and interp processes.   they remain iii, not abs pitch values.   so you end up in the flattened interp with things like iii - 2, 1,
+
+    scaffolding can be provided with chords or can be dynamically managed at playback time?
+
+    I, Iii, IV are scale degrees from regime tonic.   I8 means tonic at octave 8
+
+    [iv, 1,] * [0, 2] === [iv, 1,   iv + 2, 1 + 2 ]
+
+    spread is tricky — the roman numberals dont move during spread?   also [0, 1] ^ [iv] is invalid?    we could coerce iv to 3 (steps)
+
+
+
 
   * questions
 
@@ -260,6 +279,16 @@ TODOs:
     and watch for them in the evals
 
     "r" doesn't seem to work as expected when its in the second expression
+
+    there is a critical fork 
+
+    [0, 1] * [0, 3, 4, 0]    VS    [0, 1] * [0, 3, 1, -4]the motif 
+
+    in the second version, we must compute our OWN abs value by walking from the left edge of the motif.   THAT is what we add.  2nd version is correct
+
+    so a pip has a step, and the motif can assign a motifStep to each pip which is computed in a simple left to right way and the outermost motif grounds this in the actual tonic
+
+
 
 
 */

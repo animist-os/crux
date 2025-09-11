@@ -1,6 +1,37 @@
 
 
 
+  * questions
+
+    where are we on unifying pips and motifs?  I think we might need the separation for things like % and reverse
+
+    I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
+    and watch for them in the evals
+
+    "r" doesn't seem to work as expected when it.s in the second expression
+
+    using "*" and "/" for timescale is confusing and also prevents us from using simple maths in the step calculation.   maybe a ":" separator between step and timeScale
+
+
+
+    semicolons to represent left-to-right deltas within the motif?
+
+      [0; 1; 1; 1]   ===   [0, 1, 2, 3]
+      [0, 3, 4, 0]   ===   [0; 3; 1; -4]
+    
+
+    NOTE -- 2 questions -- could INSTEAD just have this
+
+        [0, >1, >1, >-2] === [0, 1, 2, 0] -- might be better so we can mix and match step types
+ 
+    is there value in 
+
+        [>1, 1] which means the first "1" is a delta from whatever step preceded it so that:
+
+        4[>1] === [0,1,2,3] -- this is HALF BAKED but handy
+
+
+
 TODOs:
 
 * understand time
@@ -291,31 +322,6 @@ TODOs:
 
 
 
-
-  * questions
-
-    I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
-    and watch for them in the evals
-
-    "r" doesn't seem to work as expected when its in the second expression
-
-
-
-    semicolons to represent left-to-right deltas within the motif?
-
-      [0; 1; 1; 1]   ===   [0, 1, 2, 3]
-      [0, 3, 4, 0]   ===   [0; 3; 1; -4]
-    
-
-    NOTE -- 2 questions -- could INSTEAD just have this
-
-        [0, >1, >1, >-2] === [0, 1, 2, 0]
- 
-    is there value in 
-
-        [>1, 1] which means the first "1" is a delta from whatever step preceded it so that:
-
-        4[>1] === [0,1,2,3] -- this is HALF BAKED but handy
 
 
   * Encoding Beethoven's 5th (mod duration, rotation operator, ditto vs rest)

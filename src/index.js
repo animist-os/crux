@@ -166,12 +166,15 @@ TODOs:
       [a,b,c] . [e, d / 2, g] === [a + e, r / 2, b,  g + c]
 
 
+
   ? for ranged random inclusive
 
     4[0, -1?1] ~= [0, 1, 0, -1, 0, -1, 0, 0]
 
 
   | for random choice
+
+     [1 | 2, 0] ~= [1, 0]
 
     4[0 | 1 | 2] ~= [2, 0, 1, 1]
     
@@ -180,7 +183,8 @@ TODOs:
 
   ... for serial choice inclusive
 
-    4[0..3] === [0, 1, 2, 3]
+    [0...3] === [0, 1, 2, 3]
+    2[4...6] === [4, 5, 6, 4, 5 6]
 
 
   * schenker ops
@@ -255,6 +259,8 @@ TODOs:
     I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
     and watch for them in the evals
 
+    "r" doesn't seem to work as expected when its in the second expression
+
 
 */
 
@@ -294,10 +300,24 @@ const g = ohm.grammar(String.raw`
       | PriExpr
   
     PriExpr
-      = ident                     -- ref
-      | "[" ListOf<Pip, ","> "]"  -- motif
-      | "(" Expr ")"              -- parens
+      = ident                          -- ref
+      | "[" ListOf<Value, ","> "]"  -- motif
+      | "(" Expr ")"                  -- parens
   
+    Value
+      = Choice
+
+    Choice
+      = Choice "|" SingleValue  -- alt
+      | SingleValue              -- single
+
+    SingleValue
+      = Range
+      | Pip
+
+    Range
+      = number ".." number      -- inclusive
+
     Pip
       = Special            -- special
       | number "/" number  -- timeScale
@@ -356,6 +376,21 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_motif(_openBracket, values, _closeBracket) {
     return new Motif(values.parse());
+  },
+  Choice_alt(left, _bar, right) {
+    return new Choice(left.parse(), right.parse());
+  },
+
+  Choice_single(value) {
+    return value.parse();
+  },
+
+  SingleValue(x) {
+    return x.parse();
+  },
+
+  Range_inclusive(start, _dots, end) {
+    return new Range(start.parse(), end.parse());
   },
 
   PriExpr_parens(_openParen, e, _closeParen) {
@@ -466,9 +501,9 @@ class Repeat {
     if (!Number.isFinite(countValue) || countValue < 0) {
       throw new Error('repeat count must be a non-negative finite number');
     }
-    const motif = requireMotif(this.expr.eval(env));
     const values = [];
     for (let i = 0; i < Math.trunc(countValue); i++) {
+      const motif = requireMotif(this.expr.eval(env));
       for (let v of motif.values) {
         values.push(v);
       }
@@ -548,13 +583,76 @@ class Ref {
   }
 }
 
+class Range {
+  constructor(start, end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  // expands to a sequence of integer steps inclusive
+  expandToPips() {
+    const result = [];
+    const start = this.start;
+    const end = this.end;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      throw new Error('range endpoints must be finite numbers');
+    }
+    const step = start <= end ? 1 : -1;
+    for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
+      result.push(new Pip(n, 1));
+    }
+    return result;
+  }
+}
+
+class Choice {
+  constructor(left, right) {
+    // flatten nested choices into a single array of options
+    const flatten = (node) => {
+      if (node instanceof Choice) return [...flatten(node.left), ...flatten(node.right)];
+      return [node];
+    };
+    this.options = [...flatten(left), ...flatten(right)];
+  }
+
+  pick() {
+    const flatOptions = this.options.map(opt => {
+      if (opt instanceof Range) {
+        // Expand range to all discrete integer pips, then pick from that expansion
+        return opt.expandToPips();
+      }
+      if (opt instanceof Pip) return [opt];
+      throw new Error('Unsupported choice option');
+    }).flat();
+
+    if (flatOptions.length === 0) {
+      throw new Error('empty choice');
+    }
+    const idx = Math.floor(Math.random() * flatOptions.length);
+    return flatOptions[idx];
+  }
+}
+
 class Motif {
   constructor(values) {
     this.values = values;
   }
 
   eval(env) {
-    return this;
+    const resolved = [];
+    for (const value of this.values) {
+      if (value instanceof Pip) {
+        resolved.push(value);
+      } else if (value instanceof Range) {
+        const pips = value.expandToPips();
+        for (const p of pips) resolved.push(p);
+      } else if (value instanceof Choice) {
+        resolved.push(value.pick());
+      } else {
+        throw new Error('Unsupported motif value: ' + String(value));
+      }
+    }
+    return new Motif(resolved);
   }
 
   toString() {

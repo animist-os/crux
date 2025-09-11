@@ -250,6 +250,11 @@ TODOs:
 
 
 
+  * questions
+
+    I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
+    and watch for them in the evals
+
 
 */
 
@@ -290,8 +295,16 @@ const g = ohm.grammar(String.raw`
       | "(" Expr ")"              -- parens
   
     Pip
-      = number "/" number  -- timeScale
+      = Special            -- special
+      | number "/" number  -- timeScale
       | number             -- noTimeScale
+
+    Special
+      = specialChar
+
+    specialChar
+      = letter
+      | "_"
   
     ident = alnum+
   
@@ -351,6 +364,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_noTimeScale(n) {
     return new Pip(n.parse(), 1);
+  },
+
+  Pip_special(sym) {
+    return new Pip(0, 1, sym.sourceString);
   },
 
   NonemptyListOf(x, _sep, xs) {
@@ -462,7 +479,19 @@ class Dot {
 
     for (let xi =0; xi < xv.values.length; xi++) {
       let yi = xi % yv.values.length;
-      values.push(xv.values[xi].mul(yv.values[yi]));
+      const left = xv.values[xi];
+      const right = yv.values[yi];
+      if (left.tag || right.tag) {
+        // Example branch for 'x': treat as omit-on-right or pass-through
+        if (left.hasTag && left.hasTag('x') || right.hasTag && right.hasTag('x')) {
+          values.push(left);
+          continue;
+        }
+        // Default behavior for unknown tags: pass-through left
+        values.push(left);
+        continue;
+      }
+      values.push(left.mul(right));
     }
     return new Motif(values);
   }
@@ -504,23 +533,31 @@ class Motif {
 }
 
 class Pip {
-  constructor(step, timeScale = 1) {
+  constructor(step, timeScale = 1, tag = null) {
     this.step = step;
     this.timeScale = timeScale;
+    this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
   }
 
   mul(that) {
-    return new Pip(this.step + that.step, this.timeScale * that.timeScale);
+    const combinedTag = this.tag ?? that.tag ?? null;
+    return new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   expand(that) {
-    return new Pip(this.step * that.step, this.timeScale * that.timeScale);
+    const combinedTag = this.tag ?? that.tag ?? null;
+    return new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   toString() {
+    const tag_str = this.tag ? `:${this.tag}` : '';
     return this.timeScale !== 1
-      ? `${this.step}/${this.timeScale}`
-      : '' + this.step;
+      ? tag_str + `${this.step}/${this.timeScale}`  
+      : tag_str + this.step;
+  }
+
+  hasTag(tag) {
+    return this.tag === tag;
   }
 }
 

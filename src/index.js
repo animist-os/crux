@@ -62,10 +62,13 @@ const g = ohm.grammar(String.raw`
       = number ".." number      -- inclusive
 
     Pip
-      = Special            -- special
-      | number "/" number  -- timeScaleDiv
-      | number "*" number  -- timeScaleMul
-      | number             -- noTimeScale
+      = Special               -- special
+      | number ":" TimeScale  -- withTimeScale
+      | number                -- noTimeScale
+
+    TimeScale
+      = number "/" number   -- frac
+      | number               -- plain
 
     Special
       = specialChar
@@ -161,20 +164,24 @@ const s = g.createSemantics().addOperation('parse', {
     return parseFloat(this.sourceString);
   },
 
-  Pip_timeScaleDiv(n, _slash, d) {
-    return new Pip(n.parse(), 1 / d.parse());
-  },
-
-  Pip_timeScaleMul(n, _star, d) {
-    return new Pip(n.parse(), d.parse());
-  },
-
   Pip_noTimeScale(n) {
     return new Pip(n.parse(), 1);
   },
 
   Pip_special(sym) {
     return new Pip(0, 1, sym.sourceString);
+  },
+
+  Pip_withTimeScale(n, _colon, ts) {
+    return new Pip(n.parse(), ts.parse());
+  },
+
+  TimeScale_frac(n, _slash, d) {
+    return n.parse() / d.parse();
+  },
+
+  TimeScale_plain(n) {
+    return n.parse();
   },
 
   NonemptyListOf(x, _sep, xs) {
@@ -349,13 +356,21 @@ function requireMotif(value) {
 // Example: [0; 1; 1; 1] -> [0, 1, 2, 3]
 function convertDeltaValuesToAbsolute(values) {
   let cumulativeStep = 0;
+  let inheritedTimeScale = null;
   const out = [];
-  for (const v of values) {
-    if (!(v instanceof Pip)) {
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (!(v instanceof Pip) || v.tag) {
       throw new Error('delta motif supports only simple numeric values');
     }
     cumulativeStep += v.step;
-    out.push(new Pip(cumulativeStep, v.timeScale, v.tag));
+    if (i === 0) {
+      inheritedTimeScale = v.timeScale;
+      out.push(new Pip(cumulativeStep, inheritedTimeScale, null));
+    } else {
+      const ts = v.timeScale !== 1 ? v.timeScale : inheritedTimeScale;
+      out.push(new Pip(cumulativeStep, ts, null));
+    }
   }
   return out;
 }
@@ -511,7 +526,7 @@ class Pip {
     const tag_str = this.tag ? `:${this.tag}` : '';
     const ts = Math.abs(this.timeScale);
     return ts !== 1
-      ? tag_str + `${this.step}/${ts}`  
+      ? tag_str + `${this.step}:${ts}`
       : tag_str + this.step;
   }
 
@@ -552,4 +567,6 @@ function interp(input) {
   console.log('\n... evaluates to ...\n');
   console.log(value.toString());
 }
+
+export { parse, interp };
 

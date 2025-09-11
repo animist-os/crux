@@ -4,5 +4,5 @@
 
 ohm-js@^17.2.1:
   version "17.2.1"
-  resolved "https://registry.yarnpkg.com/ohm-js/-/ohm-js-17.2.1.tgz#77d7d4910134c9e3c7a1b068a878499c68edf92f"
+  resolved "https://registry.npmjs.org/ohm-js/-/ohm-js-17.2.1.tgz"
   integrity sha512-4cXF0G09fAYU9z61kTfkNbKK1Kz/sGEZ5NbVWHoe9Qi7VB7y+Spwk051CpUTfUENdlIr+vt8tMV4/LosTE2cDQ==

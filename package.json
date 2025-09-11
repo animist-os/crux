@@ -2,7 +2,11 @@
   "name": "andy",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "ohm-js": "^17.2.1"
   }

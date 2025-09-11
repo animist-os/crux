@@ -284,9 +284,13 @@ const g = ohm.grammar(String.raw`
       | MulExpr
   
     MulExpr
-      = MulExpr "*" PriExpr  -- mul
-      | MulExpr "^" PriExpr  -- expand
-      | MulExpr "." PriExpr  -- dot
+      = MulExpr "*" RepeatExpr  -- mul
+      | MulExpr "^" RepeatExpr  -- expand
+      | MulExpr "." RepeatExpr  -- dot
+      | RepeatExpr
+
+    RepeatExpr
+      = number PriExpr  -- repeat
       | PriExpr
   
     PriExpr
@@ -340,6 +344,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
+  },
+
+  RepeatExpr_repeat(n, expr) {
+    return new Repeat(n.parse(), expr.parse());
   },
 
   PriExpr_ref(name) {
@@ -441,6 +449,28 @@ class Mul {
     for (let yi of yv.values) {
       for (let xi of xv.values) {
         values.push(xi.mul(yi));
+      }
+    }
+    return new Motif(values);
+  }
+}
+
+class Repeat {
+  constructor(count, expr) {
+    this.count = count;
+    this.expr = expr;
+  }
+
+  eval(env) {
+    const countValue = this.count;
+    if (!Number.isFinite(countValue) || countValue < 0) {
+      throw new Error('repeat count must be a non-negative finite number');
+    }
+    const motif = requireMotif(this.expr.eval(env));
+    const values = [];
+    for (let i = 0; i < Math.trunc(countValue); i++) {
+      for (let v of motif.values) {
+        values.push(v);
       }
     }
     return new Motif(values);

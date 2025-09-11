@@ -43,6 +43,10 @@ test('followed-by concat via comma between Expr', () => {
   assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });
 
+test('plus concat operator between Expr', () => {
+  assert.equal(evalToString('[0, 1] + [2, 3]'), '[0, 1, 2, 3]');
+});
+
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
   assert.equal(evalToString('[1, 2, 3] * [0:-1]'), '[3, 2, 1]');
 });

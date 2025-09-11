@@ -37,6 +37,8 @@
 
 TODOs:
 
+* REPAIR THIS  [0...2 : 1/4] === [0:1/4, 1:1/4, 2:1/4]
+
 * understand time
   - 1 is 8th note
   - .5 is qtr note

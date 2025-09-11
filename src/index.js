@@ -23,6 +23,7 @@ const g = ohm.grammar(String.raw`
   
     FollowedByExpr
       = FollowedByExpr "," MulExpr  -- fby
+      | FollowedByExpr "+" MulExpr  -- plus
       | MulExpr
   
     MulExpr
@@ -98,6 +99,10 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   FollowedByExpr_fby(x, _comma, y) {
+    return new FollowedBy(x.parse(), y.parse());
+  },
+
+  FollowedByExpr_plus(x, _plus, y) {
     return new FollowedBy(x.parse(), y.parse());
   },
 
@@ -523,7 +528,7 @@ class Pip {
   }
 
   toString() {
-    const tag_str = this.tag ? `:${this.tag}` : '';
+    const tag_str = this.tag ? `${this.tag}` : '';
     const ts = Math.abs(this.timeScale);
     return ts !== 1
       ? tag_str + `${this.step}:${ts}`

@@ -280,15 +280,32 @@ TODOs:
 
     "r" doesn't seem to work as expected when its in the second expression
 
-    there is a critical fork 
-
-    [0, 1] * [0, 3, 4, 0]    VS    [0, 1] * [0, 3, 1, -4]the motif 
-
-    in the second version, we must compute our OWN abs value by walking from the left edge of the motif.   THAT is what we add.  2nd version is correct
-
-    so a pip has a step, and the motif can assign a motifStep to each pip which is computed in a simple left to right way and the outermost motif grounds this in the actual tonic
 
 
+    semicolons to represent left-to-right deltas within the motif?
+
+      [0, 3, 4, 0]   ===   [0; 3; 1; -4]
+    
+
+
+
+  * Encoding Beethoven's 5th (mod duration, rotation operator, ditto vs rest)
+
+    to get beethoven's 5th to be more concise we could introduce duration modding for motifs, so they round up to nearest bar
+
+    [r, 0,0,0,-2, r, r, r] * [0, -1] * [3]
+
+    becomes
+
+    [r, 0,0,0,-2] * [0, -1] * [3]
+
+    more precise requires our rot
+
+    [0,0,0,-2] 3{} === [r, r, r, 0, 0, 0, -2] which pads to [r, r, r, 0, 0, 0, -2, ditto]
+    
+    so we get
+
+    [0,0,0,-2] 3{} * [0, -1] * [3]
 
 
 */

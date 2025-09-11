@@ -2,10 +2,6 @@ import * as ohm from 'ohm-js';
 
 
 
-
-
-
-
 const g = ohm.grammar(String.raw`
   Andy {
   
@@ -41,8 +37,15 @@ const g = ohm.grammar(String.raw`
   
     PriExpr
       = ident                          -- ref
-      | "[" ListOf<Value, ","> "]"  -- motif
+      | "[" MotifBody "]"            -- motif
       | "(" Expr ")"                  -- parens
+
+    MotifBody
+      = DeltaList                      -- delta
+      | ListOf<Value, ",">            -- absolute
+
+    DeltaList
+      = Value ";" ListOf<Value, ";">
   
     Value
       = Choice
@@ -115,8 +118,24 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
 
-  PriExpr_motif(_openBracket, values, _closeBracket) {
-    return new Motif(values.parse());
+  PriExpr_motif(_openBracket, body, _closeBracket) {
+    const parsed = body.parse();
+    if (parsed && parsed.kind === 'delta') {
+      return new Motif(convertDeltaValuesToAbsolute(parsed.values));
+    }
+    return new Motif(parsed.values);
+  },
+
+  MotifBody_absolute(values) {
+    return { kind: 'absolute', values: values.parse() };
+  },
+
+  MotifBody_delta(values) {
+    return { kind: 'delta', values: values.parse() };
+  },
+
+  DeltaList(first, _semi, rest) {
+    return [first.parse(), ...rest.parse()];
   },
   Choice_alt(left, _bar, right) {
     return new Choice(left.parse(), right.parse());
@@ -324,6 +343,21 @@ function requireMotif(value) {
     throw new Error('Motif required!');
   }
   return value;
+}
+
+// Convert a list of delta pips into absolute pips within a motif boundary.
+// Example: [0; 1; 1; 1] -> [0, 1, 2, 3]
+function convertDeltaValuesToAbsolute(values) {
+  let cumulativeStep = 0;
+  const out = [];
+  for (const v of values) {
+    if (!(v instanceof Pip)) {
+      throw new Error('delta motif supports only simple numeric values');
+    }
+    cumulativeStep += v.step;
+    out.push(new Pip(cumulativeStep, v.timeScale, v.tag));
+  }
+  return out;
 }
 
 // Deterministic RNG factory (xorshift32 over a hashed seed)

@@ -126,13 +126,6 @@ TODOs:
 
   * reverse
 
-    [a,b,c] * [R] === [c,b,a]
-
-    [a,b,c] * [0, R] === [a,b,c,c,b,a]
-
-    [a,b,c] * [0, R2] === [a,b,c,c+2, b+2, a+2]
-
-    maybe /-1 is R?   then /-2 is timescaling AND reversing? (so no need for the letter R, just divide by negative numbers)
 
     [a, b, c] * [0 / -1] === [c, b, a]
 
@@ -141,6 +134,21 @@ TODOs:
     [a, b, c] * [1 / -1] === [c+1, b+1, a+1]
 
     [a, b, c] * [1 / -4] === [c+1 / 4, b+1 / 4, a+1 / 4]
+
+* % padding
+
+    timeScale notation that pads to next boundary 
+        [0, r % 4] makes an r that pads out the 3 unit durs we need to make 4
+        [0, r, 1, %8] gives us [0,r,1,0,0,0,0]
+
+    does this % notaiton have any meaing when on the right side?
+
+
+    [0, 1] * [2 %4] ????
+
+    I guess the % COULD be sugar for whatever tiscale gets us to the padded end?
+
+
 
 
   * & for diads
@@ -295,9 +303,19 @@ TODOs:
 
     semicolons to represent left-to-right deltas within the motif?
 
+      [0; 1; 1; 1]   ===   [0, 1, 2, 3]
       [0, 3, 4, 0]   ===   [0; 3; 1; -4]
     
 
+    NOTE -- 2 questions -- could INSTEAD just have this
+
+        [0, >1, >1, >-2] === [0, 1, 2, 0]
+ 
+    is there value in 
+
+        [>1, 1] which means the first "1" is a delta from whatever step preceded it so that:
+
+        4[>1] === [0,1,2,3] -- this is HALF BAKED but handy
 
 
   * Encoding Beethoven's 5th (mod duration, rotation operator, ditto vs rest)

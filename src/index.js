@@ -266,6 +266,12 @@ TODOs:
 
 
 
+
+
+
+
+
+
 const g = ohm.grammar(String.raw`
   Andy {
   
@@ -504,6 +510,11 @@ class Repeat {
     const values = [];
     for (let i = 0; i < Math.trunc(countValue); i++) {
       const motif = requireMotif(this.expr.eval(env));
+      // If inner motif has a seeded RNG, carry it forward between iterations for deterministic sequences
+      if (motif._rng && typeof this.expr === 'object' && this.expr instanceof Motif) {
+        this.expr._rng = motif._rng;
+        this.expr.rng_seed = motif.rng_seed;
+      }
       for (let v of motif.values) {
         values.push(v);
       }
@@ -570,6 +581,30 @@ function requireMotif(value) {
   return value;
 }
 
+// Deterministic RNG factory (xorshift32 over a hashed seed)
+function createSeededRng(seed) {
+  let state = hashSeedTo32Bit(seed);
+  if (state === 0) state = 0x1; // avoid zero state
+  return function rng() {
+    // xorshift32
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    // Convert to [0,1)
+    return ((state >>> 0) / 0x100000000);
+  };
+}
+
+function hashSeedTo32Bit(seed) {
+  const s = String(seed);
+  let h = 2166136261 >>> 0; // FNV-1a 32-bit
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 class Ref {
   constructor(name) {
     this.name = name;
@@ -607,6 +642,8 @@ class Range {
 
 class Choice {
   constructor(left, right) {
+    this.left = left;
+    this.right = right;
     // flatten nested choices into a single array of options
     const flatten = (node) => {
       if (node instanceof Choice) return [...flatten(node.left), ...flatten(node.right)];
@@ -615,7 +652,7 @@ class Choice {
     this.options = [...flatten(left), ...flatten(right)];
   }
 
-  pick() {
+  pick(rng = Math.random) {
     const flatOptions = this.options.map(opt => {
       if (opt instanceof Range) {
         // Expand range to all discrete integer pips, then pick from that expansion
@@ -628,18 +665,28 @@ class Choice {
     if (flatOptions.length === 0) {
       throw new Error('empty choice');
     }
-    const idx = Math.floor(Math.random() * flatOptions.length);
+    const idx = Math.floor(rng() * flatOptions.length);
     return flatOptions[idx];
   }
 }
 
 class Motif {
-  constructor(values) {
+  constructor(values, rng_seed = null) {
     this.values = values;
+    // Deterministic RNG seed (number|string|null). If null, use Math.random.
+    this.rng_seed = rng_seed;
+    this._rng = null; // lazily initialized RNG function when seed provided
   }
 
   eval(env) {
     const resolved = [];
+    // Determine RNG
+    const seed = this.rng_seed;
+    if (seed != null && this._rng == null) {
+      this._rng = createSeededRng(seed);
+    }
+    const rng = this._rng || Math.random;
+
     for (const value of this.values) {
       if (value instanceof Pip) {
         resolved.push(value);
@@ -647,12 +694,16 @@ class Motif {
         const pips = value.expandToPips();
         for (const p of pips) resolved.push(p);
       } else if (value instanceof Choice) {
-        resolved.push(value.pick());
+        resolved.push(value.pick(rng));
       } else {
         throw new Error('Unsupported motif value: ' + String(value));
       }
     }
-    return new Motif(resolved);
+    // Preserve RNG state if this motif will be evaluated again (e.g., inside repeats)
+    const out = new Motif(resolved);
+    out.rng_seed = this.rng_seed;
+    out._rng = this._rng;
+    return out;
   }
 
   toString() {
@@ -688,6 +739,16 @@ class Pip {
     return this.tag === tag;
   }
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

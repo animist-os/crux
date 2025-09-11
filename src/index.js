@@ -227,8 +227,11 @@ class Mul {
     const yv = requireMotif(this.y.eval(env));
     const values = [];
     for (let yi of yv.values) {
-      for (let xi of xv.values) {
-        values.push(xi.mul(yi));
+      const reverse = yi.timeScale < 0;
+      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const source = reverse ? [...xv.values].reverse() : xv.values;
+      for (let xi of source) {
+        values.push(xi.mul(absYi));
       }
     }
     return new Motif(values);
@@ -273,8 +276,11 @@ class Expand {
     const yv = requireMotif(this.y.eval(env));
     const values = [];
     for (let yi of yv.values) {
-      for (let xi of xv.values) {
-        values.push(xi.expand(yi));
+      const reverse = yi.timeScale < 0;
+      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const source = reverse ? [...xv.values].reverse() : xv.values;
+      for (let xi of source) {
+        values.push(xi.expand(absYi));
       }
     }
     return new Motif(values);
@@ -469,8 +475,9 @@ class Pip {
 
   toString() {
     const tag_str = this.tag ? `:${this.tag}` : '';
-    return this.timeScale !== 1
-      ? tag_str + `${this.step}/${this.timeScale}`  
+    const ts = Math.abs(this.timeScale);
+    return ts !== 1
+      ? tag_str + `${this.step}/${ts}`  
       : tag_str + this.step;
   }
 

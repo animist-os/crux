@@ -83,4 +83,21 @@ test('mixed: delta, range, colon timescale together', () => {
   assert.equal(evalToString('([0...2]), [0; 1; -2], [3:2]'), '[0, 1, 2, 0, 1, -1, 3:2]');
 });
 
+// Segment (slice/rotate) tests
+test('segment: slice with negative start and end', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] {-3,-1}'), '[2, 3]');
+});
+
+test('segment: slice with start only to end', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] {1,}'), '[1, 2, 3, 4]');
+});
+
+test('segment: rotate only (right by 1)', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] 1{}'), '[4, 0, 1, 2, 3]');
+});
+
+test('segment: rotate left by 1 after slicing off first 2', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] -1{2}'), '[3, 4, 2]');
+});
+
 

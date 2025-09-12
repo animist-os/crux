@@ -33,13 +33,30 @@ const g = ohm.grammar(String.raw`
       | RepeatExpr
 
     RepeatExpr
-      = number PriExpr  -- repeat
+      = number PostfixExpr  -- repeat
+      | PostfixExpr
+
+    PostfixExpr
+      = PostfixExpr Segment  -- segment
       | PriExpr
   
     PriExpr
       = ident                          -- ref
       | "[" MotifBody "]"            -- motif
       | "(" Expr ")"                  -- parens
+
+    Segment
+      = number "{" SliceSpec "}"  -- withRot
+      | "{" SliceSpec "}"         -- noRot
+
+    SliceSpec
+      = Index "," Index                 -- both
+      | Index ","                       -- startOnlyComma
+      | "," Index                       -- endOnly
+      | Index                            -- startOnly
+      |                                   -- empty
+
+    Index = number
 
     MotifBody
       = DeltaList                      -- delta
@@ -122,6 +139,12 @@ const s = g.createSemantics().addOperation('parse', {
     return new Repeat(n.parse(), expr.parse());
   },
 
+  PostfixExpr_segment(x, seg) {
+    const base = x.parse();
+    const spec = seg.parse();
+    return new SegmentTransform(base, spec.rotation, spec.start, spec.end);
+  },
+
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
   },
@@ -163,6 +186,34 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_parens(_openParen, e, _closeParen) {
     return e.parse();
+  },
+
+  Segment_withRot(rot, _open, spec, _close) {
+    return { rotation: rot.parse(), ...spec.parse() };
+  },
+
+  Segment_noRot(_open, spec, _close) {
+    return { rotation: 0, ...spec.parse() };
+  },
+
+  SliceSpec_startOnlyComma(start, _comma) {
+    return { start: start.parse(), end: null };
+  },
+
+  SliceSpec_endOnly(_comma, end) {
+    return { start: null, end: end.parse() };
+  },
+
+  SliceSpec_both(start, _comma, end) {
+    return { start: start.parse(), end: end.parse() };
+  },
+
+  SliceSpec_startOnly(start) {
+    return { start: start.parse(), end: null };
+  },
+
+  SliceSpec_empty() {
+    return { start: null, end: null };
   },
 
   number(_sign, _wholeDigits, _point, _fracDigits) {
@@ -528,15 +579,55 @@ class Pip {
   }
 
   toString() {
-    const tag_str = this.tag ? `${this.tag}` : '';
+    const tag_str = this.tag ? `:${this.tag}` : '';
     const ts = Math.abs(this.timeScale);
     return ts !== 1
-      ? tag_str + `${this.step}:${ts}`
-      : tag_str + this.step;
+      ? `${tag_str}${this.step}:${ts}`
+      : `${tag_str}${this.step}`;
   }
 
   hasTag(tag) {
     return this.tag === tag;
+  }
+}
+
+class SegmentTransform {
+  constructor(expr, rotation = 0, start = null, end = null) {
+    this.expr = expr;
+    this.rotation = rotation || 0;
+    this.start = start;
+    this.end = end;
+  }
+
+  eval(env) {
+    const motif = requireMotif(this.expr.eval(env));
+    const values = motif.values.slice();
+    const n = values.length;
+    if (n === 0) return new Motif([]);
+
+    // Normalize indices: allow negative indices to count from end
+    const normIndex = (idx, defaultValue) => {
+      if (idx == null) return defaultValue;
+      let k = Math.trunc(idx);
+      if (k < 0) k = n + k; // -1 => n-1
+      return Math.max(0, Math.min(n, k));
+    };
+
+    const s = normIndex(this.start, 0);
+    const e = normIndex(this.end, n);
+
+    // Slice: default is [0,n)
+    let sliced = values.slice(s, e);
+
+    // Rotate: positive rotates right, negative rotates left
+    let r = Math.trunc(this.rotation || 0);
+    if (sliced.length === 0 || r === 0) {
+      return new Motif(sliced);
+    }
+    r %= sliced.length;
+    if (r < 0) r += sliced.length;
+    const rotated = sliced.slice(-r).concat(sliced.slice(0, -r));
+    return new Motif(rotated);
   }
 }
 

@@ -30,6 +30,7 @@ const g = ohm.grammar(String.raw`
       = MulExpr "*" RepeatExpr  -- mul
       | MulExpr "^" RepeatExpr  -- expand
       | MulExpr "." RepeatExpr  -- dot
+      | MulExpr "~" RepeatExpr  -- rotate
       | RepeatExpr
 
     RepeatExpr
@@ -46,8 +47,7 @@ const g = ohm.grammar(String.raw`
       | "(" Expr ")"                  -- parens
 
     Segment
-      = number "{" SliceSpec "}"  -- withRot
-      | "{" SliceSpec "}"         -- noRot
+      = "{" SliceSpec "}"         -- noRot
 
     SliceSpec
       = Index "," Index                 -- both
@@ -146,6 +146,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new Dot(x.parse(), y.parse());
   },
 
+  MulExpr_rotate(x, _tilde, y) {
+    return new RotateOp(x.parse(), y.parse());
+  },
+
   RepeatExpr_repeat(n, _h1, _colon, _h2, expr) {
     return new Repeat(n.parse(), expr.parse());
   },
@@ -153,7 +157,7 @@ const s = g.createSemantics().addOperation('parse', {
   PostfixExpr_segment(x, seg) {
     const base = x.parse();
     const spec = seg.parse();
-    return new SegmentTransform(base, spec.rotation, spec.start, spec.end);
+    return new SegmentTransform(base, 0, spec.start, spec.end);
   },
 
   PriExpr_ref(name) {
@@ -188,12 +192,8 @@ const s = g.createSemantics().addOperation('parse', {
     return e.parse();
   },
 
-  Segment_withRot(rot, _open, spec, _close) {
-    return { rotation: rot.parse(), ...spec.parse() };
-  },
-
   Segment_noRot(_open, spec, _close) {
-    return { rotation: 0, ...spec.parse() };
+    return { start: spec.parse().start, end: spec.parse().end };
   },
 
   SliceSpec_startOnlyComma(start, _comma) {
@@ -405,6 +405,31 @@ class Dot {
       values.push(left.mul(right));
     }
     return new Motif(values);
+  }
+}
+
+class RotateOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMotif(this.x.eval(env));
+    const right = requireMotif(this.y.eval(env));
+    const out = [];
+    for (const r of right.values) {
+      const k = Math.trunc(r.step);
+      if (left.values.length === 0) {
+        continue;
+      }
+      const n = left.values.length;
+      // Rotate left by k (positive k => left, negative k => right)
+      let rot = ((-k % n) + n) % n; // convert to equivalent rotate-right amount
+      const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
+      for (const v of rotated) out.push(v);
+    }
+    return new Motif(out);
   }
 }
 

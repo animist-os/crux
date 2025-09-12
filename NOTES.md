@@ -364,8 +364,7 @@ TODOs:
 
 TODO:
 
-8 [] become 8 :[]
-
+diads / extra voices
 [0, -1 & 1 * 3, -2 & 0]
 
 this should do the right thing:

@@ -102,12 +102,9 @@ test('segment: slice with start only to end', () => {
   assert.equal(evalToString('[0, 1, 2, 3, 4] {1,}'), '[1, 2, 3, 4]');
 });
 
-test('segment: rotate only (right by 1)', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] 1{}'), '[4, 0, 1, 2, 3]');
-});
-
-test('segment: rotate left by 1 after slicing off first 2', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] -1{2}'), '[3, 4, 2]');
+test('rotate operator ~ applies right rotations per right motif', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] ~ [-1]'), '[3, 0, 1, 2]');
+  assert.equal(evalToString('[0, 1, 2, 3] ~ [1, 2]'), '[1, 2, 3, 0, 2, 3, 0, 1]');
 });
 
 

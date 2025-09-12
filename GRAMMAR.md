@@ -39,15 +39,13 @@ Notes:
 
 In decreasing precedence (tighter binds higher):
 
-1) **Postfix segment**: slicing and rotation applied to a motif result.
+1) **Postfix segment**: slicing applied to a motif result.
    - Forms:
      - `{start,end}`
      - `{start,}` (start to end)
      - `{,end}` (from start to end index)
      - `{start}` (single index to end)
      - `{}` (no slice)
-     - Optional rotation immediately before `{}`: `r{...}`
-       - Positive rotates right; negative rotates left.
    - Indices are numbers; negative indices count from end. End is exclusive.
    - Examples:
 ```text
@@ -73,6 +71,9 @@ In decreasing precedence (tighter binds higher):
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
    - `.` dot (tiled pairwise):
      - Pair each left value with the corresponding value from the right, tiling the right as needed.
+   - `~` rotate:
+     - For each value k in the right motif, rotate the left motif left by k (negative k rotates right), appending results in order.
+     - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
      - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
      - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
      - Example: `[0, 1, 2] . [10, 20] -> [10, 21, 12]`.
@@ -140,8 +141,9 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 // Slicing and rotation
 [0, 1, 2, 3, 4] {-3,-1}      -> [2, 3]
 [0, 1, 2, 3, 4] {1,}         -> [1, 2, 3, 4]
-[0, 1, 2, 3, 4] 1{}          -> [4, 0, 1, 2, 3]
-[0, 1, 2, 3, 4] -1{2}        -> [3, 4, 2]
+// Rotation is via ~ operator
+[0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
+[0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
 ```
 
 ### Ohm-JS grammar (reference)
@@ -163,6 +165,7 @@ Andy {
   MulExpr     = MulExpr "*" RepeatExpr
               | MulExpr "^" RepeatExpr
               | MulExpr "." RepeatExpr
+              | MulExpr "~" RepeatExpr
               | RepeatExpr
 
   RepeatExpr  = number ":" PostfixExpr  -- repeat
@@ -175,8 +178,7 @@ Andy {
               | "[" MotifBody "]"  -- motif
               | "(" Expr ")"      -- parens
 
-  Segment     = number "{" SliceSpec "}"  -- withRot
-              | "{" SliceSpec "}"         -- noRot
+  Segment     = "{" SliceSpec "}"
 
   SliceSpec   = Index "," Index
               | Index ","

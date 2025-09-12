@@ -1,7 +1,66 @@
 
 
+We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down.  You can zoom out from the note level, to tiny figures, to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
+
+
 
   * questions
+
+  SEGMENTATION
+
+
+ maybe curly bracket for slice rotate etc
+
+    [a, b, c, d, e] {-3,-1} === [c, d, e]
+    [a, b, c, d, e] {1,} === [b, c, d, e]
+    [a, b, c, d, e] 1{} === [e, a, b, c, d]
+    [a, b, c, d, e] -1{2} === [d, e, c] chop off first 2 then rotate left 1
+
+    think about a way for this to "lens" through live mutations, instead of simply repeating
+    A = [a, b, c, d] -1{1,} ===  [c, d, b]
+    4A === [c, d, b, c, d, b, c, d, b, c, d, b]  
+
+    BUT
+
+    how could we let the rotation keep happening on each iteration of the outer 4 operator to get the more musically interesting
+
+        4$A === [c, d, b,  d, b, c,  b, c, d,  c, d, b]
+
+      instead of
+
+        4A === [c, d, b,  c, d, b,  c, d, b,  c, d, b]  
+
+
+    some ops could recompute each iteration, how to determine which ones you want?
+    maybe left assigning to a variable "freezes" it, otherwise it always recomputes, but the the reductive bracket operators might need to be an exception
+
+    4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
+    
+      {?, +4} means random insk, duration 4 or {?-4, +4}  TBD
+
+
+  POLYPHONY
+
+    how do we get to polyphony?   to be pure about this, all voices should derive from an Ur voice.
+
+      1) develop the idea of a "voice" which is like Program?
+      2) If we name voices, we can have notation to track them
+          really?   would have to render them, then express them as a flattened array, then match somehow to our slots...which might be a many to one mapping so not really useful?
+
+      Any place in the structure where we leave wiggle room, we brute force all options and choose the one with the best leaf-level harmonic score
+
+
+    ALT
+
+      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus note at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render
+
+      by default, all pips have a "i", but they can be spcificially overriden by their motif.  how do we handle multiple nested motifs with different degrees?  we COULD just add them like ints, this might work...
+
+    how can we express a "walking window" through a motif?   this should be part of the {} slicing and rotating operators
+
+    "r" and "x" are working but may not be right.    seems like if we had a displacement idea, carried alongside timeScale, they both get applied at the same lazy point of note-rendering and neither chages the linear relationships (except negative timescale but even then linearity is preserved)
+
+    think about tension and release, and the idea that displacements must be "paid back" conceptually if not structurally.
 
     where are we on unifying pips and motifs?  I think we might need the separation for things like % and reverse
 
@@ -9,9 +68,6 @@
     and watch for them in the evals
 
     "r" doesn't seem to work as expected when it.s in the second expression
-
-    using "*" and "/" for timescale is confusing and also prevents us from using simple maths in the step calculation.   maybe a ":" separator between step and timeScale
-
 
 
     semicolons to represent left-to-right deltas within the motif?
@@ -29,6 +85,10 @@
         [>1, 1] which means the first "1" is a delta from whatever step preceded it so that:
 
         4[>1] === [0,1,2,3] -- this is HALF BAKED but handy
+        A = 4[>1]
+        A A === [0,1,2,3,4,5,6,7]
+
+
 
 
 
@@ -278,39 +338,8 @@ TODOs:
 
       B = [1, 2] * ([0, 1] * [3, 4, 5])
 
-      {?, +4} means random insk, duration 4 or {?-4, +4}  TBD
 
 
-
-
-
-  * maybe curly bracket for slice rotate etc
-
-    [a, b, c, d, e] {-3,-1} === [c, d, e]
-    [a, b, c, d, e] {1,} === [b, c, d, e]
-    [a, b, c, d, e] 1{} === [e, a, b, c, d]
-    [a, b, c, d, e] -1{2} === [d, e, c] chop off first 2 then rotate left 1
-
-    think about a way for this to "lens" through live mutations, instead of simply repeating
-    A = [a, b, c, d] -1{1,} ===  [c, d, b]
-    4A === [c, d, b, c, d, b, c, d, b, c, d, b]  
-
-    BUT
-
-    how could we let the rotation keep happening on each iteration of the outer 4 operator to get the more musically interesting
-
-        4$A === [c, d, b,  d, b, c,  b, c, d,  c, d, b]
-
-      instead of
-
-        4A === [c, d, b,  c, d, b,  c, d, b,  c, d, b]  
-
-
-    some ops could recompute each iteration, how to determine which ones you want?
-    maybe left assigning to a variable "freezes" it, otherwise it always recomputes, but the the reductive bracket operators might need to be an exception
-
-    4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
-    
 
 
     * degrees

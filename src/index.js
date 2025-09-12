@@ -394,8 +394,16 @@ class Dot {
       const right = yv.values[yi];
       if ((left.tag || right.tag) && !(left instanceof DegreePip) && !(right instanceof DegreePip)) {
         // Example branch for 'x': treat as omit-on-right or pass-through
-        if (left.hasTag && left.hasTag('x') || right.hasTag && right.hasTag('x')) {
+        if (left.hasTag && left.hasTag('x')) {
           values.push(left);
+          continue;
+        } else if (right.hasTag && right.hasTag('x')) {
+          // omit
+          continue;
+        }
+        // funky buit sensible for Dot operation with rests on either side?
+        if(left.hasTag('r') || right.hasTag('r')) {
+          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
         // Default behavior for unknown tags: pass-through left

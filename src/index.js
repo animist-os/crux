@@ -33,7 +33,7 @@ const g = ohm.grammar(String.raw`
       | RepeatExpr
 
     RepeatExpr
-      = number PostfixExpr  -- repeat
+      = number hspaces? ":" hspaces? PostfixExpr  -- repeat
       | PostfixExpr
 
     PostfixExpr
@@ -59,11 +59,7 @@ const g = ohm.grammar(String.raw`
     Index = sign? digit+
 
     MotifBody
-      = DeltaList                      -- delta
-      | ListOf<Value, ",">            -- absolute
-
-    DeltaList
-      = Value ";" ListOf<Value, ";">
+      = ListOf<Value, ",">            -- absolute
   
     Value
       = Choice
@@ -77,11 +73,11 @@ const g = ohm.grammar(String.raw`
       | Pip
 
     Range
-      = number ".." number      -- inclusive
+      = number "->" number      -- inclusive
 
     Pip
       = roman                 -- degree
-      | number ":" TimeScale  -- withTimeScale
+      | number "_" TimeScale  -- withTimeScale
       | number                -- noTimeScale
       | Special               -- special
 
@@ -150,7 +146,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Dot(x.parse(), y.parse());
   },
 
-  RepeatExpr_repeat(n, expr) {
+  RepeatExpr_repeat(n, _h1, _colon, _h2, expr) {
     return new Repeat(n.parse(), expr.parse());
   },
 
@@ -166,22 +162,11 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_motif(_openBracket, body, _closeBracket) {
     const parsed = body.parse();
-    if (parsed && parsed.kind === 'delta') {
-      return new Motif(convertDeltaValuesToAbsolute(parsed.values));
-    }
     return new Motif(parsed.values);
   },
 
   MotifBody_absolute(values) {
     return { kind: 'absolute', values: values.parse() };
-  },
-
-  MotifBody_delta(values) {
-    return { kind: 'delta', values: values.parse() };
-  },
-
-  DeltaList(first, _semi, rest) {
-    return [first.parse(), ...rest.parse()];
   },
   Choice_alt(left, _bar, right) {
     return new Choice(left.parse(), right.parse());
@@ -247,7 +232,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(0, 1, sym.sourceString);
   },
 
-  Pip_withTimeScale(n, _colon, ts) {
+  Pip_withTimeScale(n, _uscore, ts) {
     return new Pip(n.parse(), ts.parse());
   },
 
@@ -431,28 +416,7 @@ function requireMotif(value) {
   return value;
 }
 
-// Convert a list of delta pips into absolute pips within a motif boundary.
-// Example: [0; 1; 1; 1] -> [0, 1, 2, 3]
-function convertDeltaValuesToAbsolute(values) {
-  let cumulativeStep = 0;
-  let inheritedTimeScale = null;
-  const out = [];
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (!(v instanceof Pip) || v.tag) {
-      throw new Error('delta motif supports only simple numeric values');
-    }
-    cumulativeStep += v.step;
-    if (i === 0) {
-      inheritedTimeScale = v.timeScale;
-      out.push(new Pip(cumulativeStep, inheritedTimeScale, null));
-    } else {
-      const ts = v.timeScale !== 1 ? v.timeScale : inheritedTimeScale;
-      out.push(new Pip(cumulativeStep, ts, null));
-    }
-  }
-  return out;
-}
+// (delta conversion removed; semicolons have no meaning)
 
 // Deterministic RNG factory (xorshift32 over a hashed seed)
 function createSeededRng(seed) {
@@ -613,7 +577,7 @@ class Pip {
     const tag_str = this.tag ? `:${this.tag}` : '';
     const ts = Math.abs(this.timeScale);
     return ts !== 1
-      ? `${tag_str}${this.step}:${ts}`
+      ? `${tag_str}${this.step}_${ts}`
       : `${tag_str}${this.step}`;
   }
 

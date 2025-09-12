@@ -18,11 +18,7 @@ Evaluates to `[0, 1, 2]`.
 
 ### Motifs and values
 
-- **Motif**: square-bracket list of values: `[Value, Value, ...]`
-  - Absolute list (comma-separated): `[0, 1, 2]`
-  - Delta list (semicolon-separated): `[0; 1; 1; -2]`
-    - Deltas accumulate left-to-right. Example: `[0; 1; 1; -2] -> [0, 1, 2, 0]`.
-    - The first value’s timeScale is inherited by subsequent values if they do not specify one.
+- **Motif**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Value** can be:
   - **Pip**: `number` or `number:TimeScale` or a special tag.
     - `number` is the step (may be integer or float).
@@ -37,7 +33,7 @@ Evaluates to `[0, 1, 2]`.
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
-- Within a delta motif, only simple numeric pips are allowed (no tags or ranges).
+ 
 
 ### Operators (left to right unless grouped)
 
@@ -61,9 +57,9 @@ In decreasing precedence (tighter binds higher):
 [0, 1, 2, 3, 4] -1{2}     -> [3, 4, 2]
 ```
 
-2) **Repeat**: `N Expr` repeats a motif `N` times (N must be a non-negative finite number).
+2) **Repeat**: `N : Expr` repeats a motif `N` times (N must be a non-negative finite number).
 ```text
-3[1] -> [1, 1, 1]
+3:[1] -> [1, 1, 1]
 ```
 
 3) **Combine pairs of motifs**:
@@ -117,11 +113,8 @@ From highest to lowest:
 // Absolute list
 [0, 1, 2, 3]                 -> [0, 1, 2, 3]
 
-// Delta list with inherited timeScale
-[0:2; 1; 1]                  -> [0:2, 1:2, 2:2]
-
-// Range and delta together
-([0..2]), [0; 1; -2], [3:2]  -> [0, 1, 2, 0, 1, -1, 3:2]
+// Range example
+([0..2]), [3:2]              -> [0, 1, 2, 3:2]
 
 // Choices (result varies)
 [0 | 1 | 2]                  -> one of [0], [1], [2]
@@ -172,7 +165,7 @@ Andy {
               | MulExpr "." RepeatExpr
               | RepeatExpr
 
-  RepeatExpr  = number PostfixExpr  -- repeat
+  RepeatExpr  = number ":" PostfixExpr  -- repeat
               | PostfixExpr
 
   PostfixExpr = PostfixExpr Segment  -- segment
@@ -193,10 +186,7 @@ Andy {
 
   Index       = sign? digit+
 
-  MotifBody   = DeltaList
-              | ListOf<Value, ",">
-
-  DeltaList   = Value ";" ListOf<Value, ";">
+  MotifBody   = ListOf<Value, ",">
 
   Value       = Choice
   Choice      = Choice "|" SingleValue  -- alt

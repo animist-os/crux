@@ -1,5 +1,6 @@
 
 
+
 We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down musical structures.  You can zoom out from the note level, to tiny figures, to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
 
 
@@ -359,6 +360,24 @@ TODOs:
 
     [0,0,0,-2] 3{} * [0, -1] * [3]
 
+
+
+TODO:
+
+8 [] become 8 :[]
+
+[0, -1 & 1 * 3, -2 & 0]
+
+this should do the right thing:
+
+A = 4 [0,1,2,3]
+A . [0,r,1]
+
+rotate is ~ [0,1,2,3] ~ [1]
+
+two flavors of dot, * and ^ (currently we have implemented *
+
+think about | vs ? to solve dealer’s choice at ffirst vs random
 
 
 

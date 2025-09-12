@@ -43,8 +43,8 @@ test('followed-by concat via comma between Expr', () => {
   assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });
 
-test('plus concat operator between Expr', () => {
-  assert.equal(evalToString('[0, 1] + [2, 3]'), '[0, 1, 2, 3]');
+test('juxtaposition concat between Expr', () => {
+  assert.equal(evalToString('[0, 1] [2, 3]'), '[0, 1, 2, 3]');
 });
 
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
@@ -68,6 +68,11 @@ test('assignment and reference', () => {
   assert.equal(evalToString(program), '[0, 1, 2]');
 });
 
+test('assignment then later expression with juxtaposition disabled across newline', () => {
+  const program = 'A = [0, 1]\nA * A';
+  assert.equal(evalToString(program), '[0, 1, 1, 2]');
+});
+
 test('choice picks one of the options', () => {
   const out = evalToString('[0 | 1 | 2]');
   // Should be a single element motif with one of 0,1,2
@@ -76,6 +81,20 @@ test('choice picks one of the options', () => {
 
 test('special symbols stringify with tag prefix', () => {
   assert.equal(evalToString('[_]'), '[:_0]');
+});
+
+test('roman degrees parse and stringify', () => {
+  const out = evalToString('[i, ii, iii, iv, v, vi, vii]');
+  // stringify as roman tokens (degree pips)
+  assert.equal(out, '[i, ii, iii, iv, v, vi, vii]');
+});
+
+test('degree add via * with numeric', () => {
+  assert.equal(evalToString('[i, ii] * [1]'), '[ii, iii]');
+});
+
+test('degree mul via ^ with numeric', () => {
+  assert.equal(evalToString('[ii] ^ [2]'), '[iv]');
 });
 
 test('mixed: delta, range, colon timescale together', () => {

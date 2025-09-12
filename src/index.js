@@ -22,8 +22,8 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
   
     FollowedByExpr
-      = FollowedByExpr "," MulExpr  -- fby
-      | FollowedByExpr "+" MulExpr  -- plus
+      = FollowedByExpr "," MulExpr   -- fby
+      | FollowedByExpr hspaces MulExpr  -- juxt
       | MulExpr
   
     MulExpr
@@ -56,7 +56,7 @@ const g = ohm.grammar(String.raw`
       | Index                            -- startOnly
       |                                   -- empty
 
-    Index = number
+    Index = sign? digit+
 
     MotifBody
       = DeltaList                      -- delta
@@ -80,9 +80,10 @@ const g = ohm.grammar(String.raw`
       = number ".." number      -- inclusive
 
     Pip
-      = Special               -- special
+      = roman                 -- degree
       | number ":" TimeScale  -- withTimeScale
       | number                -- noTimeScale
+      | Special               -- special
 
     TimeScale
       = number "/" number   -- frac
@@ -95,13 +96,25 @@ const g = ohm.grammar(String.raw`
       = letter
       | "_"
   
-    ident = alnum+
+    roman
+      = "vii"
+      | "iii"
+      | "vi"
+      | "iv"
+      | "ii"
+      | "v"
+      | "i"
+  
+    ident = (letter | "_") alnum*
   
     number
       = sign? digit+ ("." digit*)?
       | sign? digit* "." digit+
   
     sign = "+" | "-"
+  
+    hspace = " " | "\t"
+    hspaces = hspace+
   
   }
   `);
@@ -119,9 +132,11 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
-  FollowedByExpr_plus(x, _plus, y) {
+  FollowedByExpr_juxt(x, _hspaces, y) {
     return new FollowedBy(x.parse(), y.parse());
   },
+
+  // plus variant removed from grammar; keep here if needed for backward compatibility
 
   MulExpr_mul(x, _times, y) {
     return new Mul(x.parse(), y.parse());
@@ -216,6 +231,10 @@ const s = g.createSemantics().addOperation('parse', {
     return { start: null, end: null };
   },
 
+  Index(_sign, _digits) {
+    return parseInt(this.sourceString, 10);
+  },
+
   number(_sign, _wholeDigits, _point, _fracDigits) {
     return parseFloat(this.sourceString);
   },
@@ -230,6 +249,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_withTimeScale(n, _colon, ts) {
     return new Pip(n.parse(), ts.parse());
+  },
+
+  Pip_degree(sym) {
+    return new DegreePip(romanToIndex(sym.sourceString), 1);
   },
 
   TimeScale_frac(n, _slash, d) {
@@ -384,7 +407,7 @@ class Dot {
       let yi = xi % yv.values.length;
       const left = xv.values[xi];
       const right = yv.values[yi];
-      if (left.tag || right.tag) {
+      if ((left.tag || right.tag) && !(left instanceof DegreePip) && !(right instanceof DegreePip)) {
         // Example branch for 'x': treat as omit-on-right or pass-through
         if (left.hasTag && left.hasTag('x') || right.hasTag && right.hasTag('x')) {
           values.push(left);
@@ -508,7 +531,7 @@ class Choice {
         // Expand range to all discrete integer pips, then pick from that expansion
         return opt.expandToPips();
       }
-      if (opt instanceof Pip) return [opt];
+      if (opt instanceof Pip || opt instanceof DegreePip) return [opt];
       throw new Error('Unsupported choice option');
     }).flat();
 
@@ -538,7 +561,7 @@ class Motif {
     const rng = this._rng || Math.random;
 
     for (const value of this.values) {
-      if (value instanceof Pip) {
+      if (value instanceof Pip || value instanceof DegreePip) {
         resolved.push(value);
       } else if (value instanceof Range) {
         const pips = value.expandToPips();
@@ -569,11 +592,19 @@ class Pip {
   }
 
   mul(that) {
+    if (that instanceof DegreePip) {
+      // numeric + degree => degree (diatonic offset)
+      return new DegreePip(this.step + that.degreeIndex, this.timeScale * that.timeScale);
+    }
     const combinedTag = this.tag ?? that.tag ?? null;
     return new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   expand(that) {
+    if (that instanceof DegreePip) {
+      // numeric * degree => degree (scale by factor)
+      return new DegreePip(this.step * that.degreeIndex, this.timeScale * that.timeScale);
+    }
     const combinedTag = this.tag ?? that.tag ?? null;
     return new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
   }
@@ -589,6 +620,66 @@ class Pip {
   hasTag(tag) {
     return this.tag === tag;
   }
+}
+
+class DegreePip {
+  constructor(degreeIndex, timeScale = 1) {
+    this.degreeIndex = degreeIndex; // 0..6 for i..vii
+    this.timeScale = timeScale;
+    this.tag = null;
+  }
+
+  // Addition-like combine for degrees and/or numeric steps
+  mul(that) {
+    const leftIndex = this.degreeIndex;
+    if (that instanceof DegreePip) {
+      return new DegreePip((leftIndex + that.degreeIndex) % 7, this.timeScale * that.timeScale);
+    }
+    if (that instanceof Pip) {
+      return new DegreePip(leftIndex + that.step, this.timeScale * that.timeScale);
+    }
+    throw new Error('Unsupported mul for DegreePip');
+  }
+
+  // Multiply-like combine for degrees and/or numeric steps
+  expand(that) {
+    const leftIndex = this.degreeIndex;
+    if (that instanceof DegreePip) {
+      return new DegreePip((leftIndex * that.degreeIndex) % 7, this.timeScale * that.timeScale);
+    }
+    if (that instanceof Pip) {
+      return new DegreePip(leftIndex * that.step, this.timeScale * that.timeScale);
+    }
+    throw new Error('Unsupported expand for DegreePip');
+  }
+
+  toString() {
+    return romanFromIndex(this.degreeIndex);
+  }
+
+  hasTag(tag) {
+    return false;
+  }
+}
+
+function romanToIndex(sym) {
+  switch (sym) {
+    case 'i': return 0;
+    case 'ii': return 1;
+    case 'iii': return 2;
+    case 'iv': return 3;
+    case 'v': return 4;
+    case 'vi': return 5;
+    case 'vii': return 6;
+    default:
+      throw new Error('unknown roman degree: ' + sym);
+  }
+}
+
+function romanFromIndex(idx) {
+  const map = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
+  const k = ((idx % 7) + 7) % 7;
+  return map[k];
 }
 
 class SegmentTransform {

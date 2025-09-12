@@ -1,6 +1,6 @@
 
 
-We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down.  You can zoom out from the note level, to tiny figures, to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
+We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down musical structures.  You can zoom out from the note level, to tiny figures, to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
 
 
 
@@ -99,11 +99,6 @@ TODOs:
 
 * REPAIR THIS  [0...2 : 1/4] === [0:1/4, 1:1/4, 2:1/4]
 
-* understand time
-  - 1 is 8th note
-  - .5 is qtr note
-  - .25 is whole
-  - (why not the other way around, i.e., 2 is qtr note, 4 is whole note, etc.?)
 
 * should the * operator be written as concatenation?
   - if it's the most used thing, maybe?
@@ -115,9 +110,6 @@ TODOs:
   - (maybe Motif can have a timeShift field that's 0 by default?)
   - how do time shifts behave wrt the * operator?
 
-* write the function that takes a motif and a "frame of reference" (key and unit of time)
-  ... and turns it into actual notes (MIDI?)
-  (could be a method in Motif)
 
 * think about unifying pips and motifs
 
@@ -163,7 +155,6 @@ TODOs:
     shift right operator?
 
 
-
     f([0, 1, 2]) ===> [_, 1, 2, 1, _, 2, 1, 2, _]
 
     [0, 1, 2] x [X, 0] ===> [0, 1, 2]
@@ -191,13 +182,6 @@ TODOs:
 
 
 
-
-
-
-
-
-
-
   * dot (tiled add)
 
     [a, b, c] . [d, e] === [a + d, e + b, c + d]
@@ -209,18 +193,18 @@ TODOs:
 
   * repeat
 
-    4[a] === [a, a, a, a]
+      4[a] === [a, a, a, a]
 
-    of course:
+    NOTE:
     
-    [a] * [0, 0, 0, 0] === [a, a, a, a] so it's just a sugar?   
+      [a] * [0, 0, 0, 0] === [a, a, a, a] so it's just a sugar?   
 
     could also be a way to avoid needing parens here: 
 
-    [b, c] * ([a] * [0, 0, 0, 0]) sugars to [b, c] * 4[a]
+      [b, c] * ([a] * [0, 0, 0, 0]) sugars to [b, c] * 4[a]
 
 
-  * reverse
+  * reverse & timescale
 
 
     [a, b, c] * [0 / -1] === [c, b, a]
@@ -231,7 +215,7 @@ TODOs:
 
     [a, b, c] * [1 / -4] === [c+1 / 4, b+1 / 4, a+1 / 4]
 
-* % padding
+* % padding TODO
 
     timeScale notation that pads to next boundary 
         [0, r % 4] makes an r that pads out the 3 unit durs we need to make 4
@@ -247,7 +231,7 @@ TODOs:
 
 
 
-  * & for diads
+  * & for diads TODO
 
     [a & b, c] 
 
@@ -263,7 +247,6 @@ TODOs:
     4[a, b] * [c, x] results in the same thing as  4[a, b] * [c]
 
     4[a, b] . [x, d, e] == [xa, db, ea, xb, da, eb, xa, db] == [db, ea, da, eb, db]
-
 
 
   * r for rest - ommision without splicing time
@@ -282,7 +265,7 @@ TODOs:
 
 
 
-  ? for ranged random inclusive
+  ? for ranged random inclusive TODO
 
     4[0, -1?1] ~= [0, 1, 0, -1, 0, -1, 0, 0]
 

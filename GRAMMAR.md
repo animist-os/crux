@@ -20,10 +20,10 @@ Evaluates to `[0, 1, 2]`.
 
 - **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Value** can be:
-  - **Etym**: `number` or `number:TimeScale` or a special tag.
+  - **Etym**: `number` optionally combined with a timeScale using `*` or `/`, or a special tag.
     - `number` is the step (may be integer or float).
     - `TimeScale` after `:` is either a plain number or a fraction `n/d`.
-      - Examples: `[0, 1:2] -> [0, 1:2]`, `[1:1/4] -> [1:0.25]`.
+      - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> `[1/4]`.
     - A single letter or `_` inside a mot is a tagged etym with step 0. Example: `[_] -> [:_0]`.
   - **Degree**: lowercase roman numerals `i, ii, iii, iv, v, vi, vii` represent scale degrees (symbolic). Example: `[iv]`.
   - **Range**: `a..b` expands inclusively to integer steps. Examples:

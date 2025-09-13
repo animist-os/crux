@@ -14,13 +14,13 @@ test('absolute mot with commas', () => {
 
 // delta mot removed: semicolons have no meaning now
 
-test('timeScale with underscore (plain number)', () => {
-  assert.equal(evalToString('[0, 1_2]'), '[0, 1_2]');
+test('timeScale using * (plain number)', () => {
+  assert.equal(evalToString('[0, 1*2]'), '[0, 1*2]');
 });
 
-test('timeScale with underscore (fraction)', () => {
-  // 1/4 becomes 0.25 in toString
-  assert.equal(evalToString('[0, 1_1/4]'), '[0, 1_0.25]');
+test('timeScale using / (fraction)', () => {
+  // 1/4 prints as /4 form
+  assert.equal(evalToString('[0, 1/4]'), '[0, 1/4]');
 });
 
 test('range expands inclusively', () => {
@@ -42,7 +42,7 @@ test.skip('juxtaposition concat between Expr', () => {
 });
 
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
-  assert.equal(evalToString('[1, 2, 3] * [0_-1]'), '[3, 2, 1]');
+  assert.equal(evalToString('[1, 2, 3] * [0 * -1]'), '[3, 2, 1]');
 });
 
 test('expand multiplies steps elementwise', () => {
@@ -77,16 +77,16 @@ test('special symbols stringify with tag prefix', () => {
   assert.equal(evalToString('[_]'), '[:_0]');
 });
 
-test('rest special accepts timeScale with underscore (fraction)', () => {
-  assert.equal(evalToString('[0, r_1/2, 1]'), '[0, :r0_0.5, 1]');
+test('rest special accepts timeScale using / (fraction)', () => {
+  assert.equal(evalToString('[0, r/2, 1]'), '[0, :r0/2, 1]');
 });
 
-test('rest special accepts timeScale with underscore and spaces', () => {
-  assert.equal(evalToString('[0, r _ 1/2, 1]'), '[0, :r0_0.5, 1]');
+test('rest special accepts timeScale with spaces around operator', () => {
+  assert.equal(evalToString('[0, r / 2, 1]'), '[0, :r0/2, 1]');
 });
 
-test('rest special accepts timeScale with underscore (plain number)', () => {
-  assert.equal(evalToString('[r_2]'), '[:r0_2]');
+test('rest special accepts timeScale using * (plain number)', () => {
+  assert.equal(evalToString('[r*2]'), '[:r0*2]');
 });
 
 test('roman degrees parse and stringify', () => {

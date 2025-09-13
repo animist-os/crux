@@ -80,9 +80,11 @@ const g = ohm.grammar(String.raw`
 
     Etym
       = roman                 -- degree
-      | number hspaces? "_" hspaces? TimeScale  -- withTimeScale
+      | number hspaces? "*" hspaces? TimeScale  -- withTimeMul
+      | number hspaces? "/" hspaces? TimeScale  -- withTimeDiv
       | number                -- noTimeScale
-      | Special hspaces? "_" hspaces? TimeScale -- specialWithTimeScale
+      | Special hspaces? "*" hspaces? TimeScale -- specialWithTimeMul
+      | Special hspaces? "/" hspaces? TimeScale -- specialWithTimeDiv
       | Special               -- special
 
     TimeScale
@@ -236,12 +238,20 @@ const s = g.createSemantics().addOperation('parse', {
     return new Etym(0, 1, sym.sourceString);
   },
 
-  Etym_specialWithTimeScale(sym, _h1, _uscore, _h2, ts) {
+  Etym_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
     return new Etym(0, ts.parse(), sym.sourceString);
   },
 
-  Etym_withTimeScale(n, _h1, _uscore, _h2, ts) {
+  Etym_specialWithTimeDiv(sym, _h1, _slash, _h2, ts) {
+    return new Etym(0, 1 / ts.parse(), sym.sourceString);
+  },
+
+  Etym_withTimeMul(n, _h1, _star, _h2, ts) {
     return new Etym(n.parse(), ts.parse());
+  },
+
+  Etym_withTimeDiv(n, _h1, _slash, _h2, ts) {
+    return new Etym(n.parse(), 1 / ts.parse());
   },
 
   Etym_degree(sym) {
@@ -617,9 +627,19 @@ class Etym {
   toString() {
     const tag_str = this.tag ? `:${this.tag}` : '';
     const ts = Math.abs(this.timeScale);
-    return ts !== 1
-      ? `${tag_str}${this.step}_${ts}`
-      : `${tag_str}${this.step}`;
+    if (ts === 1) {
+      return `${tag_str}${this.step}`;
+    }
+    // Prefer division form when ts is (approximately) 1/n
+    const inv = 1 / ts;
+    const invRounded = Math.round(inv);
+    const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
+    if (isInvInt) {
+      return `${tag_str}${this.step}/${invRounded}`;
+    }
+    // Fallback to multiply form
+    const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
+    return `${tag_str}${this.step}*${tsStr}`;
   }
 
   hasTag(tag) {

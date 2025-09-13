@@ -1,6 +1,10 @@
 ## Crux
 
-This document describes the Crux grammar used to build and transform musical mots as sequences of “etyms” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.
+This document describes the Crux grammar used to build and transform musical mots as sequences of “etyms” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on etyms and mots.  All operations can be applied in either a "spread" approach or a "tiled" one.  
+
+Spread (outer):  For each r in R, apply op to all of A, then concatenate.   The lengths multiply
+
+Tile (elementwise): Pair positions; RHS tiles as needed.  
 
 ### Program
 
@@ -20,15 +24,15 @@ Evaluates to `[0, 1, 2]`.
 
 - **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Value** can be:
-  - **Etym**: `number` optionally combined with a timeScale using `*` or `/`, or a special tag.
+  - **Etym**: `number` optionally combined with a timeScale using `*` (multiply) or `/` (divide), or a special tag.
     - `number` is the step (may be integer or float).
-    - `TimeScale` after `:` is either a plain number or a fraction `n/d`.
-      - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> `[1/4]`.
+    - `TimeScale` is either a plain number or a fraction `n/d`, combined with `*` or `/`.
+      - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> [1/4]`.
     - A single letter or `_` inside a mot is a tagged etym with step 0. Example: `[_] -> [:_0]`.
   - **Degree**: lowercase roman numerals `i, ii, iii, iv, v, vi, vii` represent scale degrees (symbolic). Example: `[iv]`.
-  - **Range**: `a..b` expands inclusively to integer steps. Examples:
-    - `[0..3] -> [0, 1, 2, 3]`
-    - `[3..1] -> [3, 2, 1]`
+  - **Range**: `a->b` expands inclusively to integer steps. Examples:
+    - `[0->3] -> [0, 1, 2, 3]`
+    - `[3->1] -> [3, 2, 1]`
   - **Choice**: `x | y | z` picks one option at evaluation time. Example: `[0 | 1 | 2] -> [0]` or `[1]` or `[2]`.
 
 Notes:
@@ -61,16 +65,32 @@ In decreasing precedence (tighter binds higher):
 ```
 
 3) **Combine pairs of mots**:
-   - `*` multiply-and-add (cartesian product-like):
-     - For each value in the right mot, combine it with every value in the left mot.
+   - `*` spread-add (cartesian/outer application):
+     - For each value in the right mot, combine it with every value in the left mot; concatenate.
      - Steps add; timeScales multiply.
      - If the right value has a negative timeScale, the left mot is reversed for that right value.
-     - Example: `[1, 2, 3] * [0:-1] -> [3, 2, 1]`
-   - `^` expand (multiply steps):
-     - Same pairing as `*`, but steps multiply instead of add.
+     - Example: `[1, 2, 3] * [0*-1] -> [3, 2, 1]`
+   - `^` spread-mul (expand steps):
+     - Same outer pairing as `*`, but steps multiply instead of add.
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
-   - `.` dot (tiled pairwise):
+   - `.` or `.*` tile-add (elementwise/zip with tiling):
      - Pair each left value with the corresponding value from the right, tiling the right as needed.
+     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
+   - `.^` tile-mul (elementwise expand):
+     - Same tiling as `.`, but steps multiply instead of add.
+     - Example: `[1, 2] .^ [2] -> [2, 4]`
+   - `n` neighbor (spread):
+     - For each right value `k`, expand each pip `a` to `[a, a+k, a]` and concatenate.
+     - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`
+   - `.n` neighbor (tile):
+     - For each position `i`, expand `left[i]` with `k = right[i%|right|]` as `[a, a+k, a]`.
+     - Example: `[0, 3] .n [1] -> [0, 1, 0, 3, 4, 3]`
+   - `->` steps (spread):
+     - For each right value `k`, output the left motif transposed by all integers from 0 to `k` (sign supported), concatenated.
+     - Example: `[0, 3] -> [4] -> [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]`
+   - `.->` steps (tile):
+     - For each position `i`, expand `left[i]` into a run up to `right[i%|right|]`.
+     - Example: `[0, 3] .-> [4] -> [0, 1, 2, 3, 4, 3, 4, 5, 6, 7]`
    - `~` rotate:
      - For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
@@ -92,7 +112,7 @@ In decreasing precedence (tighter binds higher):
 From highest to lowest:
 - Segment `{...}` (postfix)
 - Repeat `N Expr`
-- Multiplicative operators: `*`, `^`, `.` (left-associative)
+- Multiplicative operators: `.*`, `.^`, `*`, `^`, `.`, `~` (left-associative)
 - Concatenation: `,` and juxtaposition (left-associative)
 - Parentheses can override as usual.
 
@@ -115,7 +135,7 @@ From highest to lowest:
 [0, 1, 2, 3]                 -> [0, 1, 2, 3]
 
 // Range example
-([0..2]), [3:2]              -> [0, 1, 2, 3:2]
+([0->2]), [3*2]              -> [0, 1, 2, 3*2]
 
 // Choices (result varies)
 [0 | 1 | 2]                  -> one of [0], [1], [2]
@@ -123,14 +143,16 @@ From highest to lowest:
 // Specials
 [_]                          -> [:_0]
 
-// Concatenation (comma or plus)
+// Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
-[0, 1] + [2, 3]              -> [0, 1, 2, 3]
+[0, 1] [2, 3]                -> [0, 1, 2, 3]
 
 // Multiplicative family
-[1, 2, 3] * [0:-1]           -> [3, 2, 1]
+[1, 2, 3] * [0*-1]           -> [3, 2, 1]
 [1, 2] ^ [2]                 -> [2, 4]
 [0, 1, 2] . [10, 20]         -> [10, 21, 12]
+[0, 1, 2] .* [10, 20]        -> [10, 21, 12]
+[1, 2] .^ [2]                -> [2, 4]
 
 // Grouping
 ([0, 1] ^ [2]) * [0]         -> [0, 2]
@@ -162,7 +184,13 @@ Andy {
                  | FollowedByExpr MulExpr
                  | MulExpr
 
-  MulExpr     = MulExpr "*" RepeatExpr
+  MulExpr     = MulExpr ".*" RepeatExpr
+              | MulExpr ".^" RepeatExpr
+              | MulExpr ".n" RepeatExpr
+              | MulExpr ".->" RepeatExpr
+              | MulExpr "->" RepeatExpr
+              | MulExpr "n" RepeatExpr
+              | MulExpr "*" RepeatExpr
               | MulExpr "^" RepeatExpr
               | MulExpr "." RepeatExpr
               | MulExpr "~" RepeatExpr
@@ -194,9 +222,10 @@ Andy {
   Choice      = Choice "|" SingleValue  -- alt
               | SingleValue            -- single
   SingleValue = Range | Etym
-  Range       = number ".." number
+  Range       = number "->" number
   Etym         = Special
-              | number ":" TimeScale
+              | number "*" TimeScale
+              | number "/" TimeScale
               | number
               | roman
   roman       = "vii" | "iii" | "vi" | "iv" | "ii" | "v" | "i"

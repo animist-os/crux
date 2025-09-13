@@ -53,6 +53,30 @@ test('dot pairs left with tiled right (numeric only)', () => {
   assert.equal(evalToString('[0, 1, 2] . [10, 20]'), '[10, 21, 12]');
 });
 
+test('dotStar alias pairs left with tiled right', () => {
+  assert.equal(evalToString('[0, 1, 2] .* [10, 20]'), '[10, 21, 12]');
+});
+
+test('dotExpand tiles right and multiplies steps', () => {
+  assert.equal(evalToString('[1, 2] .^ [2]'), '[2, 4]');
+});
+
+test('steps spread operator builds columnar runs', () => {
+  assert.equal(evalToString('[0, 3] -> [4]'), '[0, 3, 1, 4, 2, 5, 3, 6, 4, 7]');
+});
+
+test('dotSteps tile operator builds per-pip runs', () => {
+  assert.equal(evalToString('[0, 3] .-> [4]'), '[0, 1, 2, 3, 4, 3, 4, 5, 6, 7]');
+});
+
+test('neighbor spread expands each pip locally', () => {
+  assert.equal(evalToString('[0, 3] n [1]'), '[0, 1, 0, 3, 4, 3]');
+});
+
+test('neighbor tile inserts per-position neighbor', () => {
+  assert.equal(evalToString('[0, 3] .n [1]'), '[0, 3, 1, 4, 0, 3]');
+});
+
 test('parens for grouping (expand then add identity)', () => {
   assert.equal(evalToString('([0, 1] ^ [2]) * [0]'), '[0, 2]');
 });

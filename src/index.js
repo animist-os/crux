@@ -30,7 +30,13 @@ const g = ohm.grammar(String.raw`
       | MulExpr
   
     MulExpr
-      = MulExpr "*" RepeatExpr  -- mul
+      = MulExpr ".*" RepeatExpr -- dotStar
+      | MulExpr ".^" RepeatExpr -- dotExpand
+      | MulExpr ".n" RepeatExpr  -- dotNeighbor
+      | MulExpr ".->" RepeatExpr -- dotSteps
+      | MulExpr "->" RepeatExpr  -- steps
+      | MulExpr "n" RepeatExpr   -- neighbor
+      | MulExpr "*" RepeatExpr  -- mul
       | MulExpr "^" RepeatExpr  -- expand
       | MulExpr "." RepeatExpr  -- dot
       | MulExpr "~" RepeatExpr  -- rotate
@@ -146,6 +152,30 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_expand(x, _hat, y) {
     return new Expand(x.parse(), y.parse());
+  },
+
+  MulExpr_dotStar(x, _dotStar, y) {
+    return new Dot(x.parse(), y.parse());
+  },
+
+  MulExpr_dotExpand(x, _dotHat, y) {
+    return new DotExpand(x.parse(), y.parse());
+  },
+
+  MulExpr_steps(x, _arrow, y) {
+    return new Steps(x.parse(), y.parse());
+  },
+
+  MulExpr_dotSteps(x, _dotArrow, y) {
+    return new DotSteps(x.parse(), y.parse());
+  },
+
+  MulExpr_neighbor(x, _n, y) {
+    return new Neighbor(x.parse(), y.parse());
+  },
+
+  MulExpr_dotNeighbor(x, _dotn, y) {
+    return new DotNeighbor(x.parse(), y.parse());
   },
 
   MulExpr_dot(x, _dot, y) {
@@ -339,6 +369,12 @@ class Mul {
       const absYi = reverse ? new Etym(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
+        if (absYi.hasTag && absYi.hasTag('D')) {
+          // Insert a rest with timescale derived from right, then the original left value
+          values.push(new Etym(xi.step, xi.timeScale * absYi.timeScale, 'r'));
+          values.push(xi);
+          continue;
+        }
         values.push(xi.mul(absYi));
       }
     }
@@ -419,6 +455,12 @@ class Dot {
           // omit
           continue;
         }
+        // Displace 'D': insert a rest with right timescale, then original left
+        if (right.hasTag && right.hasTag('D')) {
+          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(left);
+          continue;
+        }
         // funky buit sensible for Dot operation with rests on either side?
         if(left.hasTag('r') || right.hasTag('r')) {
           values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
@@ -429,6 +471,41 @@ class Dot {
         continue;
       }
       values.push(left.mul(right));
+    }
+    return new Mot(values);
+  }
+}
+
+class DotExpand {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const xv = requireMot(this.x.eval(env));
+    const yv = requireMot(this.y.eval(env));
+    const values = [];
+
+    for (let xi = 0; xi < xv.values.length; xi++) {
+      let yi = xi % yv.values.length;
+      const left = xv.values[xi];
+      const right = yv.values[yi];
+      if ((left.tag || right.tag) && !(left instanceof DegreeEtym) && !(right instanceof DegreeEtym)) {
+        if (left.hasTag && left.hasTag('x')) {
+          values.push(left);
+          continue;
+        } else if (right.hasTag && right.hasTag('x')) {
+          continue;
+        }
+        if (left.hasTag('r') || right.hasTag('r')) {
+          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
+          continue;
+        }
+        values.push(left);
+        continue;
+      }
+      values.push(left.expand(right));
     }
     return new Mot(values);
   }
@@ -455,6 +532,107 @@ class RotateOp {
       const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
       for (const v of rotated) out.push(v);
     }
+    return new Mot(out);
+  }
+}
+
+class Steps {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    // Spread semantics: for each right value r, emit left shifted by t for t in [0..k]
+    for (const r of right.values) {
+      const k = Math.trunc(r.step);
+      const dir = k >= 0 ? 1 : -1;
+      const count = Math.abs(k);
+      for (let t = 0; t <= count; t++) {
+        const delta = dir * t;
+        for (const v of left.values) {
+          out.push(new Etym(v.step + delta, v.timeScale * r.timeScale, v.tag));
+        }
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotSteps {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    // Tile semantics: at each position i, expand left[i] into a run up to k_i
+    for (let i = 0; i < left.values.length; i++) {
+      const li = left.values[i];
+      const ri = right.values[i % right.values.length];
+      const k = Math.trunc(ri.step);
+      const dir = k >= 0 ? 1 : -1;
+      const count = Math.abs(k);
+      for (let t = 0; t <= count; t++) {
+        const delta = dir * t;
+        out.push(new Etym(li.step + delta, li.timeScale * ri.timeScale, li.tag));
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class Neighbor {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    // Spread semantics: for each right k, expand every pip a into [a, a+k, a]
+    for (const r of right.values) {
+      const k = Math.trunc(r.step);
+      for (const a of left.values) {
+        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
+        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotNeighbor {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    // Tile semantics (interstitial): [A] + [A + tile(k)] + [A]
+    // First block: original left
+    for (const a of left.values) out.push(a);
+    // Middle block: left transposed by tiled k
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      const r = right.values[i % right.values.length];
+      const k = Math.trunc(r.step);
+      out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
+    }
+    // Final block: original left
+    for (const a of left.values) out.push(a);
     return new Mot(out);
   }
 }

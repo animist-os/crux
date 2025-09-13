@@ -13,24 +13,23 @@ voices come from other voices, no grand martrix — crux is about relative relat
 
 a second voice is a  copy with variations
 
- the issue with diad's actually suggests whole new motif
+ the issue with diad's actually suggests whole new mot
 
-maybe add an anchor option to pip (or mot) that means it dervices its ptche from a named mot
-
+maybe add an anchor option to etym (or mot) that means it dervices its ptche from a named mot
 
 
 
 * ^ ~ n  
 .*  .^  .~ .n
 
-.~ makes no sense and suggests tilde is a motif-level transform, like {}
+.~ makes no sense and suggests tilde is a mot-level transform, like {}
 
 
 
 
-add a way to remove either timescales or steps so we can use a motif in an operation on one domain only
+add a way to remove either timescales or steps so we can use a mot in an operation on one domain only
 
-simpler might be a way to coerce an abs value on all members of a motif.   so [0:1/2] * [0:_] == [0]
+simpler might be a way to coerce an abs value on all members of a mot.   so [0:1/2] * [0:_] == [0]
 
 
 
@@ -50,7 +49,6 @@ do we need tagging?
 
 
 
-
 SCHENKER OPS
 
     step [0, 3] === [0,1,2,3]
@@ -59,7 +57,7 @@ SCHENKER OPS
       a_neighbor[0] => [-1/2, 0/2] — anticipatory lower neighbor, subdividing the time span (very schenker)
       m_neighboor[0] / (1 / 3) => [0, -1, 0] 
 
-  it seems meaningful to apply schenker neghbor ops to entire motifs:  
+  it seems meaningful to apply schenker neghbor ops to entire mots:  
   
     A = [0, 3] neighbor_op === [0,3, 1, 4, 0, 3]  (this seems closer to "." semantics)
   
@@ -112,7 +110,7 @@ SCHENKER OPS
     [0, 3] -> [4] .^ [1, -1] . [0, 3] === [0,1,2,3,4, 0,-1,-2,-3,-4]
 
 
-    Is it bad that we can get to this two ways or sensible?   No, it's cool, and in fact while their notes are identical, the second version gives you another pip value to manipulate
+    Is it bad that we can get to this two ways or sensible?   No, it's cool, and in fact while their notes are identical, the second version gives you another etym value to manipulate
 
       [0, 3] -> [4] 
       
@@ -134,7 +132,7 @@ SCHENKER OPS
 
   A 
   
-  ALT -- in the same way that "_" modifies individual pips, we could have schenker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
+  ALT -- in the same way that "_" modifies individual etyms, we could have schenker ops that expand individual etyms.    different because they expand them but better to think of them as sugar or compressed expression
 
   [0 ln, 1] === [0, -1, 0, 1]
 
@@ -176,7 +174,7 @@ We h ave implemented this curly brace notation but it feels wrong.
     some ops could recompute each iteration, how to determine which ones you want?
     maybe left assigning to a variable "freezes" it, otherwise it always recomputes, but the the reductive bracket operators might need to be an exception
 
-    4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
+        4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
     
       {?, +4} means random insk, duration 4 or {?-4, +4}  TBD
 
@@ -194,17 +192,17 @@ We h ave implemented this curly brace notation but it feels wrong.
 
     ALT
 
-      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus note at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the motif uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
+      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus note at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the mot uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
 
-      by default, all pips have a "i", but they can be spcificially overriden by their motif.  how do we handle multiple nested motifs with different degrees?  we COULD just add them like ints, this might work...
+      by default, all etyms have a "i", but they can be spcificially overriden by their mot.  how do we handle multiple nested mots with different degrees?  we COULD just add them like ints, this might work...
 
-    how can we express a "walking window" through a motif?   this should be part of the {} slicing and rotating operators
+    how can we express a "walking window" through a mot?   this should be part of the {} slicing and rotating operators
 
     "r" and "x" are working but may not be right.    seems like if we had a displacement idea, carried alongside timeScale, they both get applied at the same lazy point of note-rendering and neither chages the linear relationships (except negative timescale but even then linearity is preserved)
 
     think about tension and release, and the idea that displacements must be "paid back" conceptually if not structurally.
 
-    where are we on unifying pips and motifs?  I think we might need the separation for things like % and reverse
+    where are we on unifying etyms and mots?  I think we might need the separation for things like % and reverse
 
     I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
     and watch for them in the evals
@@ -212,7 +210,7 @@ We h ave implemented this curly brace notation but it feels wrong.
     "r" doesn't seem to work as expected when it.s in the second expression
 
 
-    semicolons to represent left-to-right deltas within the motif?
+    semicolons to represent left-to-right deltas within the mot?
 
       [0; 1; 1; 1]   ===   [0, 1, 2, 3]
       [0, 3, 4, 0]   ===   [0; 3; 1; -4]
@@ -248,12 +246,12 @@ TODOs:
 
 * the > operator
   - should it have lower or higher precedence than the * operator?
-  - how will we represent time-shifted motifs?
-  - (maybe Motif can have a timeShift field that's 0 by default?)
+  - how will we represent time-shifted mots?
+  - (maybe Mot can have a timeShift field that's 0 by default?)
   - how do time shifts behave wrt the * operator?
 
 
-* think about unifying pips and motifs
+* think about unifying etyms and mots
 
     1 === [1]
 
@@ -323,12 +321,11 @@ TODOs:
 
 
 
-
   * dot (tiled add)
 
     [a, b, c] . [d, e] === [a + d, e + b, c + d]
 
-    2nd motif "loops" as needed
+    2nd mot "loops" as needed
     
     could have alt flavor that truncates but we should have different set of slice / rotate / shift / truncate ops?
 
@@ -458,6 +455,7 @@ TODOs:
 
 
 
+
     * degrees
 
     [i, iii, v] - chord elements in functional harmony (the i is the root of our current chord)  NOTE that these remain unreified throughout the parse and interp processes.   they remain iii, not abs pitch values.   so you end up in the flattened interp with things like iii - 2, 1,
@@ -474,9 +472,10 @@ TODOs:
 
 
 
+
   * Encoding Beethoven's 5th (mod duration, rotation operator, ditto vs rest)
 
-    to get beethoven's 5th to be more concise we could introduce duration modding for motifs, so they round up to nearest bar
+    to get beethoven's 5th to be more concise we could introduce duration modding for mots, so they round up to nearest bar
 
     [r, 0,0,0,-2, r, r, r] * [0, -1] * [3]
 

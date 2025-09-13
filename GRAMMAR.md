@@ -1,6 +1,6 @@
 ## Crux
 
-This document describes the Crux grammar used to build and transform musical motifs as sequences of “pips” (step, timeScale, optional tag). You can concatenate motifs, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.
+This document describes the Crux grammar used to build and transform musical mots as sequences of “etyms” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.
 
 ### Program
 
@@ -16,15 +16,15 @@ A, [2]
 ```
 Evaluates to `[0, 1, 2]`.
 
-### Motifs and values
+### Mots and values
 
-- **Motif**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
+- **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Value** can be:
-  - **Pip**: `number` or `number:TimeScale` or a special tag.
+  - **Etym**: `number` or `number:TimeScale` or a special tag.
     - `number` is the step (may be integer or float).
     - `TimeScale` after `:` is either a plain number or a fraction `n/d`.
       - Examples: `[0, 1:2] -> [0, 1:2]`, `[1:1/4] -> [1:0.25]`.
-    - A single letter or `_` inside a motif is a tagged pip with step 0. Example: `[_] -> [:_0]`.
+    - A single letter or `_` inside a mot is a tagged etym with step 0. Example: `[_] -> [:_0]`.
   - **Degree**: lowercase roman numerals `i, ii, iii, iv, v, vi, vii` represent scale degrees (symbolic). Example: `[iv]`.
   - **Range**: `a..b` expands inclusively to integer steps. Examples:
     - `[0..3] -> [0, 1, 2, 3]`
@@ -39,7 +39,7 @@ Notes:
 
 In decreasing precedence (tighter binds higher):
 
-1) **Postfix segment**: slicing applied to a motif result.
+1) **Postfix segment**: slicing applied to a mot result.
    - Forms:
      - `{start,end}`
      - `{start,}` (start to end)
@@ -55,16 +55,16 @@ In decreasing precedence (tighter binds higher):
 [0, 1, 2, 3, 4] -1{2}     -> [3, 4, 2]
 ```
 
-2) **Repeat**: `N : Expr` repeats a motif `N` times (N must be a non-negative finite number).
+2) **Repeat**: `N : Expr` repeats a mot `N` times (N must be a non-negative finite number).
 ```text
 3:[1] -> [1, 1, 1]
 ```
 
-3) **Combine pairs of motifs**:
+3) **Combine pairs of mots**:
    - `*` multiply-and-add (cartesian product-like):
-     - For each value in the right motif, combine it with every value in the left motif.
+     - For each value in the right mot, combine it with every value in the left mot.
      - Steps add; timeScales multiply.
-     - If the right value has a negative timeScale, the left motif is reversed for that right value.
+     - If the right value has a negative timeScale, the left mot is reversed for that right value.
      - Example: `[1, 2, 3] * [0:-1] -> [3, 2, 1]`
    - `^` expand (multiply steps):
      - Same pairing as `*`, but steps multiply instead of add.
@@ -72,14 +72,14 @@ In decreasing precedence (tighter binds higher):
    - `.` dot (tiled pairwise):
      - Pair each left value with the corresponding value from the right, tiling the right as needed.
    - `~` rotate:
-     - For each value k in the right motif, rotate the left motif left by k (negative k rotates right), appending results in order.
+     - For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
      - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
      - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
      - Example: `[0, 1, 2] . [10, 20] -> [10, 21, 12]`.
 
 4) **Concatenation**:
-   - Use `,` or juxtaposition (spaces/tabs, not newline) between expressions to concatenate motifs.
+   - Use `,` or juxtaposition (spaces/tabs, not newline) between expressions to concatenate mots.
    - Examples: `[0, 1], [2, 3] -> [0, 1, 2, 3]`, `[0, 1] [2, 3] -> [0, 1, 2, 3]`.
 
 5) **Grouping**: parentheses `(` `)` control evaluation order.
@@ -105,8 +105,8 @@ From highest to lowest:
 
 - Repeat count must be a non-negative finite number.
 - Range endpoints must be finite numbers.
-- Delta motifs support only simple numeric pips (no tags/ranges/choices inside semicolon form).
-- Many operators require motifs; attempting to use a non-motif where a motif is required is an error.
+- Delta mots support only simple numeric etyms (no tags/ranges/choices inside semicolon form).
+- Many operators require mots; attempting to use a non-mot where a mot is required is an error.
 
 ### Mixed examples
 
@@ -175,7 +175,7 @@ Andy {
               | PriExpr
 
   PriExpr     = ident                -- ref
-              | "[" MotifBody "]"  -- motif
+              | "[" MotBody "]"  -- mot
               | "(" Expr ")"      -- parens
 
   Segment     = "{" SliceSpec "}"
@@ -188,14 +188,14 @@ Andy {
 
   Index       = sign? digit+
 
-  MotifBody   = ListOf<Value, ",">
+  MotBody   = ListOf<Value, ",">
 
   Value       = Choice
   Choice      = Choice "|" SingleValue  -- alt
               | SingleValue            -- single
-  SingleValue = Range | Pip
+  SingleValue = Range | Etym
   Range       = number ".." number
-  Pip         = Special
+  Etym         = Special
               | number ":" TimeScale
               | number
               | roman
@@ -213,8 +213,8 @@ Andy {
 
 ### Implementation notes
 
-- `*` and `^` iterate the right motif’s values; a negative timeScale on the right reverses the left motif for that right value.
-- `.` tiles the right motif against the left; tags (e.g., `x`) result in pass-through of the left value at that position.
+- `*` and `^` iterate the right mot’s values; a negative timeScale on the right reverses the left mot for that right value.
+- `.` tiles the right mot against the left; tags (e.g., `x`) result in pass-through of the left value at that position.
 - Choices are resolved at evaluation time; ranges expand to integer pips before further processing.
 - The string form shows decimal time scales (fractions are normalized).
 

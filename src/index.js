@@ -46,7 +46,7 @@ const g = ohm.grammar(String.raw`
   
     PriExpr
       = ident                          -- ref
-      | "[" MotifBody "]"            -- motif
+      | "[" MotBody "]"            -- mot
       | "(" Expr ")"                  -- parens
 
     Segment
@@ -61,7 +61,7 @@ const g = ohm.grammar(String.raw`
 
     Index = sign? digit+
 
-    MotifBody
+    MotBody
       = ListOf<Value, ",">            -- absolute
   
     Value
@@ -73,12 +73,12 @@ const g = ohm.grammar(String.raw`
 
     SingleValue
       = Range
-      | Pip
+      | Etym
 
     Range
       = number "->" number      -- inclusive
 
-    Pip
+    Etym
       = roman                 -- degree
       | number hspaces? "_" hspaces? TimeScale  -- withTimeScale
       | number                -- noTimeScale
@@ -168,12 +168,12 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
 
-  PriExpr_motif(_openBracket, body, _closeBracket) {
+  PriExpr_mot(_openBracket, body, _closeBracket) {
     const parsed = body.parse();
-    return new Motif(parsed.values);
+    return new Mot(parsed.values);
   },
 
-  MotifBody_absolute(values) {
+  MotBody_absolute(values) {
     return { kind: 'absolute', values: values.parse() };
   },
   Choice_alt(left, _bar, right) {
@@ -228,24 +228,24 @@ const s = g.createSemantics().addOperation('parse', {
     return parseFloat(this.sourceString);
   },
 
-  Pip_noTimeScale(n) {
-    return new Pip(n.parse(), 1);
+  Etym_noTimeScale(n) {
+    return new Etym(n.parse(), 1);
   },
 
-  Pip_special(sym) {
-    return new Pip(0, 1, sym.sourceString);
+  Etym_special(sym) {
+    return new Etym(0, 1, sym.sourceString);
   },
 
-  Pip_specialWithTimeScale(sym, _h1, _uscore, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString);
+  Etym_specialWithTimeScale(sym, _h1, _uscore, _h2, ts) {
+    return new Etym(0, ts.parse(), sym.sourceString);
   },
 
-  Pip_withTimeScale(n, _h1, _uscore, _h2, ts) {
-    return new Pip(n.parse(), ts.parse());
+  Etym_withTimeScale(n, _h1, _uscore, _h2, ts) {
+    return new Etym(n.parse(), ts.parse());
   },
 
-  Pip_degree(sym) {
-    return new DegreePip(romanToIndex(sym.sourceString), 1);
+  Etym_degree(sym) {
+    return new DegreeEtym(romanToIndex(sym.sourceString), 1);
   },
 
   TimeScale_frac(n, _slash, d) {
@@ -280,7 +280,7 @@ class Prog {
 
   interp() {
     const env = new Map();
-    let lastValue = new Motif([]);
+    let lastValue = new Mot([]);
     for (const stmt of this.stmts) {
       lastValue = stmt.eval(env);
     }
@@ -308,9 +308,9 @@ class FollowedBy {
   }
 
   eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
-    return new Motif([...xv.values, ...yv.values]);
+    const xv = requireMot(this.x.eval(env));
+    const yv = requireMot(this.y.eval(env));
+    return new Mot([...xv.values, ...yv.values]);
   }
 }
 
@@ -321,18 +321,18 @@ class Mul {
   }
 
   eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
+    const xv = requireMot(this.x.eval(env));
+    const yv = requireMot(this.y.eval(env));
     const values = [];
     for (let yi of yv.values) {
       const reverse = yi.timeScale < 0;
-      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const absYi = reverse ? new Etym(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
         values.push(xi.mul(absYi));
       }
     }
-    return new Motif(values);
+    return new Mot(values);
   }
 }
 
@@ -349,9 +349,9 @@ class Repeat {
     }
     const values = [];
     for (let i = 0; i < Math.trunc(countValue); i++) {
-      const motif = requireMotif(this.expr.eval(env));
+      const motif = requireMot(this.expr.eval(env));
       // If inner motif has a seeded RNG, carry it forward between iterations for deterministic sequences
-      if (motif._rng && typeof this.expr === 'object' && this.expr instanceof Motif) {
+      if (motif._rng && typeof this.expr === 'object' && this.expr instanceof Mot) {
         this.expr._rng = motif._rng;
         this.expr.rng_seed = motif.rng_seed;
       }
@@ -359,7 +359,7 @@ class Repeat {
         values.push(v);
       }
     }
-    return new Motif(values);
+    return new Mot(values);
   }
 }
 
@@ -370,18 +370,18 @@ class Expand {
   }
 
   eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
+    const xv = requireMot(this.x.eval(env));
+    const yv = requireMot(this.y.eval(env));
     const values = [];
     for (let yi of yv.values) {
       const reverse = yi.timeScale < 0;
-      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const absYi = reverse ? new Etym(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
         values.push(xi.expand(absYi));
       }
     }
-    return new Motif(values);
+    return new Mot(values);
   }
 }
 
@@ -392,15 +392,15 @@ class Dot {
   }
 
   eval(env) {
-    const xv = requireMotif(this.x.eval(env));
-    const yv = requireMotif(this.y.eval(env));
+    const xv = requireMot(this.x.eval(env));
+    const yv = requireMot(this.y.eval(env));
     const values = [];
 
     for (let xi =0; xi < xv.values.length; xi++) {
       let yi = xi % yv.values.length;
       const left = xv.values[xi];
       const right = yv.values[yi];
-      if ((left.tag || right.tag) && !(left instanceof DegreePip) && !(right instanceof DegreePip)) {
+      if ((left.tag || right.tag) && !(left instanceof DegreeEtym) && !(right instanceof DegreeEtym)) {
         // Example branch for 'x': treat as omit-on-right or pass-through
         if (left.hasTag && left.hasTag('x')) {
           values.push(left);
@@ -411,7 +411,7 @@ class Dot {
         }
         // funky buit sensible for Dot operation with rests on either side?
         if(left.hasTag('r') || right.hasTag('r')) {
-          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
         // Default behavior for unknown tags: pass-through left
@@ -420,7 +420,7 @@ class Dot {
       }
       values.push(left.mul(right));
     }
-    return new Motif(values);
+    return new Mot(values);
   }
 }
 
@@ -431,8 +431,8 @@ class RotateOp {
   }
 
   eval(env) {
-    const left = requireMotif(this.x.eval(env));
-    const right = requireMotif(this.y.eval(env));
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
     const out = [];
     for (const r of right.values) {
       const k = Math.trunc(r.step);
@@ -445,14 +445,14 @@ class RotateOp {
       const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
       for (const v of rotated) out.push(v);
     }
-    return new Motif(out);
+    return new Mot(out);
   }
 }
 
 
-function requireMotif(value) {
-  if (!(value instanceof Motif)) {
-    throw new Error('Motif required!');
+function requireMot(value) {
+  if (!(value instanceof Mot)) {
+    throw new Error('Mot required!');
   }
   return value;
 }
@@ -503,7 +503,7 @@ class Range {
   }
 
   // expands to a sequence of integer steps inclusive
-  expandToPips() {
+  expandToEtyms() {
     const result = [];
     const start = this.start;
     const end = this.end;
@@ -512,7 +512,7 @@ class Range {
     }
     const step = start <= end ? 1 : -1;
     for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
-      result.push(new Pip(n, 1));
+      result.push(new Etym(n, 1));
     }
     return result;
   }
@@ -534,9 +534,9 @@ class Choice {
     const flatOptions = this.options.map(opt => {
       if (opt instanceof Range) {
         // Expand range to all discrete integer pips, then pick from that expansion
-        return opt.expandToPips();
+        return opt.expandToEtyms();
       }
-      if (opt instanceof Pip || opt instanceof DegreePip) return [opt];
+      if (opt instanceof Etym || opt instanceof DegreeEtym) return [opt];
       throw new Error('Unsupported choice option');
     }).flat();
 
@@ -548,7 +548,7 @@ class Choice {
   }
 }
 
-class Motif {
+class Mot {
   constructor(values, rng_seed = null) {
     this.values = values;
     // Deterministic RNG seed (number|string|null). If null, use Math.random.
@@ -566,19 +566,19 @@ class Motif {
     const rng = this._rng || Math.random;
 
     for (const value of this.values) {
-      if (value instanceof Pip || value instanceof DegreePip) {
+      if (value instanceof Etym || value instanceof DegreeEtym) {
         resolved.push(value);
       } else if (value instanceof Range) {
-        const pips = value.expandToPips();
-        for (const p of pips) resolved.push(p);
+        const etyms = value.expandToEtyms();
+        for (const p of etyms) resolved.push(p);
       } else if (value instanceof Choice) {
         resolved.push(value.pick(rng));
       } else {
-        throw new Error('Unsupported motif value: ' + String(value));
+        throw new Error('Unsupported mot value: ' + String(value));
       }
     }
     // Preserve RNG state if this motif will be evaluated again (e.g., inside repeats)
-    const out = new Motif(resolved);
+    const out = new Mot(resolved);
     out.rng_seed = this.rng_seed;
     out._rng = this._rng;
     return out;
@@ -589,7 +589,7 @@ class Motif {
   }
 }
 
-class Pip {
+class Etym {
   constructor(step, timeScale = 1, tag = null) {
     this.step = step;
     this.timeScale = timeScale;
@@ -597,21 +597,21 @@ class Pip {
   }
 
   mul(that) {
-    if (that instanceof DegreePip) {
+    if (that instanceof DegreeEtym) {
       // numeric + degree => degree (diatonic offset)
-      return new DegreePip(this.step + that.degreeIndex, this.timeScale * that.timeScale);
+      return new DegreeEtym(this.step + that.degreeIndex, this.timeScale * that.timeScale);
     }
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    return new Etym(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   expand(that) {
-    if (that instanceof DegreePip) {
+    if (that instanceof DegreeEtym) {
       // numeric * degree => degree (scale by factor)
-      return new DegreePip(this.step * that.degreeIndex, this.timeScale * that.timeScale);
+      return new DegreeEtym(this.step * that.degreeIndex, this.timeScale * that.timeScale);
     }
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    return new Etym(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   toString() {
@@ -627,7 +627,7 @@ class Pip {
   }
 }
 
-class DegreePip {
+class DegreeEtym {
   constructor(degreeIndex, timeScale = 1) {
     this.degreeIndex = degreeIndex; // 0..6 for i..vii
     this.timeScale = timeScale;
@@ -637,25 +637,25 @@ class DegreePip {
   // Addition-like combine for degrees and/or numeric steps
   mul(that) {
     const leftIndex = this.degreeIndex;
-    if (that instanceof DegreePip) {
-      return new DegreePip((leftIndex + that.degreeIndex) % 7, this.timeScale * that.timeScale);
+    if (that instanceof DegreeEtym) {
+      return new DegreeEtym((leftIndex + that.degreeIndex) % 7, this.timeScale * that.timeScale);
     }
-    if (that instanceof Pip) {
-      return new DegreePip(leftIndex + that.step, this.timeScale * that.timeScale);
+    if (that instanceof Etym) {
+      return new DegreeEtym(leftIndex + that.step, this.timeScale * that.timeScale);
     }
-    throw new Error('Unsupported mul for DegreePip');
+    throw new Error('Unsupported mul for DegreeEtym');
   }
 
   // Multiply-like combine for degrees and/or numeric steps
   expand(that) {
     const leftIndex = this.degreeIndex;
-    if (that instanceof DegreePip) {
-      return new DegreePip((leftIndex * that.degreeIndex) % 7, this.timeScale * that.timeScale);
+    if (that instanceof DegreeEtym) {
+      return new DegreeEtym((leftIndex * that.degreeIndex) % 7, this.timeScale * that.timeScale);
     }
-    if (that instanceof Pip) {
-      return new DegreePip(leftIndex * that.step, this.timeScale * that.timeScale);
+    if (that instanceof Etym) {
+      return new DegreeEtym(leftIndex * that.step, this.timeScale * that.timeScale);
     }
-    throw new Error('Unsupported expand for DegreePip');
+    throw new Error('Unsupported expand for DegreeEtym');
   }
 
   toString() {
@@ -696,10 +696,10 @@ class SegmentTransform {
   }
 
   eval(env) {
-    const motif = requireMotif(this.expr.eval(env));
+    const motif = requireMot(this.expr.eval(env));
     const values = motif.values.slice();
     const n = values.length;
-    if (n === 0) return new Motif([]);
+    if (n === 0) return new Mot([]);
 
     // Normalize indices: allow negative indices to count from end
     const normIndex = (idx, defaultValue) => {
@@ -718,12 +718,12 @@ class SegmentTransform {
     // Rotate: positive rotates right, negative rotates left
     let r = Math.trunc(this.rotation || 0);
     if (sliced.length === 0 || r === 0) {
-      return new Motif(sliced);
+      return new Mot(sliced);
     }
     r %= sliced.length;
     if (r < 0) r += sliced.length;
     const rotated = sliced.slice(-r).concat(sliced.slice(0, -r));
-    return new Motif(rotated);
+    return new Mot(rotated);
   }
 }
 

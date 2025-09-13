@@ -8,11 +8,11 @@ function evalToString(input) {
   return value.toString();
 }
 
-test('absolute motif with commas', () => {
+test('absolute mot with commas', () => {
   assert.equal(evalToString('[0, 1, 2, 3]'), '[0, 1, 2, 3]');
 });
 
-// delta motif removed: semicolons have no meaning now
+// delta mot removed: semicolons have no meaning now
 
 test('timeScale with underscore (plain number)', () => {
   assert.equal(evalToString('[0, 1_2]'), '[0, 1_2]');
@@ -69,7 +69,7 @@ test('assignment then later expression with juxtaposition disabled across newlin
 
 test('choice picks one of the options', () => {
   const out = evalToString('[0 | 1 | 2]');
-  // Should be a single element motif with one of 0,1,2
+  // Should be a single element mot with one of 0,1,2
   assert.match(out, /^\[(0|1|2)\]$/);
 });
 
@@ -114,7 +114,7 @@ test('segment: slice with start only to end', () => {
   assert.equal(evalToString('[0, 1, 2, 3, 4] {1,}'), '[1, 2, 3, 4]');
 });
 
-test('rotate operator ~ applies right rotations per right motif', () => {
+test('rotate operator ~ applies right rotations per right mot', () => {
   assert.equal(evalToString('[0, 1, 2, 3] ~ [-1]'), '[3, 0, 1, 2]');
   assert.equal(evalToString('[0, 1, 2, 3] ~ [1, 2]'), '[1, 2, 3, 0, 2, 3, 0, 1]');
 });

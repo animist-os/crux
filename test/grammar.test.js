@@ -77,6 +77,18 @@ test('special symbols stringify with tag prefix', () => {
   assert.equal(evalToString('[_]'), '[:_0]');
 });
 
+test('rest special accepts timeScale with underscore (fraction)', () => {
+  assert.equal(evalToString('[0, r_1/2, 1]'), '[0, :r0_0.5, 1]');
+});
+
+test('rest special accepts timeScale with underscore and spaces', () => {
+  assert.equal(evalToString('[0, r _ 1/2, 1]'), '[0, :r0_0.5, 1]');
+});
+
+test('rest special accepts timeScale with underscore (plain number)', () => {
+  assert.equal(evalToString('[r_2]'), '[:r0_2]');
+});
+
 test('roman degrees parse and stringify', () => {
   const out = evalToString('[i, ii, iii, iv, v, vi, vii]');
   // stringify as roman tokens (degree pips)

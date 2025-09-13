@@ -1,14 +1,86 @@
+We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down musical structures.  You can zoom out from the note level, to tiny figures, then out further to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
 
 
 
-We are expressing notes as delta values -- as displacements in BOTH pitch and time.   The value of this is that it lets you turtles-all-the-way down musical structures.  You can zoom out from the note level, to tiny figures, to phrases, to sections, to pieces.   All these things can have the same fundamentail pitch and time properties expressed in the same way.
+NAMING
+
+  change pip to etym     
+  change motif to mot or lexon / glosson
+
+POLYPHONY
+
+voices come from other voices, no grand martrix — crux is about relative relationships / deltas
+
+a second voice is a  copy with variations
+
+ the issue with diad's actually suggests whole new motif
+
+maybe add an anchor option to pip (or mot) that means it dervices its ptche from a named mot
 
 
 
-  * questions
+
+* ^ ~ n  
+.*  .^  .~ .n
+
+.~ makes no sense and suggests tilde is a motif-level transform, like {}
+
+
+
+
+add a way to remove either timescales or steps so we can use a motif in an operation on one domain only
+
+simpler might be a way to coerce an abs value on all members of a motif.   so [0:1/2] * [0:_] == [0]
+
+
+
+
+[0, -1 & 1 * 3, -2 & 0]
+
+
+two flavors of dot, * and ^ (currently we have implemented *
+
+think about | vs ? to solve dealer’s choice at ffirst vs random
+
+
+
+
+do we need tagging? 
+
+
+
+
+
+SCHENKER OPS
+
+    step [0, 3] === [0,1,2,3]
+    neighbor [0] === [0, 1, 0] or [0, -1, 0] 
+    how can we express
+      a_neighbor[0] => [-1/2, 0/2] — anticipatory lower neighbor, subdividing the time span (very schenker)
+      m_neighboor[0] / (1 / 3) => [0, -1, 0] 
+
+  it seems meaningful to apply schenker neghbor ops to entire motifs:  
+  
+  A = [0, 3] neighbor_op === [0,3, 1, 4, 0, 3]  (this seems closer to "." semantics)
+  
+  B = [0, 3] neighbor_op === [0, 1, 0, 3, 4, 3]  (this seems closer to "*" semantics)
+  
+  ALT -- in the same way that "_" modifies individual pips, we could have schnker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
+
+  [0 ln, 1] === [0, -1, 0, 1]
+
+  [0, 1] n [-1] === [0, -1, 0, 1, 0, 1]
+
+  [0, 1] n [r, 1] === [0, 1, 2, 1]  ("r" is a schenker noop)
+
+  this also increases the pressure on having dot vs mul application of Expr2 onto Expr1
+
+
+
 
   SEGMENTATION
 
+We h ave implemented this curly brace notation but it feels wrong.    
 
  maybe curly bracket for slice rotate etc
 
@@ -23,7 +95,7 @@ We are expressing notes as delta values -- as displacements in BOTH pitch and ti
 
     BUT
 
-    how could we let the rotation keep happening on each iteration of the outer 4 operator to get the more musically interesting
+    how could we let the rotation keep happening on each iteration of the outer 4 operator to get the more musically interesting -- this is like my "walking window" idea.
 
         4$A === [c, d, b,  d, b, c,  b, c, d,  c, d, b]
 
@@ -53,7 +125,7 @@ We are expressing notes as delta values -- as displacements in BOTH pitch and ti
 
     ALT
 
-      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus note at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render
+      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus note at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the motif uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
 
       by default, all pips have a "i", but they can be spcificially overriden by their motif.  how do we handle multiple nested motifs with different degrees?  we COULD just add them like ints, this might work...
 
@@ -286,15 +358,6 @@ TODOs:
     2[4...6] === [4, 5, 6, 4, 5 6]
 
 
-  * schenker ops
-
-    step [0, 3] === [0,1,2,3]
-    neighbor [0] === [0, 1, 0] or [0, -1, 0] 
-    how can we express ...
-      a_neighbor[0] => [-1/2, 0/2] — anticipatory lower neighbor, subdividing the time span (very schenker)
-      m_neighboor[0] / (1 / 3) => [0, -1, 0] 
-
-
   * subdivision
 
     [a, [b, c]] == [a, b/2, c/2] (Tidal sugar)
@@ -367,12 +430,7 @@ TODO:
 diads / extra voices
 [0, -1 & 1 * 3, -2 & 0]
 
-this should do the right thing:
 
-A = 4 [0,1,2,3]
-A . [0,r,1]
-
-rotate is ~ [0,1,2,3] ~ [1]
 
 two flavors of dot, * and ^ (currently we have implemented *
 

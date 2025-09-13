@@ -2,6 +2,9 @@ import * as ohm from 'ohm-js';
 
 
 
+
+
+
 const g = ohm.grammar(String.raw`
   Andy {
   
@@ -77,8 +80,9 @@ const g = ohm.grammar(String.raw`
 
     Pip
       = roman                 -- degree
-      | number "_" TimeScale  -- withTimeScale
+      | number hspaces? "_" hspaces? TimeScale  -- withTimeScale
       | number                -- noTimeScale
+      | Special hspaces? "_" hspaces? TimeScale -- specialWithTimeScale
       | Special               -- special
 
     TimeScale
@@ -232,7 +236,11 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(0, 1, sym.sourceString);
   },
 
-  Pip_withTimeScale(n, _uscore, ts) {
+  Pip_specialWithTimeScale(sym, _h1, _uscore, _h2, ts) {
+    return new Pip(0, ts.parse(), sym.sourceString);
+  },
+
+  Pip_withTimeScale(n, _h1, _uscore, _h2, ts) {
     return new Pip(n.parse(), ts.parse());
   },
 

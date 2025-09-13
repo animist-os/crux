@@ -61,11 +61,80 @@ SCHENKER OPS
 
   it seems meaningful to apply schenker neghbor ops to entire motifs:  
   
-  A = [0, 3] neighbor_op === [0,3, 1, 4, 0, 3]  (this seems closer to "." semantics)
+    A = [0, 3] neighbor_op === [0,3, 1, 4, 0, 3]  (this seems closer to "." semantics)
   
-  B = [0, 3] neighbor_op === [0, 1, 0, 3, 4, 3]  (this seems closer to "*" semantics)
+    B = [0, 3] neighbor_op === [0, 1, 0, 3, 4, 3]  (this seems closer to "*" semantics)
+
+  or maybe neighbor op is a special case of a more general insertion op
+
+    [0, 3] insertion_op [-1] === [0, -1, 0, 3, 2, 3]
+
+    [0, 3] insertion_op [4] === [0, 4, 0, 3, 7, 3]
+
+    "dot" version
+
+    [0, 3] .insertion_op [4] === [0, 3] + [4, 7] + [0, 3] === [0, 3, 4, 7, 0, 3]
+
+  anticipatory neighbor feels like displacement.  in a way so does repetition
+
+   [0] === [-1, 0]
+ 
+   2: [0]
+
+   [0] displace [-1] === [-1, 0]
+
+   3:[0] === [0,0,0] 
+
+   8:[0] displ [noop, noop, -1]   == [0,0,-1,0,0,0,0,0,0,0,0]
+   8:[0] displ [noop, -1]         == [0,-1,0, 0,0,0,0,0,0,0]
+   8:[0] displ [-1]               == [-1, 0,0,0,0,0,0,0,0]
+
+   displace aka prepend
+
+   can we get at the sense of borrowing / paying back?
+
+   
+
+  Steps
   
-  ALT -- in the same way that "_" modifies individual pips, we could have schnker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
+    [0, 3] .-> [4] === [0,1,2,3,4, 3,4,5,6,7]
+
+    [0, 3] -> [4] ===  [0, 3] + [1, 4] + [2, 5] + [3, 6] + [4, 7] ===  [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]
+
+    [1,2,3,4] ~ [1, -1] === [2,3,4,1] + [4,1,2,3]
+
+    [1,2,3,4] .~ [1, -1] === ????
+
+    NOTE ALSO if we have dot-ish version of "^" we could do
+
+    [0, 3] -> [4] .^ [1, -1] === [0,1,2,3,4, -3,-4,-5,-6,-7]
+
+    [0, 3] -> [4] .^ [1, -1] . [0, 3] === [0,1,2,3,4, 0,-1,-2,-3,-4]
+
+
+    Is it bad that we can get to this two ways or sensible?   No, it's cool, and in fact while their notes are identical, the second version gives you another pip value to manipulate
+
+      [0, 3] -> [4] 
+      
+    is same as
+      [0] -> [4] * [0, 3]
+
+
+
+    THIS means we could replace
+
+      [0 -> 4] with [0] -> [4]
+
+    downside is in order to do 
+
+      [0, 1 -> 5, 2]  we need [0,1,2] .-> [noop, 5, noop]
+
+    but is that actually worse?
+
+
+  A 
+  
+  ALT -- in the same way that "_" modifies individual pips, we could have schenker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
 
   [0 ln, 1] === [0, -1, 0, 1]
 

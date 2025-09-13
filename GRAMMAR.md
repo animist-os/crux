@@ -80,13 +80,16 @@ In decreasing precedence (tighter binds higher):
      - Same tiling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`
    - `n` neighbor (spread):
-     - For each right value `k`, expand each pip `a` to `[a, a+k, a]` and concatenate.
+     - For each right value `k`, expand each etym `a` to `[a, a+k, a]` and concatenate.
      - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`
    - `.n` neighbor (tile):
-     - For each position `i`, expand `left[i]` with `k = right[i%|right|]` as `[a, a+k, a]`.
-     - Example: `[0, 3] .n [1] -> [0, 1, 0, 3, 4, 3]`
+     - For each position `i`, expand with `k = right[i%|right|]` by interleaving `[A] + [A+k] + [A]`.
+     - Example: `[0, 3] .n [1] -> [0, 3, 1, 4, 0, 3]`
+   - `a` anticipatory neighbor (spread):
+     - For each right value `k`, expand each `a` to `[a+k, a]` and concatenate.
+     - Example: `[0] a [-1] -> [-1, 0]`
    - `->` steps (spread):
-     - For each right value `k`, output the left motif transposed by all integers from 0 to `k` (sign supported), concatenated.
+     - For each right value `k`, output the left mot transposed by all integers from 0 to `k` (sign supported), concatenated.
      - Example: `[0, 3] -> [4] -> [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]`
    - `.->` steps (tile):
      - For each position `i`, expand `left[i]` into a run up to `right[i%|right|]`.
@@ -95,7 +98,7 @@ In decreasing precedence (tighter binds higher):
      - For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
      - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
-     - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
+     - Tagged etyms pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
      - Example: `[0, 1, 2] . [10, 20] -> [10, 21, 12]`.
 
 4) **Concatenation**:
@@ -112,7 +115,7 @@ In decreasing precedence (tighter binds higher):
 From highest to lowest:
 - Segment `{...}` (postfix)
 - Repeat `N Expr`
-- Multiplicative operators: `.*`, `.^`, `*`, `^`, `.`, `~` (left-associative)
+- Multiplicative operators: `.*`, `.^`, `.n`, `.->`, `->`, `n`, `*`, `^`, `.`, `~` (left-associative)
 - Concatenation: `,` and juxtaposition (left-associative)
 - Parentheses can override as usual.
 
@@ -244,7 +247,7 @@ Andy {
 
 - `*` and `^` iterate the right mot’s values; a negative timeScale on the right reverses the left mot for that right value.
 - `.` tiles the right mot against the left; tags (e.g., `x`) result in pass-through of the left value at that position.
-- Choices are resolved at evaluation time; ranges expand to integer pips before further processing.
+- Choices are resolved at evaluation time; ranges expand to integer etyms before further processing.
 - The string form shows decimal time scales (fractions are normalized).
 
 

@@ -77,6 +77,10 @@ test('neighbor tile inserts per-position neighbor', () => {
   assert.equal(evalToString('[0, 3] .n [1]'), '[0, 3, 1, 4, 0, 3]');
 });
 
+test('anticipatory neighbor prepends neighbor then original', () => {
+  assert.equal(evalToString('[0] a [-1]'), '[-1, 0]');
+});
+
 test('parens for grouping (expand then add identity)', () => {
   assert.equal(evalToString('([0, 1] ^ [2]) * [0]'), '[0, 2]');
 });

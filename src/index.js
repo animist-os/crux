@@ -36,6 +36,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".->" RepeatExpr -- dotSteps
       | MulExpr "->" RepeatExpr  -- steps
       | MulExpr "n" RepeatExpr   -- neighbor
+      | MulExpr "a" RepeatExpr   -- anticip
       | MulExpr "*" RepeatExpr  -- mul
       | MulExpr "^" RepeatExpr  -- expand
       | MulExpr "." RepeatExpr  -- dot
@@ -176,6 +177,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_dotNeighbor(x, _dotn, y) {
     return new DotNeighbor(x.parse(), y.parse());
+  },
+
+  MulExpr_anticip(x, _a, y) {
+    return new Anticip(x.parse(), y.parse());
   },
 
   MulExpr_dot(x, _dot, y) {
@@ -633,6 +638,28 @@ class DotNeighbor {
     }
     // Final block: original left
     for (const a of left.values) out.push(a);
+    return new Mot(out);
+  }
+}
+
+class Anticip {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    // Anticipatory neighbor: for each right k, prepend a+k then original a
+    for (const r of right.values) {
+      const k = Math.trunc(r.step);
+      for (const a of left.values) {
+        out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
+        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+      }
+    }
     return new Mot(out);
   }
 }

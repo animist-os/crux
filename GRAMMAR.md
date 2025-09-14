@@ -50,10 +50,9 @@ In decreasing precedence (tighter binds higher):
    - Indices are numbers; negative indices count from end. End is exclusive.
    - Examples:
 ```text
-[0, 1, 2, 3, 4] {-3,-1}   -> [2, 3]
-[0, 1, 2, 3, 4] {1,}      -> [1, 2, 3, 4]
-[0, 1, 2, 3, 4] 1{}       -> [4, 0, 1, 2, 3]
-[0, 1, 2, 3, 4] -1{2}     -> [3, 4, 2]
+[0, 1, 2, 3, 4] -3 _ -1   -> [2, 3]
+[0, 1, 2, 3, 4] 1 _       -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] _ 3       -> [0, 1, 2]
 ```
 
 2) **Repeat**: `Expr : N` repeats a mot `N` times (N must be a non-negative finite number).
@@ -122,11 +121,10 @@ In decreasing precedence (tighter binds higher):
 ### Precedence and associativity
 
 From highest to lowest:
-- Segment `{...}` (postfix)
-- Repeat `N Expr`
+- Slice (postfix)
+- Repeat `Expr : N`
 - Multiplicative operators: `.*`, `.^`, `.n`, `.->`, `->`, `n`, `*`, `^`, `.`, `~` (left-associative)
 - Concatenation: `,` and juxtaposition (left-associative)
-- Parentheses can override as usual.
 
 ### Identifiers
 
@@ -152,8 +150,6 @@ From highest to lowest:
 // Choices (result varies)
 [0 | 1 | 2]                  -> one of [0], [1], [2]
 
-// Specials
-
 // Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
 [0, 1] [2, 3]                -> [0, 1, 2, 3]
@@ -172,8 +168,8 @@ From highest to lowest:
 A = [0, 1]\nA, [2]           -> [0, 1, 2]
 
 // Slicing and rotation
-[0, 1, 2, 3, 4] {-3,-1}      -> [2, 3]
-[0, 1, 2, 3, 4] {1,}         -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] -3 _ -1      -> [2, 3]
+[0, 1, 2, 3, 4] 1 _          -> [1, 2, 3, 4]
 // Rotation is via ~ operator
 [0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
 [0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
@@ -208,7 +204,6 @@ Andy {
               | RepeatExpr
 
   RepeatExpr  = PostfixExpr ":" number  -- repeatPost
-              | number ":" PostfixExpr  -- repeat
               | PostfixExpr
 
   PostfixExpr = PostfixExpr SliceOp  -- slice
@@ -235,11 +230,10 @@ Andy {
               | number "*" TimeScale
               | number "/" TimeScale
               | number
-              | roman
   TimeScale   = number "/" number
               | number
   Special     = specialChar
-  specialChar = letter | "_"
+  specialChar = letter | "?"
   ident       = (letter | "_") alnum*
   number      = sign? digit+ ("." digit*)?
               | sign? digit* "." digit+

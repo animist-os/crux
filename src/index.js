@@ -55,7 +55,6 @@ const g = ohm.grammar(String.raw`
 
     RepeatExpr
       = PostfixExpr hspaces? ":" hspaces? number  -- repeatPost
-      | number hspaces? ":" hspaces? PostfixExpr  -- repeat  
       | PostfixExpr
 
     PostfixExpr
@@ -232,10 +231,6 @@ const s = g.createSemantics().addOperation('parse', {
     return new RotateOp(x.parse(), y.parse());
   },
 
-  RepeatExpr_repeat(n, _h1, _colon, _h2, expr) {
-    return new Repeat(n.parse(), expr.parse());
-  },
-
   RepeatExpr_repeatPost(expr, _h1, _colon, _h2, n) {
     return new Repeat(n.parse(), expr.parse());
   },
@@ -243,7 +238,7 @@ const s = g.createSemantics().addOperation('parse', {
   PostfixExpr_slice(x, sl) {
     const base = x.parse();
     const spec = sl.parse();
-    return new SegmentTransform(base, 0, spec.start, spec.end);
+    return new SegmentTransform(base, spec.start, spec.end);
   },
 
   PriExpr_ref(name) {
@@ -440,11 +435,6 @@ class Repeat {
     const values = [];
     for (let i = 0; i < Math.trunc(countValue); i++) {
       const motif = requireMot(this.expr.eval(env));
-      // If inner motif has a seeded RNG, carry it forward between iterations for deterministic sequences
-      if (motif._rng && typeof this.expr === 'object' && this.expr instanceof Mot) {
-        this.expr._rng = motif._rng;
-        this.expr.rng_seed = motif.rng_seed;
-      }
       for (let v of motif.values) {
         values.push(v);
       }
@@ -1165,9 +1155,8 @@ class Etym {
  
 
 class SegmentTransform {
-  constructor(expr, rotation = 0, start = null, end = null) {
+  constructor(expr, start = null, end = null) {
     this.expr = expr;
-    this.rotation = rotation || 0;
     this.start = start;
     this.end = end;
   }
@@ -1188,19 +1177,7 @@ class SegmentTransform {
 
     const s = normIndex(this.start, 0);
     const e = normIndex(this.end, n);
-
-    // Slice: default is [0,n)
-    let sliced = values.slice(s, e);
-
-    // Rotate: positive rotates right, negative rotates left
-    let r = Math.trunc(this.rotation || 0);
-    if (sliced.length === 0 || r === 0) {
-      return new Mot(sliced);
-    }
-    r %= sliced.length;
-    if (r < 0) r += sliced.length;
-    const rotated = sliced.slice(-r).concat(sliced.slice(0, -r));
-    return new Mot(rotated);
+    return new Mot(values.slice(s, e));
   }
 }
 

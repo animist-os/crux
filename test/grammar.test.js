@@ -28,9 +28,9 @@ test('range expands inclusively', () => {
   assert.equal(evalToString('[3->1]'), '[3, 2, 1]');
 });
 
-test('repeat sugar N: Expr (with and without spaces)', () => {
-  assert.equal(evalToString('3:[1]'), '[1, 1, 1]');
-  assert.equal(evalToString('3 : [1]'), '[1, 1, 1]');
+test('repeat postfix Expr : N (with and without spaces)', () => {
+  assert.equal(evalToString('[1] : 3'), '[1, 1, 1]');
+  assert.equal(evalToString('[1]  :  3'), '[1, 1, 1]');
 });
 
 test('followed-by concat via comma between Expr', () => {
@@ -94,6 +94,10 @@ test('lens spread sliding window size', () => {
   assert.equal(evalToString('[0, 1, 2, 3] l [2]'), '[0, 1, 1, 2, 2, 3]');
 });
 
+test('lens spread negative size reverses window order', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] l [-2]'), '[2, 3, 1, 2, 0, 1]');
+});
+
 test('lens tile rolling window per-position', () => {
   // window size 2 starting at each position (wrap)
   assert.equal(evalToString('[0, 1, 2] .l [2]'), '[0, 1, 1, 2, 2, 0]');
@@ -129,6 +133,22 @@ test('random ranged a ? b bounds the integer range', () => {
   assert.ok(Number.isInteger(rnd) && rnd >= -2 && rnd <= 2, 'rnd out of range: ' + rnd);
 });
 
+test('filter spread resets all timeScales with T', () => {
+  assert.equal(evalToString('[0*2, 1/4, 2] f [T]'), '[0, 1, 2]');
+});
+
+test('filter spread resets steps with S', () => {
+  assert.equal(evalToString('[0, 1/2, 2/4] f [S]'), '[0, 0/2, 0/4]');
+});
+
+test('filter tile per-position T,S masks', () => {
+  assert.equal(evalToString('[0*2, 1/4, 2*3] .f [T, S]'), '[0, 0/4, 2*3]');
+});
+
+test('filter T/2 sets timeScale to specific value', () => {
+  assert.equal(evalToString('[0, 1/3, 2*5] f [T/2]'), '[0/2, 1/2, 2/2]');
+});
+
 test('parens for grouping (expand then add identity)', () => {
   assert.equal(evalToString('([0, 1] ^ [2]) * [0]'), '[0, 2]');
 });
@@ -149,9 +169,7 @@ test('choice picks one of the options', () => {
   assert.match(out, /^\[(0|1|2)\]$/);
 });
 
-test('special symbols stringify with tag prefix', () => {
-  assert.equal(evalToString('[_]'), '[:_0]');
-});
+// '_' tag removed
 
 test('rest special accepts timeScale using / (fraction)', () => {
   assert.equal(evalToString('[0, r/2, 1]'), '[0, :r0/2, 1]');
@@ -165,15 +183,7 @@ test('rest special accepts timeScale using * (plain number)', () => {
   assert.equal(evalToString('[r*2]'), '[:r0*2]');
 });
 
-test('roman degrees parse and stringify', () => {
-  const out = evalToString('[i, ii, iii, iv, v, vi, vii]');
-  // stringify as roman tokens (degree pips)
-  assert.equal(out, '[i, ii, iii, iv, v, vi, vii]');
-});
-
-test('degree add via * with numeric', () => {
-  assert.equal(evalToString('[i, ii] * [1]'), '[ii, iii]');
-});
+// roman degrees removed
 
 test.skip('degree mul via ^ with numeric', () => {
   assert.equal(evalToString('[ii] ^ [2]'), '[iv]');
@@ -182,12 +192,16 @@ test.skip('degree mul via ^ with numeric', () => {
 // delta form removed; mixed case adjusted accordingly (no semicolons)
 
 // Segment (slice/rotate) tests
-test('segment: slice with negative start and end', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] {-3,-1}'), '[2, 3]');
+test('slice operator both: start _ end with negatives', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 _ -1'), '[2, 3]');
 });
 
-test('segment: slice with start only to end', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] {1,}'), '[1, 2, 3, 4]');
+test('slice operator startOnly: start _', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 _'), '[1, 2, 3, 4]');
+});
+
+test('slice operator endOnly: _ end', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] _ 3'), '[0, 1, 2]');
 });
 
 test('rotate operator ~ applies right rotations per right mot', () => {

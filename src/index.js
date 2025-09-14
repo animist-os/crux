@@ -38,6 +38,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".l" RepeatExpr  -- dotLens
       | MulExpr ".t" RepeatExpr  -- dotTie
       | MulExpr ".c" RepeatExpr  -- dotConstraint
+      | MulExpr ".f" RepeatExpr  -- dotFilter
       | MulExpr "->" RepeatExpr  -- steps
       | MulExpr "n" RepeatExpr   -- neighbor
       | MulExpr "a" RepeatExpr   -- anticip
@@ -45,6 +46,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr "l" RepeatExpr   -- lens
       | MulExpr "t" RepeatExpr   -- tie
       | MulExpr "c" RepeatExpr   -- constraint
+      | MulExpr "f" RepeatExpr   -- filter
       | MulExpr "*" RepeatExpr  -- mul
       | MulExpr "^" RepeatExpr  -- expand
       | MulExpr "." RepeatExpr  -- dot
@@ -52,11 +54,12 @@ const g = ohm.grammar(String.raw`
       | RepeatExpr
 
     RepeatExpr
-      = number hspaces? ":" hspaces? PostfixExpr  -- repeat
+      = PostfixExpr hspaces? ":" hspaces? number  -- repeatPost
+      | number hspaces? ":" hspaces? PostfixExpr  -- repeat  
       | PostfixExpr
 
     PostfixExpr
-      = PostfixExpr Segment  -- segment
+      = PostfixExpr SliceOp  -- slice
       | PriExpr
   
     PriExpr
@@ -64,15 +67,11 @@ const g = ohm.grammar(String.raw`
       | "[" MotBody "]"            -- mot
       | "(" Expr ")"                  -- parens
 
-    Segment
-      = "{" SliceSpec "}"         -- noRot
-
-    SliceSpec
-      = Index "," Index                 -- both
-      | Index ","                       -- startOnlyComma
-      | "," Index                       -- endOnly
-      | Index                            -- startOnly
-      |                                   -- empty
+    SliceOp
+      = Index hspaces? "_" hspaces? Index   -- both
+      | Index hspaces? "_"                 -- startOnly
+      | "_" hspaces? Index                 -- endOnly
+      | "_" Index                          -- endOnlyTight
 
     Index = sign? digit+
 
@@ -95,8 +94,7 @@ const g = ohm.grammar(String.raw`
       = number "->" number      -- inclusive
 
     Etym
-      = roman                 -- degree
-      | number hspaces? "*" hspaces? TimeScale  -- withTimeMul
+      = number hspaces? "*" hspaces? TimeScale  -- withTimeMul
       | number hspaces? "/" hspaces? TimeScale  -- withTimeDiv
       | number                -- noTimeScale
       | Special hspaces? "*" hspaces? TimeScale -- specialWithTimeMul
@@ -115,17 +113,7 @@ const g = ohm.grammar(String.raw`
 
     specialChar
       = letter
-      | "_"
       | "?"
-  
-    roman
-      = "vii"
-      | "iii"
-      | "vi"
-      | "iv"
-      | "ii"
-      | "v"
-      | "i"
   
     ident = (letter | "_") alnum*
   
@@ -228,6 +216,14 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotConstraint(x.parse(), y.parse());
   },
 
+  MulExpr_filter(x, _f, y) {
+    return new FilterOp(x.parse(), y.parse());
+  },
+
+  MulExpr_dotFilter(x, _dotf, y) {
+    return new DotFilter(x.parse(), y.parse());
+  },
+
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
   },
@@ -240,9 +236,13 @@ const s = g.createSemantics().addOperation('parse', {
     return new Repeat(n.parse(), expr.parse());
   },
 
-  PostfixExpr_segment(x, seg) {
+  RepeatExpr_repeatPost(expr, _h1, _colon, _h2, n) {
+    return new Repeat(n.parse(), expr.parse());
+  },
+
+  PostfixExpr_slice(x, sl) {
     const base = x.parse();
-    const spec = seg.parse();
+    const spec = sl.parse();
     return new SegmentTransform(base, 0, spec.start, spec.end);
   },
 
@@ -282,28 +282,20 @@ const s = g.createSemantics().addOperation('parse', {
     return e.parse();
   },
 
-  Segment_noRot(_open, spec, _close) {
-    return { start: spec.parse().start, end: spec.parse().end };
-  },
-
-  SliceSpec_startOnlyComma(start, _comma) {
-    return { start: start.parse(), end: null };
-  },
-
-  SliceSpec_endOnly(_comma, end) {
-    return { start: null, end: end.parse() };
-  },
-
-  SliceSpec_both(start, _comma, end) {
+  SliceOp_both(start, _h1, _us, _h2, end) {
     return { start: start.parse(), end: end.parse() };
   },
 
-  SliceSpec_startOnly(start) {
+  SliceOp_startOnly(start, _h1, _us) {
     return { start: start.parse(), end: null };
   },
 
-  SliceSpec_empty() {
-    return { start: null, end: null };
+  SliceOp_endOnly(_us, _h1, end) {
+    return { start: null, end: end.parse() };
+  },
+
+  SliceOp_endOnlyTight(_us, end) {
+    return { start: null, end: end.parse() };
   },
 
   Index(_sign, _digits) {
@@ -338,9 +330,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Etym(n.parse(), 1 / ts.parse());
   },
 
-  Etym_degree(sym) {
-    return new DegreeEtym(romanToIndex(sym.sourceString), 1);
-  },
+  
 
   TimeScale_frac(n, _slash, d) {
     return n.parse() / d.parse();
@@ -500,7 +490,7 @@ class Dot {
       let yi = xi % yv.values.length;
       const left = xv.values[xi];
       const right = yv.values[yi];
-      if ((left.tag || right.tag) && !(left instanceof DegreeEtym) && !(right instanceof DegreeEtym)) {
+      if ((left.tag || right.tag)) {
         // Example branch for 'x': treat as omit-on-right or pass-through
         if (left.hasTag && left.hasTag('x')) {
           values.push(left);
@@ -545,7 +535,7 @@ class DotExpand {
       let yi = xi % yv.values.length;
       const left = xv.values[xi];
       const right = yv.values[yi];
-      if ((left.tag || right.tag) && !(left instanceof DegreeEtym) && !(right instanceof DegreeEtym)) {
+      if ((left.tag || right.tag)) {
         if (left.hasTag && left.hasTag('x')) {
           values.push(left);
           continue;
@@ -726,11 +716,7 @@ class Mirror {
     for (const r of right.values) {
       const anchor = r.step;
       for (const a of left.values) {
-        if (a instanceof DegreeEtym) {
-          // Pass-through degrees for now
-          out.push(a);
-          continue;
-        }
+        
         const combinedTag = a.tag ?? r.tag ?? null;
         const mirrored = 2 * anchor - a.step;
         out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
@@ -753,10 +739,8 @@ class DotMirror {
     for (let i = 0; i < left.values.length; i++) {
       const a = left.values[i];
       const r = right.values[i % right.values.length];
-      if (a instanceof DegreeEtym) {
-        out.push(a);
-        continue;
-      }
+      
+      
       const combinedTag = a.tag ?? r.tag ?? null;
       const mirrored = 2 * r.step - a.step;
       out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
@@ -778,17 +762,29 @@ class Lens {
     const out = [];
     if (n === 0) return new Mot([]);
     for (const r of right.values) {
-      let k = Math.trunc(Math.abs(r.step));
-      if (!Number.isFinite(k) || k <= 0) k = 1;
-      if (k > n) k = n;
-      if (k === n) {
+      const rawK = Math.trunc(r.step);
+      let size = Math.abs(rawK);
+      if (!Number.isFinite(size) || size <= 0) size = 1;
+      if (size > n) size = n;
+      if (size === n) {
         for (const a of left.values) out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
         continue;
       }
-      for (let s = 0; s <= n - k; s++) {
-        for (let j = 0; j < k; j++) {
-          const a = left.values[s + j];
-          out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+      if (rawK >= 0) {
+        // forward windows
+        for (let s = 0; s <= n - size; s++) {
+          for (let j = 0; j < size; j++) {
+            const a = left.values[s + j];
+            out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+          }
+        }
+      } else {
+        // reverse windows: start from the last valid start and move backward
+        for (let s = n - size; s >= 0; s--) {
+          for (let j = 0; j < size; j++) {
+            const a = left.values[s + j];
+            out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+          }
         }
       }
     }
@@ -837,7 +833,7 @@ class TieOp {
     let acc = values[0];
     for (let i = 1; i < values.length; i++) {
       const cur = values[i];
-      if (!(acc instanceof DegreeEtym) && !(cur instanceof DegreeEtym) && acc.step === cur.step && acc.tag === cur.tag) {
+      if (acc.step === cur.step && acc.tag === cur.tag) {
         // merge durations (sum timeScales)
         acc = new Etym(acc.step, acc.timeScale + cur.timeScale, acc.tag);
       } else {
@@ -870,7 +866,7 @@ class DotTie {
       while (j + 1 < values.length) {
         const mask = right.values[j % right.values.length];
         const next = values[j + 1];
-        if (mask.step !== 0 && !(acc instanceof DegreeEtym) && !(next instanceof DegreeEtym) && acc.step === next.step && acc.tag === next.tag) {
+        if (mask.step !== 0 && acc.step === next.step && acc.tag === next.tag) {
           acc = new Etym(acc.step, acc.timeScale + next.timeScale, acc.tag);
           j++;
         } else {
@@ -910,6 +906,63 @@ class ConstraintOp {
 }
 
 class DotConstraint extends ConstraintOp {}
+
+class FilterOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    // Spread semantics: apply the filters in RHS sequentially to the whole mot
+    let current = left.values;
+    for (const r of right.values) {
+      current = current.map(a => applyFilterMask(a, r));
+    }
+    return new Mot(current);
+  }
+}
+
+class DotFilter {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      if (i < right.values.length) {
+        const r = right.values[i];
+        out.push(applyFilterMask(a, r));
+      } else {
+        out.push(a);
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+function applyFilterMask(etym, mask) {
+  
+  const tag = mask.tag;
+  // T: reset timeScale (or set to mask's timeScale if provided)
+  if (tag === 'T') {
+    const newTs = mask.timeScale != null ? mask.timeScale : 1;
+    return new Etym(etym.step, newTs, etym.tag);
+  }
+  // S: reset step to 0 (keep timeScale)
+  if (tag === 'S') {
+    return new Etym(0, etym.timeScale, etym.tag);
+  }
+  // Default: no change
+  return etym;
+}
 
 
 function requireMot(value) {
@@ -1005,7 +1058,7 @@ class Choice {
         // Expand range to all discrete integer pips, then pick from that expansion
         return opt.expandToEtyms();
       }
-      if (opt instanceof Etym || opt instanceof DegreeEtym) return [opt];
+      if (opt instanceof Etym) return [opt];
       throw new Error('Unsupported choice option');
     }).flat();
 
@@ -1035,7 +1088,7 @@ class Mot {
     const rng = this._rng || Math.random;
 
     for (const value of this.values) {
-      if (value instanceof Etym || value instanceof DegreeEtym) {
+      if (value instanceof Etym) {
         // Resolve bare '?' tag to random in [-7,7]
         if (value instanceof Etym && value.hasTag('?')) {
           const rnd = Math.floor(rng() * (7 - (-7) + 1)) + (-7);
@@ -1077,19 +1130,11 @@ class Etym {
   }
 
   mul(that) {
-    if (that instanceof DegreeEtym) {
-      // numeric + degree => degree (diatonic offset)
-      return new DegreeEtym(this.step + that.degreeIndex, this.timeScale * that.timeScale);
-    }
     const combinedTag = this.tag ?? that.tag ?? null;
     return new Etym(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   expand(that) {
-    if (that instanceof DegreeEtym) {
-      // numeric * degree => degree (scale by factor)
-      return new DegreeEtym(this.step * that.degreeIndex, this.timeScale * that.timeScale);
-    }
     const combinedTag = this.tag ?? that.tag ?? null;
     return new Etym(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
   }
@@ -1117,65 +1162,7 @@ class Etym {
   }
 }
 
-class DegreeEtym {
-  constructor(degreeIndex, timeScale = 1) {
-    this.degreeIndex = degreeIndex; // 0..6 for i..vii
-    this.timeScale = timeScale;
-    this.tag = null;
-  }
-
-  // Addition-like combine for degrees and/or numeric steps
-  mul(that) {
-    const leftIndex = this.degreeIndex;
-    if (that instanceof DegreeEtym) {
-      return new DegreeEtym((leftIndex + that.degreeIndex) % 7, this.timeScale * that.timeScale);
-    }
-    if (that instanceof Etym) {
-      return new DegreeEtym(leftIndex + that.step, this.timeScale * that.timeScale);
-    }
-    throw new Error('Unsupported mul for DegreeEtym');
-  }
-
-  // Multiply-like combine for degrees and/or numeric steps
-  expand(that) {
-    const leftIndex = this.degreeIndex;
-    if (that instanceof DegreeEtym) {
-      return new DegreeEtym((leftIndex * that.degreeIndex) % 7, this.timeScale * that.timeScale);
-    }
-    if (that instanceof Etym) {
-      return new DegreeEtym(leftIndex * that.step, this.timeScale * that.timeScale);
-    }
-    throw new Error('Unsupported expand for DegreeEtym');
-  }
-
-  toString() {
-    return romanFromIndex(this.degreeIndex);
-  }
-
-  hasTag(tag) {
-    return false;
-  }
-}
-
-function romanToIndex(sym) {
-  switch (sym) {
-    case 'i': return 0;
-    case 'ii': return 1;
-    case 'iii': return 2;
-    case 'iv': return 3;
-    case 'v': return 4;
-    case 'vi': return 5;
-    case 'vii': return 6;
-    default:
-      throw new Error('unknown roman degree: ' + sym);
-  }
-}
-
-function romanFromIndex(idx) {
-  const map = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
-  const k = ((idx % 7) + 7) % 7;
-  return map[k];
-}
+ 
 
 class SegmentTransform {
   constructor(expr, rotation = 0, start = null, end = null) {

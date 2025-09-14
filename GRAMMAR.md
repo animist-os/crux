@@ -28,8 +28,7 @@ Evaluates to `[0, 1, 2]`.
     - `number` is the step (may be integer or float).
     - `TimeScale` is either a plain number or a fraction `n/d`, combined with `*` or `/`.
       - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> [1/4]`.
-    - A single letter or `_` inside a mot is a tagged etym with step 0. Example: `[_] -> [:_0]`.
-  - **Degree**: lowercase roman numerals `i, ii, iii, iv, v, vi, vii` represent scale degrees (symbolic). Example: `[iv]`.
+    - A single letter inside a mot is a tagged etym with step 0.
   - **Range**: `a->b` expands inclusively to integer steps. Examples:
     - `[0->3] -> [0, 1, 2, 3]`
     - `[3->1] -> [3, 2, 1]`
@@ -43,13 +42,11 @@ Notes:
 
 In decreasing precedence (tighter binds higher):
 
-1) **Postfix segment**: slicing applied to a mot result.
+1) **Postfix slice**: slicing applied to a mot result.
    - Forms:
-     - `{start,end}`
-     - `{start,}` (start to end)
-     - `{,end}` (from start to end index)
-     - `{start}` (single index to end)
-     - `{}` (no slice)
+     - `start _ end` (spaces optional around `_`)
+     - `start _` (start to end)
+     - `_ end` (from start to end index)
    - Indices are numbers; negative indices count from end. End is exclusive.
    - Examples:
 ```text
@@ -59,9 +56,9 @@ In decreasing precedence (tighter binds higher):
 [0, 1, 2, 3, 4] -1{2}     -> [3, 4, 2]
 ```
 
-2) **Repeat**: `N : Expr` repeats a mot `N` times (N must be a non-negative finite number).
+2) **Repeat**: `Expr : N` repeats a mot `N` times (N must be a non-negative finite number).
 ```text
-3:[1] -> [1, 1, 1]
+[1] : 3 -> [1, 1, 1]
 ```
 
 3) **Combine pairs of mots**:
@@ -87,6 +84,10 @@ In decreasing precedence (tighter binds higher):
      - Merge equal-step etyms by adding timeScales; tile uses mask to allow merges.
    - `c` constraint (spread) / `.c` (tile):
      - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
+   - `f` filter (spread) / `.f` (tile):
+     - Reset components to neutral defaults using tags in RHS:
+       - `T` -> reset timeScale to 1 (or to provided `T/k` or `T*k` value)
+       - `S` -> reset step to 0
    - `n` neighbor (spread):
      - For each right value `k`, expand each etym `a` to `[a, a+k, a]` and concatenate.
      - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`
@@ -152,7 +153,6 @@ From highest to lowest:
 [0 | 1 | 2]                  -> one of [0], [1], [2]
 
 // Specials
-[_]                          -> [:_0]
 
 // Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
@@ -207,23 +207,20 @@ Andy {
               | MulExpr "~" RepeatExpr
               | RepeatExpr
 
-  RepeatExpr  = number ":" PostfixExpr  -- repeat
+  RepeatExpr  = PostfixExpr ":" number  -- repeatPost
+              | number ":" PostfixExpr  -- repeat
               | PostfixExpr
 
-  PostfixExpr = PostfixExpr Segment  -- segment
+  PostfixExpr = PostfixExpr SliceOp  -- slice
               | PriExpr
 
   PriExpr     = ident                -- ref
               | "[" MotBody "]"  -- mot
               | "(" Expr ")"      -- parens
 
-  Segment     = "{" SliceSpec "}"
-
-  SliceSpec   = Index "," Index
-              | Index ","
-              | "," Index
-              | Index
-              |
+  SliceOp     = Index "_" Index
+              | Index "_"
+              | "_" Index
 
   Index       = sign? digit+
 
@@ -239,7 +236,6 @@ Andy {
               | number "/" TimeScale
               | number
               | roman
-  roman       = "vii" | "iii" | "vi" | "iv" | "ii" | "v" | "i"
   TimeScale   = number "/" number
               | number
   Special     = specialChar

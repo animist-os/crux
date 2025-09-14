@@ -2,8 +2,8 @@
 
 ### Operators (spread vs tile)
 - Concatenation: `,` or juxtaposition — concatenate mots.
-- Repeat: `N: Expr` — repeat a mot N times.
-- Slice/segment: `{start,end}` `{start,}` `{,end}` `{start}` — slice/rotate section.
+- Repeat: `Expr : N` — repeat a mot N times.
+- Slice: `start _ end`, `start _`, `_ end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS tiled.
@@ -13,6 +13,7 @@
 - Lens: `l` (spread), `.l` (tile) — sliding window emission.
 - Tie: `t` (spread), `.t` (tile) — merge equal steps by adding timeScales; tile uses mask.
 - Constraint: `c` (spread), `.c` (tile) — keep/omit via mask; timeScales multiply.
+- Filter: `f` (spread), `.f` (tile) — reset components: `T` timeScale->1 (or set via `T/2`), `S` step->0.
 - Steps (spread): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
 - Steps (tile): `.->` — per-position run for each LHS value up to k (tiled).
 - Neighbor (spread): `n` — each a becomes `[a, a+k, a]`, for each k in RHS; concat.
@@ -25,8 +26,7 @@
 |---|---|---|
 | Concatenate `,` | `[0, 1], [2]` | `[0, 1, 2]` |
 | Concatenate (juxtapose) | `[0, 1] [2, 3]` | `[0, 1, 2, 3]` |
-| Repeat `N:Expr` | `3:[1]` | `[1, 1, 1]` |
-| Slice `{start,end}` | `[0,1,2,3,4] {-3,-1}` | `[2, 3]` |
+| Repeat `Expr : N` | `[1] : 3` | `[1, 1, 1]` |
 | Spread add `*` | `[1,2,3] * [0*-1]` | `[3, 2, 1]` |
 | Spread mul `^` | `[1, 2] ^ [2]` | `[2, 4]` |
 | Tile add `.` | `[0,1,2] . [10,20]` | `[10, 21, 12]` |
@@ -44,13 +44,16 @@
 | Lens (tile) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
 | Tie (spread) `t` | `[0, 0/2, 0/2, 1] t [0]` | `[0*2, 1]` |
 | Tie (tile) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
-| Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,x]` | `[0, 2]` |
-| Constraint (tile) `.c` | `[0,1,2,3] .c [1,0,1,x]` | `[0, 2]` |
+| Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
+| Filter (spread) `f` | `[0*2, 1/4, 2] f [T]` | `[0, 1, 2]` |
+| Filter (tile) `.f` | `[0*2, 1/4, 2*3] .f [T, S]` | `[0, 0/4, 2*3]` |
+| Filter time-target `f` | `[0, 1/3, 2*5] f [T/2]` | `[0/2, 1/2, 2/2]` |
+| Slice `start _ end` | `[0,1,2,3,4] -3 _ -1` | `[2, 3]` |
+
 
 Etyms:
 
 * Range: `[0->3] -> [0, 1, 2, 3]`
 * Choice: `[0 | 1 | 2] -> one of [0] [1] [2]`
-* TimeScale: `[1*2, 2/4] -> [1*2, 2/4]`
-* Specials: `[_] -> [:_0]`, `r` (rest), `x` (omit in tile), `D` (displace tag)
+* Tags (character etyms): `r` (rest), `x` (omit in tile), `D` (displace tag)
 

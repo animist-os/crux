@@ -9,65 +9,48 @@
 - Tile add: `.` or `.*` — elementwise add with RHS tiled.
 - Tile mul: `.^` — elementwise multiply with RHS tiled.
 - Rotate: `~` — for each k in RHS, rotate LHS by k and append.
+- Mirror: `m` (spread), `.m` (tile) — reflect steps around anchor k.
+- Lens: `l` (spread), `.l` (tile) — sliding window emission.
+- Tie: `t` (spread), `.t` (tile) — merge equal steps by adding timeScales; tile uses mask.
+- Constraint: `c` (spread), `.c` (tile) — keep/omit via mask; timeScales multiply.
 - Steps (spread): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
 - Steps (tile): `.->` — per-position run for each LHS value up to k (tiled).
 - Neighbor (spread): `n` — each a becomes `[a, a+k, a]`, for each k in RHS; concat.
 - Neighbor (tile): `.n` — interleave `[A] + [A+k] + [A]` with k tiled over A.
 - Anticipatory neighbor (spread): `a` — each a becomes `[a+k, a]`; concat.
 
-Notes
-- Values: number (step), optional timescale with `*` or `/` (e.g., `1*2`, `1/4`), or a special tag (e.g., `r` rest).
-- Range: `[x->y]` expands inclusively (integers).
-- Choice: `[x | y | z]` chooses one option (seedable via mot seed).
+### Binary Mot Operators
 
-### Simple examples
+| Operator | Example | Result |
+|---|---|---|
+| Concatenate `,` | `[0, 1], [2]` | `[0, 1, 2]` |
+| Concatenate (juxtapose) | `[0, 1] [2, 3]` | `[0, 1, 2, 3]` |
+| Repeat `N:Expr` | `3:[1]` | `[1, 1, 1]` |
+| Slice `{start,end}` | `[0,1,2,3,4] {-3,-1}` | `[2, 3]` |
+| Spread add `*` | `[1,2,3] * [0*-1]` | `[3, 2, 1]` |
+| Spread mul `^` | `[1, 2] ^ [2]` | `[2, 4]` |
+| Tile add `.` | `[0,1,2] . [10,20]` | `[10, 21, 12]` |
+| Tile add `.*` | `[0,1,2] .* [10,20]` | `[10, 21, 12]` |
+| Tile mul `.^` | `[1,2] .^ [2]` | `[2, 4]` |
+| Rotate `~` | `[0,1,2,3] ~ [-1]` | `[3, 0, 1, 2]` |
+| Steps (spread) `->` | `[0, 3] -> [2]` | `[0, 3, 1, 4, 2, 5]` |
+| Steps (tile) `.->` | `[0, 3] .-> [2]` | `[0,1,2,3,4, 3,4,5]` |
+| Neighbor (spread) `n` | `[0, 3] n [1]` | `[0,1,0, 3,4,3]` |
+| Neighbor (tile) `.n` | `[0, 3] .n [1]` | `[0, 3, 1, 4, 0, 3]` |
+| Anticipatory neighbor `a` | `[0] a [-1]` | `[-1, 0]` |
+| Mirror (spread) `m` | `[0, 2, 4] m [2]` | `[4, 2, 0]` |
+| Mirror (tile) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
+| Lens (spread) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
+| Lens (tile) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
+| Tie (spread) `t` | `[0, 0/2, 0/2, 1] t [0]` | `[0*2, 1]` |
+| Tie (tile) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
+| Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,x]` | `[0, 2]` |
+| Constraint (tile) `.c` | `[0,1,2,3] .c [1,0,1,x]` | `[0, 2]` |
 
-| Expression | Result |
-|---|---|
-| `[0, 1], [2]` | `[0, 1, 2]` |
-| `3:[1]` | `[1, 1, 1]` |
-| `[0, 1, 2] {1,}` | `[1, 2]` |
-| `[1, 2, 3] * [0*-1]` | `[3, 2, 1]` |
-| `[1, 2] ^ [2]` | `[2, 4]` |
-| `[0, 1, 2] . [10, 20]` | `[10, 21, 12]` |
-| `[1, 2] .^ [2]` | `[2, 4]` |
-| `[0, 1, 2, 3] ~ [-1]` | `[3, 0, 1, 2]` |
-| `[0, 3] -> [2]` | `[0, 3, 1, 4, 2, 5]` |
-| `[0, 3] .-> [2]` | `[0, 1, 2, 3, 4, 3, 4, 5]` |
-| `[0, 3] n [1]` | `[0, 1, 0, 3, 4, 3]` |
-| `[0, 3] .n [1]` | `[0, 3, 1, 4, 0, 3]` |
-| `[0] a [-1]` | `[-1, 0]` |
+Etyms:
 
-### Pedagogical examples
-
-1) Spread vs tile mental model
-```
-[0, 1, 2] * [10, 20]  -> [10,11,12, 20,21,22]
-[0, 1, 2] . [10, 20]  -> [10,21,12]
-```
-
-2) Columnar step expansion vs per-etym runs
-```
-// Spread: columns
-[0, 3] -> [4] -> [0,3] + [1,4] + [2,5] + [3,6] + [4,7]
-// Tile: per-etym
-[0, 3] .-> [4] -> [0,1,2,3,4, 3,4,5,6,7]
-```
-
-3) Interleaving neighbor with tile
-```
-[0, 3] .n [1] -> [0, 3, 1, 4, 0, 3]
-```
-
-4) Combining steps and tile-mul
-```
-[0, 3] -> [4] .^ [1, -1] -> [0,1,2,3,4, 0,-1,-2,-3,-4]
-```
-
-5) Using rests and displacement-like tags (conceptual)
-```
-[a,b,c] . [:D0, x, 0] -> [a (rest), a,  b,  c]
-// x omits a position, D inserts a rest span before continuing
-```
-
+* Range: `[0->3] -> [0, 1, 2, 3]`
+* Choice: `[0 | 1 | 2] -> one of [0] [1] [2]`
+* TimeScale: `[1*2, 2/4] -> [1*2, 2/4]`
+* Specials: `[_] -> [:_0]`, `r` (rest), `x` (omit in tile), `D` (displace tag)
 

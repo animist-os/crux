@@ -81,6 +81,54 @@ test('anticipatory neighbor prepends neighbor then original', () => {
   assert.equal(evalToString('[0] a [-1]'), '[-1, 0]');
 });
 
+test('mirror spread around anchor', () => {
+  assert.equal(evalToString('[0, 2, 4] m [2]'), '[4, 2, 0]');
+});
+
+test('mirror tile per-position', () => {
+  assert.equal(evalToString('[0, 2, 4] .m [1]'), '[2, 0, -2]');
+});
+
+test('lens spread sliding window size', () => {
+  // window size 2: [0,1] [1,2] [2,3]
+  assert.equal(evalToString('[0, 1, 2, 3] l [2]'), '[0, 1, 1, 2, 2, 3]');
+});
+
+test('lens tile rolling window per-position', () => {
+  // window size 2 starting at each position (wrap)
+  assert.equal(evalToString('[0, 1, 2] .l [2]'), '[0, 1, 1, 2, 2, 0]');
+});
+
+test('tie spread merges equal steps by adding timeScale', () => {
+  assert.equal(evalToString('[0, 0/2, 0/2, 1] t [0]'), '[0*2, 1]');
+});
+
+test('tie tile uses mask to allow merging forward', () => {
+  // mask nonzero allows merge at those boundaries
+  assert.equal(evalToString('[0/2, 0/2, 0/2, 1] .t [1]'), '[0*1.5, 1]');
+});
+
+test('constraint keeps where mask nonzero and not x', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] c [1, 0, 1, x]'), '[0, 2]');
+});
+
+test('random tag bare ? uses default range [-7,7]', () => {
+  const out = evalToString('[0, ?, 2]');
+  // Expect shape [0, rnd, 2] where rnd integer and |rnd| <= 7
+  const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
+  assert.ok(m, 'Output shape mismatch: ' + out);
+  const rnd = parseInt(m[2], 10);
+  assert.ok(Number.isInteger(rnd) && rnd >= -7 && rnd <= 7, 'rnd out of range: ' + rnd);
+});
+
+test('random ranged a ? b bounds the integer range', () => {
+  const out = evalToString('[0, -2 ? 2, 3]');
+  const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
+  assert.ok(m, 'Output shape mismatch: ' + out);
+  const rnd = parseInt(m[2], 10);
+  assert.ok(Number.isInteger(rnd) && rnd >= -2 && rnd <= 2, 'rnd out of range: ' + rnd);
+});
+
 test('parens for grouping (expand then add identity)', () => {
   assert.equal(evalToString('([0, 1] ^ [2]) * [0]'), '[0, 2]');
 });

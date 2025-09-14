@@ -34,9 +34,17 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".^" RepeatExpr -- dotExpand
       | MulExpr ".n" RepeatExpr  -- dotNeighbor
       | MulExpr ".->" RepeatExpr -- dotSteps
+      | MulExpr ".m" RepeatExpr  -- dotMirror
+      | MulExpr ".l" RepeatExpr  -- dotLens
+      | MulExpr ".t" RepeatExpr  -- dotTie
+      | MulExpr ".c" RepeatExpr  -- dotConstraint
       | MulExpr "->" RepeatExpr  -- steps
       | MulExpr "n" RepeatExpr   -- neighbor
       | MulExpr "a" RepeatExpr   -- anticip
+      | MulExpr "m" RepeatExpr   -- mirror
+      | MulExpr "l" RepeatExpr   -- lens
+      | MulExpr "t" RepeatExpr   -- tie
+      | MulExpr "c" RepeatExpr   -- constraint
       | MulExpr "*" RepeatExpr  -- mul
       | MulExpr "^" RepeatExpr  -- expand
       | MulExpr "." RepeatExpr  -- dot
@@ -80,6 +88,7 @@ const g = ohm.grammar(String.raw`
 
     SingleValue
       = Range
+      | RandomRange
       | Etym
 
     Range
@@ -94,6 +103,9 @@ const g = ohm.grammar(String.raw`
       | Special hspaces? "/" hspaces? TimeScale -- specialWithTimeDiv
       | Special               -- special
 
+    RandomRange
+      = number hspaces? "?" hspaces? number   -- between
+
     TimeScale
       = number "/" number   -- frac
       | number               -- plain
@@ -104,6 +116,7 @@ const g = ohm.grammar(String.raw`
     specialChar
       = letter
       | "_"
+      | "?"
   
     roman
       = "vii"
@@ -183,6 +196,38 @@ const s = g.createSemantics().addOperation('parse', {
     return new Anticip(x.parse(), y.parse());
   },
 
+  MulExpr_mirror(x, _m, y) {
+    return new Mirror(x.parse(), y.parse());
+  },
+
+  MulExpr_dotMirror(x, _dotm, y) {
+    return new DotMirror(x.parse(), y.parse());
+  },
+
+  MulExpr_lens(x, _l, y) {
+    return new Lens(x.parse(), y.parse());
+  },
+
+  MulExpr_dotLens(x, _dotl, y) {
+    return new DotLens(x.parse(), y.parse());
+  },
+
+  MulExpr_tie(x, _t, y) {
+    return new TieOp(x.parse(), y.parse());
+  },
+
+  MulExpr_dotTie(x, _dott, y) {
+    return new DotTie(x.parse(), y.parse());
+  },
+
+  MulExpr_constraint(x, _c, y) {
+    return new ConstraintOp(x.parse(), y.parse());
+  },
+
+  MulExpr_dotConstraint(x, _dotc, y) {
+    return new DotConstraint(x.parse(), y.parse());
+  },
+
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
   },
@@ -227,6 +272,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   Range_inclusive(start, _dots, end) {
     return new Range(start.parse(), end.parse());
+  },
+
+  RandomRange_between(a, _h1, _q, _h2, b) {
+    return new RandomRange(a.parse(), b.parse());
   },
 
   PriExpr_parens(_openParen, e, _closeParen) {
@@ -664,6 +713,204 @@ class Anticip {
   }
 }
 
+class Mirror {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    for (const r of right.values) {
+      const anchor = r.step;
+      for (const a of left.values) {
+        if (a instanceof DegreeEtym) {
+          // Pass-through degrees for now
+          out.push(a);
+          continue;
+        }
+        const combinedTag = a.tag ?? r.tag ?? null;
+        const mirrored = 2 * anchor - a.step;
+        out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotMirror {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      const r = right.values[i % right.values.length];
+      if (a instanceof DegreeEtym) {
+        out.push(a);
+        continue;
+      }
+      const combinedTag = a.tag ?? r.tag ?? null;
+      const mirrored = 2 * r.step - a.step;
+      out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
+    }
+    return new Mot(out);
+  }
+}
+
+class Lens {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const n = left.values.length;
+    const out = [];
+    if (n === 0) return new Mot([]);
+    for (const r of right.values) {
+      let k = Math.trunc(Math.abs(r.step));
+      if (!Number.isFinite(k) || k <= 0) k = 1;
+      if (k > n) k = n;
+      if (k === n) {
+        for (const a of left.values) out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        continue;
+      }
+      for (let s = 0; s <= n - k; s++) {
+        for (let j = 0; j < k; j++) {
+          const a = left.values[s + j];
+          out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        }
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotLens {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const n = left.values.length;
+    if (n === 0) return new Mot([]);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const a = left.values[i];
+      const r = right.values[i % right.values.length];
+      let k = Math.trunc(Math.abs(r.step));
+      if (!Number.isFinite(k) || k <= 0) k = 1;
+      if (k > n) k = n;
+      for (let j = 0; j < k; j++) {
+        const b = left.values[(i + j) % n];
+        out.push(new Etym(b.step, b.timeScale * r.timeScale, b.tag));
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class TieOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y; // currently unused; placeholder for future thresholds
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const values = left.values;
+    if (values.length === 0) return new Mot([]);
+    const out = [];
+    let acc = values[0];
+    for (let i = 1; i < values.length; i++) {
+      const cur = values[i];
+      if (!(acc instanceof DegreeEtym) && !(cur instanceof DegreeEtym) && acc.step === cur.step && acc.tag === cur.tag) {
+        // merge durations (sum timeScales)
+        acc = new Etym(acc.step, acc.timeScale + cur.timeScale, acc.tag);
+      } else {
+        out.push(acc);
+        acc = cur;
+      }
+    }
+    out.push(acc);
+    return new Mot(out);
+  }
+}
+
+class DotTie {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const values = left.values;
+    if (values.length === 0) return new Mot([]);
+    const out = [];
+    let i = 0;
+    while (i < values.length) {
+      let acc = values[i];
+      let j = i;
+      // attempt to merge forward while mask allows and steps/tags equal
+      while (j + 1 < values.length) {
+        const mask = right.values[j % right.values.length];
+        const next = values[j + 1];
+        if (mask.step !== 0 && !(acc instanceof DegreeEtym) && !(next instanceof DegreeEtym) && acc.step === next.step && acc.tag === next.tag) {
+          acc = new Etym(acc.step, acc.timeScale + next.timeScale, acc.tag);
+          j++;
+        } else {
+          break;
+        }
+      }
+      out.push(acc);
+      i = j + 1;
+    }
+    return new Mot(out);
+  }
+}
+
+class ConstraintOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    const m = right.values.length;
+    if (m === 0) return left;
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      const r = right.values[i % m];
+      // keep when r.step != 0 and tag not 'x'
+      const omit = (r.hasTag && r.hasTag('x')) || r.step === 0;
+      if (!omit) {
+        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotConstraint extends ConstraintOp {}
+
 
 function requireMot(value) {
   if (!(value instanceof Mot)) {
@@ -733,6 +980,13 @@ class Range {
   }
 }
 
+class RandomRange {
+  constructor(start, end) {
+    this.start = start;
+    this.end = end;
+  }
+}
+
 class Choice {
   constructor(left, right) {
     this.left = left;
@@ -782,10 +1036,21 @@ class Mot {
 
     for (const value of this.values) {
       if (value instanceof Etym || value instanceof DegreeEtym) {
+        // Resolve bare '?' tag to random in [-7,7]
+        if (value instanceof Etym && value.hasTag('?')) {
+          const rnd = Math.floor(rng() * (7 - (-7) + 1)) + (-7);
+          resolved.push(new Etym(rnd, value.timeScale));
+          continue;
+        }
         resolved.push(value);
       } else if (value instanceof Range) {
         const etyms = value.expandToEtyms();
         for (const p of etyms) resolved.push(p);
+      } else if (value instanceof RandomRange) {
+        const lo = Math.min(value.start, value.end);
+        const hi = Math.max(value.start, value.end);
+        const rnd = Math.floor(rng() * (hi - lo + 1)) + lo;
+        resolved.push(new Etym(rnd, 1));
       } else if (value instanceof Choice) {
         resolved.push(value.pick(rng));
       } else {

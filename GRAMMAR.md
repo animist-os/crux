@@ -79,6 +79,14 @@ In decreasing precedence (tighter binds higher):
    - `.^` tile-mul (elementwise expand):
      - Same tiling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`
+   - `m` mirror (spread) / `.m` (tile):
+     - Reflect steps around anchor k: `a -> 2k - a`.
+   - `l` lens (spread) / `.l` (tile):
+     - Sliding window emission; spread uses window size over whole mot; tile uses per-position window size.
+   - `t` tie (spread) / `.t` (tile):
+     - Merge equal-step etyms by adding timeScales; tile uses mask to allow merges.
+   - `c` constraint (spread) / `.c` (tile):
+     - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
    - `n` neighbor (spread):
      - For each right value `k`, expand each etym `a` to `[a, a+k, a]` and concatenate.
      - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`

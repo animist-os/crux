@@ -1197,8 +1197,14 @@ class SegmentTransform {
 
 
 
+function stripLineComments(input) {
+  // Remove '//' comments to end-of-line
+  return input.replace(/\/\/.*$/gm, '');
+}
+
 function parse(input) {
-  const matchResult = g.match(input);
+  const withoutComments = stripLineComments(input);
+  const matchResult = g.match(withoutComments);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);
   }

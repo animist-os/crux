@@ -1,6 +1,6 @@
 # Crux
 
-A tiny language for algorithmic music. Build phrases ("mots") from relative pitch/time events ("etyms"), then transform and combine them with a small, composable operator set.
+A tiny language for algorithmic music. Build phrases ("mots") from relative pitch/time events ("pips"), then transform and combine them with a small, composable operator set.
 
 - Relative pitch (step) and duration (timeScale)
 - Two mapping semantics for binary ops: spread and tile
@@ -34,7 +34,7 @@ console.log(result.toString()); // [0, 1, 2]
 
 ## Core concepts
 
-- Etym: step (integer/float), timeScale (defaults to 1). Example: `0`, `1/2`, `-3*4`.
+- Pip: step (integer/float), timeScale (defaults to 1). Example: `0`, `1/2`, `-3*4`.
 - Mot: list of values: `[0, 1/2, -2]`.
 - Tags (single letters) inside a mot:
   - `r`: rest, `x`: omit (tile ops/constraint), `D`: displace (insert rest time)
@@ -100,8 +100,14 @@ B = A n [1]
 B . [0, -12]
 ```
 
-## Contributing
 
-- Tests: `npm test`
-- Edit grammar and semantics in `src/index.js`
-- See TUTORIAL.md for a deeper tour, and HELP.md for a compact reference.
+
+### WIP - Core
+
+- Pip: step (integer/float) | timeScale (defaults to "0 | 1"). Example: `0`, '-2', `3 | 1/2`,  `r`: rest
+- Mot: list of values: `[0, 1/2, -2]`.
+
+- Spread Add: `[0, 1, 2 | 3] * [3, -1] // [3, 4, 5 | 3, -1, 0, 1 | 3]`
+- Tiled Add: `[0, 1, 2] .* [3, -1] // [3, 0, 5] `
+- Concatenate: `[0, 1], [2]` or `[0, 1] [2]`
+- Repeat (postfix): `[1] : 3  // [1, 1, 1]`

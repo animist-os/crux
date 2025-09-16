@@ -4,7 +4,7 @@ We are expressing notes as delta values -- as displacements in BOTH pitch and ti
 
 NAMING
 
-  change pip to etym     
+  change pip to pip     
   change motif to mot or lexon / glosson
 
 POLYPHONY
@@ -110,7 +110,7 @@ SCHENKER OPS
     [0, 3] -> [4] .^ [1, -1] . [0, 3] === [0,1,2,3,4, 0,-1,-2,-3,-4]
 
 
-    Is it bad that we can get to this two ways or sensible?   No, it's cool, and in fact while their etyms are identical, the second version gives you another pip value to manipulate
+    Is it bad that we can get to this two ways or sensible?   No, it's cool, and in fact while their pips are identical, the second version gives you another pip value to manipulate
 
       [0, 3] -> [4] 
       
@@ -132,7 +132,7 @@ SCHENKER OPS
 
   A 
   
-  ALT -- in the same way that "_" modifies individual etyms, we could have schenker ops that expand individual etyms.    different because they expand them but better to think of them as sugar or compressed expression
+  ALT -- in the same way that "_" modifies individual pips, we could have schenker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
 
   [0 ln, 1] === [0, -1, 0, 1]
 
@@ -192,9 +192,9 @@ We h ave implemented this curly brace notation but it feels wrong.
 
     ALT
 
-      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus etym at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the mot uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
+      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus pip at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the mot uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
 
-      by default, all etyms have a "i", but they can be spcificially overriden by their mot.  how do we handle multiple nested mots with different degrees?  we COULD just add them like ints, this might work...
+      by default, all pips have a "i", but they can be spcificially overriden by their mot.  how do we handle multiple nested mots with different degrees?  we COULD just add them like ints, this might work...
 
     how can we express a "walking window" through a mot?   this should be part of the {} slicing and rotating operators
 
@@ -202,7 +202,7 @@ We h ave implemented this curly brace notation but it feels wrong.
 
     think about tension and release, and the idea that displacements must be "paid back" conceptually if not structurally.
 
-    where are we on unifying etyms and mots?  I think we might need the separation for things like % and reverse
+    where are we on unifying pips and mots?  I think we might need the separation for things like % and reverse
 
     I've implemented "x" and "r" as tags, maybe better to just let those be non-numeric values for step
     and watch for them in the evals
@@ -251,7 +251,7 @@ TODOs:
   - how do time shifts behave wrt the * operator?
 
 
-* think about unifying etyms and mots
+* think about unifying pips and mots
 
     1 === [1]
 

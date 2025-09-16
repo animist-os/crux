@@ -9,7 +9,7 @@ const g = ohm.grammar(String.raw`
   Andy {
   
     Prog
-      = Stmt*
+      = ListOf<Stmt, nls> nls?
   
     Stmt
       = AssignStmt
@@ -26,7 +26,7 @@ const g = ohm.grammar(String.raw`
   
     FollowedByExpr
       = FollowedByExpr "," MulExpr   -- fby
-      | FollowedByExpr hspaces MulExpr  -- juxt
+      | FollowedByExpr MulExpr         -- juxt
       | MulExpr
   
     MulExpr
@@ -81,27 +81,41 @@ const g = ohm.grammar(String.raw`
       = Choice
 
     Choice
-      = Choice "|" SingleValue  -- alt
+      = Choice "||" SingleValue  -- alt
       | SingleValue              -- single
 
     SingleValue
-      = Range
-      | RandomRange
-      | Etym
+      = Curly
+      | Range
+      | Pip
 
     Range
-      = number "->" number      -- inclusive
+      = RandNum "->" RandNum      -- inclusive
 
-    Etym
-      = number hspaces? "*" hspaces? TimeScale  -- withTimeMul
-      | number hspaces? "/" hspaces? TimeScale  -- withTimeDiv
-      | number                -- noTimeScale
-      | Special hspaces? "*" hspaces? TimeScale -- specialWithTimeMul
-      | Special hspaces? "/" hspaces? TimeScale -- specialWithTimeDiv
-      | Special               -- special
+    Pip
+      = number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
+      | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
+      | number hspaces? "*" hspaces? TimeScale              -- withTimeMul
+      | number hspaces? "/" hspaces? TimeScale              -- withTimeDiv
+      | number                                               -- noTimeScale
+      | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
+      | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
+      | Special hspaces? "*" hspaces? TimeScale             -- specialWithTimeMul
+      | Special hspaces? "/" hspaces? TimeScale             -- specialWithTimeDiv
+      | Special                                              -- special
 
-    RandomRange
-      = number hspaces? "?" hspaces? number   -- between
+    RandNum
+      = Curly
+      | number
+    Curly
+      = "{" CurlyBody "}"
+    CurlyBody
+      = number hspaces? "?" hspaces? number   -- range
+      | ListOf<number, ",">                  -- list
+
+    // Legacy random range form maintained temporarily if needed
+    // RandomRange
+    //   = number hspaces? "?" hspaces? number   -- between
 
     TimeScale
       = number "/" number   -- frac
@@ -124,12 +138,20 @@ const g = ohm.grammar(String.raw`
   
     hspace = " " | "\t"
     hspaces = hspace+
+
+    // Make newlines significant by not skipping them as whitespace
+    // Override Ohm's built-in 'space' rule to only skip spaces/tabs
+    space := hspace
+
+    // Newline separator (for statements)
+    nl = "\r\n" | "\n" | "\r"
+    nls = nl+
   
   }
   `);
 
 const s = g.createSemantics().addOperation('parse', {
-  Prog(stmts) {
+  Prog(stmts, _optNls) {
     return new Prog(stmts.parse());
   },
 
@@ -141,7 +163,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
-  FollowedByExpr_juxt(x, _hspaces, y) {
+  FollowedByExpr_juxt(x, y) {
     return new FollowedBy(x.parse(), y.parse());
   },
 
@@ -264,14 +286,24 @@ const s = g.createSemantics().addOperation('parse', {
   SingleValue(x) {
     return x.parse();
   },
+  Curly(_o, body, _c) {
+    return body.parse();
+  },
+
+  CurlyBody_range(a, _h1, _q, _h2, b) {
+    return new RandomRange(a.parse(), b.parse());
+  },
+
+  CurlyBody_list(nums) {
+    return new RandomChoice(nums.parse());
+  },
+
 
   Range_inclusive(start, _dots, end) {
     return new Range(start.parse(), end.parse());
   },
 
-  RandomRange_between(a, _h1, _q, _h2, b) {
-    return new RandomRange(a.parse(), b.parse());
-  },
+  // RandomRange_between removed (use CurlyBody_range)
 
   PriExpr_parens(_openParen, e, _closeParen) {
     return e.parse();
@@ -301,28 +333,45 @@ const s = g.createSemantics().addOperation('parse', {
     return parseFloat(this.sourceString);
   },
 
-  Etym_noTimeScale(n) {
-    return new Etym(n.parse(), 1);
+  Pip_noTimeScale(n) {
+    return new Pip(n.parse(), 1);
   },
 
-  Etym_special(sym) {
-    return new Etym(0, 1, sym.sourceString);
+  Pip_special(sym) {
+    return new Pip(0, 1, sym.sourceString);
   },
 
-  Etym_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
-    return new Etym(0, ts.parse(), sym.sourceString);
+  Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
+    return new Pip(0, m.parse(), sym.sourceString);
   },
 
-  Etym_specialWithTimeDiv(sym, _h1, _slash, _h2, ts) {
-    return new Etym(0, 1 / ts.parse(), sym.sourceString);
+  Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
+    return new Pip(0, 1 / d.parse(), sym.sourceString);
   },
 
-  Etym_withTimeMul(n, _h1, _star, _h2, ts) {
-    return new Etym(n.parse(), ts.parse());
+  Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
+    return new Pip(n.parse(), m.parse());
   },
 
-  Etym_withTimeDiv(n, _h1, _slash, _h2, ts) {
-    return new Etym(n.parse(), 1 / ts.parse());
+  Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
+    return new Pip(n.parse(), 1 / d.parse());
+  },
+
+  // Classic star/slash timescale (still supported)
+  Pip_withTimeMul(n, _h1, _star, _h2, ts) {
+    return new Pip(n.parse(), ts.parse());
+  },
+
+  Pip_withTimeDiv(n, _h1, _slash, _h2, ts) {
+    return new Pip(n.parse(), 1 / ts.parse());
+  },
+
+  Pip_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
+    return new Pip(0, ts.parse(), sym.sourceString);
+  },
+
+  Pip_specialWithTimeDiv(sym, _h1, _slash, _h2, ts) {
+    return new Pip(0, 1 / ts.parse(), sym.sourceString);
   },
 
   
@@ -405,12 +454,12 @@ class Mul {
     const values = [];
     for (let yi of yv.values) {
       const reverse = yi.timeScale < 0;
-      const absYi = reverse ? new Etym(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
         if (absYi.hasTag && absYi.hasTag('D')) {
           // Insert a rest with timescale derived from right, then the original left value
-          values.push(new Etym(xi.step, xi.timeScale * absYi.timeScale, 'r'));
+          values.push(new Pip(xi.step, xi.timeScale * absYi.timeScale, 'r'));
           values.push(xi);
           continue;
         }
@@ -455,7 +504,7 @@ class Expand {
     const values = [];
     for (let yi of yv.values) {
       const reverse = yi.timeScale < 0;
-      const absYi = reverse ? new Etym(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
+      const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
         values.push(xi.expand(absYi));
@@ -491,13 +540,13 @@ class Dot {
         }
         // Displace 'D': insert a rest with right timescale, then original left
         if (right.hasTag && right.hasTag('D')) {
-          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           values.push(left);
           continue;
         }
         // funky buit sensible for Dot operation with rests on either side?
         if(left.hasTag('r') || right.hasTag('r')) {
-          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
         // Default behavior for unknown tags: pass-through left
@@ -533,7 +582,7 @@ class DotExpand {
           continue;
         }
         if (left.hasTag('r') || right.hasTag('r')) {
-          values.push(new Etym(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
         values.push(left);
@@ -588,7 +637,7 @@ class Steps {
       for (let t = 0; t <= count; t++) {
         const delta = dir * t;
         for (const v of left.values) {
-          out.push(new Etym(v.step + delta, v.timeScale * r.timeScale, v.tag));
+          out.push(new Pip(v.step + delta, v.timeScale * r.timeScale, v.tag));
         }
       }
     }
@@ -615,7 +664,7 @@ class DotSteps {
       const count = Math.abs(k);
       for (let t = 0; t <= count; t++) {
         const delta = dir * t;
-        out.push(new Etym(li.step + delta, li.timeScale * ri.timeScale, li.tag));
+        out.push(new Pip(li.step + delta, li.timeScale * ri.timeScale, li.tag));
       }
     }
     return new Mot(out);
@@ -636,9 +685,9 @@ class Neighbor {
     for (const r of right.values) {
       const k = Math.trunc(r.step);
       for (const a of left.values) {
-        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
-        out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
-        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
       }
     }
     return new Mot(out);
@@ -663,7 +712,7 @@ class DotNeighbor {
       const a = left.values[i];
       const r = right.values[i % right.values.length];
       const k = Math.trunc(r.step);
-      out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
+      out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
     }
     // Final block: original left
     for (const a of left.values) out.push(a);
@@ -685,8 +734,8 @@ class Anticip {
     for (const r of right.values) {
       const k = Math.trunc(r.step);
       for (const a of left.values) {
-        out.push(new Etym(a.step + k, a.timeScale * r.timeScale, a.tag));
-        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
       }
     }
     return new Mot(out);
@@ -709,7 +758,7 @@ class Mirror {
         
         const combinedTag = a.tag ?? r.tag ?? null;
         const mirrored = 2 * anchor - a.step;
-        out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
+        out.push(new Pip(mirrored, a.timeScale * r.timeScale, combinedTag));
       }
     }
     return new Mot(out);
@@ -733,7 +782,7 @@ class DotMirror {
       
       const combinedTag = a.tag ?? r.tag ?? null;
       const mirrored = 2 * r.step - a.step;
-      out.push(new Etym(mirrored, a.timeScale * r.timeScale, combinedTag));
+      out.push(new Pip(mirrored, a.timeScale * r.timeScale, combinedTag));
     }
     return new Mot(out);
   }
@@ -757,7 +806,7 @@ class Lens {
       if (!Number.isFinite(size) || size <= 0) size = 1;
       if (size > n) size = n;
       if (size === n) {
-        for (const a of left.values) out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        for (const a of left.values) out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
         continue;
       }
       if (rawK >= 0) {
@@ -765,7 +814,7 @@ class Lens {
         for (let s = 0; s <= n - size; s++) {
           for (let j = 0; j < size; j++) {
             const a = left.values[s + j];
-            out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+            out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
           }
         }
       } else {
@@ -773,7 +822,7 @@ class Lens {
         for (let s = n - size; s >= 0; s--) {
           for (let j = 0; j < size; j++) {
             const a = left.values[s + j];
-            out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+            out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
           }
         }
       }
@@ -802,7 +851,7 @@ class DotLens {
       if (k > n) k = n;
       for (let j = 0; j < k; j++) {
         const b = left.values[(i + j) % n];
-        out.push(new Etym(b.step, b.timeScale * r.timeScale, b.tag));
+        out.push(new Pip(b.step, b.timeScale * r.timeScale, b.tag));
       }
     }
     return new Mot(out);
@@ -825,7 +874,7 @@ class TieOp {
       const cur = values[i];
       if (acc.step === cur.step && acc.tag === cur.tag) {
         // merge durations (sum timeScales)
-        acc = new Etym(acc.step, acc.timeScale + cur.timeScale, acc.tag);
+        acc = new Pip(acc.step, acc.timeScale + cur.timeScale, acc.tag);
       } else {
         out.push(acc);
         acc = cur;
@@ -857,7 +906,7 @@ class DotTie {
         const mask = right.values[j % right.values.length];
         const next = values[j + 1];
         if (mask.step !== 0 && acc.step === next.step && acc.tag === next.tag) {
-          acc = new Etym(acc.step, acc.timeScale + next.timeScale, acc.tag);
+          acc = new Pip(acc.step, acc.timeScale + next.timeScale, acc.tag);
           j++;
         } else {
           break;
@@ -888,7 +937,7 @@ class ConstraintOp {
       // keep when r.step != 0 and tag not 'x'
       const omit = (r.hasTag && r.hasTag('x')) || r.step === 0;
       if (!omit) {
-        out.push(new Etym(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
       }
     }
     return new Mot(out);
@@ -938,20 +987,20 @@ class DotFilter {
   }
 }
 
-function applyFilterMask(etym, mask) {
+function applyFilterMask(pip, mask) {
   
   const tag = mask.tag;
   // T: reset timeScale (or set to mask's timeScale if provided)
   if (tag === 'T') {
     const newTs = mask.timeScale != null ? mask.timeScale : 1;
-    return new Etym(etym.step, newTs, etym.tag);
+    return new Pip(pip.step, newTs, pip.tag);
   }
   // S: reset step to 0 (keep timeScale)
   if (tag === 'S') {
-    return new Etym(0, etym.timeScale, etym.tag);
+    return new Pip(0, pip.timeScale, pip.tag);
   }
   // Default: no change
-  return etym;
+  return pip;
 }
 
 
@@ -1008,16 +1057,13 @@ class Range {
   }
 
   // expands to a sequence of integer steps inclusive
-  expandToEtyms() {
+  expandToPips(rng = Math.random) {
     const result = [];
-    const start = this.start;
-    const end = this.end;
-    if (!Number.isFinite(start) || !Number.isFinite(end)) {
-      throw new Error('range endpoints must be finite numbers');
-    }
+    const start = resolveRandNumToNumber(this.start, rng);
+    const end = resolveRandNumToNumber(this.end, rng);
     const step = start <= end ? 1 : -1;
     for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
-      result.push(new Etym(n, 1));
+      result.push(new Pip(n, 1));
     }
     return result;
   }
@@ -1028,6 +1074,27 @@ class RandomRange {
     this.start = start;
     this.end = end;
   }
+}
+
+class RandomChoice {
+  constructor(options) {
+    this.options = options; // array of numbers
+  }
+}
+
+function resolveRandNumToNumber(value, rng) {
+  if (typeof value === 'number') return value;
+  if (value instanceof RandomRange) {
+    const lo = Math.min(value.start, value.end);
+    const hi = Math.max(value.start, value.end);
+    return Math.floor(rng() * (hi - lo + 1)) + lo;
+  }
+  if (value instanceof RandomChoice) {
+    if (value.options.length === 0) throw new Error('empty random choice');
+    const idx = Math.floor(rng() * value.options.length);
+    return value.options[idx];
+  }
+  throw new Error('Unsupported RandNum');
 }
 
 class Choice {
@@ -1046,9 +1113,9 @@ class Choice {
     const flatOptions = this.options.map(opt => {
       if (opt instanceof Range) {
         // Expand range to all discrete integer pips, then pick from that expansion
-        return opt.expandToEtyms();
+        return opt.expandToPips(rng);
       }
-      if (opt instanceof Etym) return [opt];
+      if (opt instanceof Pip) return [opt];
       throw new Error('Unsupported choice option');
     }).flat();
 
@@ -1078,22 +1145,27 @@ class Mot {
     const rng = this._rng || Math.random;
 
     for (const value of this.values) {
-      if (value instanceof Etym) {
+      if (value instanceof Pip) {
         // Resolve bare '?' tag to random in [-7,7]
-        if (value instanceof Etym && value.hasTag('?')) {
+        if (value instanceof Pip && value.hasTag('?')) {
           const rnd = Math.floor(rng() * (7 - (-7) + 1)) + (-7);
-          resolved.push(new Etym(rnd, value.timeScale));
+          resolved.push(new Pip(rnd, value.timeScale));
           continue;
         }
         resolved.push(value);
       } else if (value instanceof Range) {
-        const etyms = value.expandToEtyms();
-        for (const p of etyms) resolved.push(p);
+        const pips = value.expandToPips();
+        for (const p of pips) resolved.push(p);
       } else if (value instanceof RandomRange) {
         const lo = Math.min(value.start, value.end);
         const hi = Math.max(value.start, value.end);
         const rnd = Math.floor(rng() * (hi - lo + 1)) + lo;
-        resolved.push(new Etym(rnd, 1));
+        resolved.push(new Pip(rnd, 1));
+      } else if (value instanceof RandomChoice) {
+        if (value.options.length === 0) throw new Error('empty random choice');
+        const idx = Math.floor(rng() * value.options.length);
+        const v = value.options[idx];
+        resolved.push(new Pip(v, 1));
       } else if (value instanceof Choice) {
         resolved.push(value.pick(rng));
       } else {
@@ -1112,7 +1184,7 @@ class Mot {
   }
 }
 
-class Etym {
+class Pip {
   constructor(step, timeScale = 1, tag = null) {
     this.step = step;
     this.timeScale = timeScale;
@@ -1121,12 +1193,12 @@ class Etym {
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Etym(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    return new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Etym(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    return new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
   }
 
   toString() {

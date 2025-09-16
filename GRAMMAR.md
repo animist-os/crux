@@ -1,6 +1,6 @@
 ## Crux
 
-This document describes the Crux grammar used to build and transform musical mots as sequences of “etyms” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on etyms and mots.  All operations can be applied in either a "spread" approach or a "tiled" one.  
+This document describes the Crux grammar used to build and transform musical mots as sequences of “pips” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "spread" approach or a "tiled" one.  
 
 Spread (outer):  For each r in R, apply op to all of A, then concatenate.   The lengths multiply
 
@@ -24,11 +24,11 @@ Evaluates to `[0, 1, 2]`.
 
 - **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Value** can be:
-  - **Etym**: `number` optionally combined with a timeScale using `*` (multiply) or `/` (divide), or a special tag.
+  - **Pip**: `number` optionally combined with a timeScale using `*` (multiply) or `/` (divide), or a special tag.
     - `number` is the step (may be integer or float).
     - `TimeScale` is either a plain number or a fraction `n/d`, combined with `*` or `/`.
       - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> [1/4]`.
-    - A single letter inside a mot is a tagged etym with step 0.
+    - A single letter inside a mot is a tagged pip with step 0.
   - **Range**: `a->b` expands inclusively to integer steps. Examples:
     - `[0->3] -> [0, 1, 2, 3]`
     - `[3->1] -> [3, 2, 1]`
@@ -80,7 +80,7 @@ In decreasing precedence (tighter binds higher):
    - `l` lens (spread) / `.l` (tile):
      - Sliding window emission; spread uses window size over whole mot; tile uses per-position window size.
    - `t` tie (spread) / `.t` (tile):
-     - Merge equal-step etyms by adding timeScales; tile uses mask to allow merges.
+     - Merge equal-step pips by adding timeScales; tile uses mask to allow merges.
    - `c` constraint (spread) / `.c` (tile):
      - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
    - `f` filter (spread) / `.f` (tile):
@@ -88,7 +88,7 @@ In decreasing precedence (tighter binds higher):
        - `T` -> reset timeScale to 1 (or to provided `T/k` or `T*k` value)
        - `S` -> reset step to 0
    - `n` neighbor (spread):
-     - For each right value `k`, expand each etym `a` to `[a, a+k, a]` and concatenate.
+     - For each right value `k`, expand each pip `a` to `[a, a+k, a]` and concatenate.
      - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`
    - `.n` neighbor (tile):
      - For each position `i`, expand with `k = right[i%|right|]` by interleaving `[A] + [A+k] + [A]`.
@@ -106,7 +106,7 @@ In decreasing precedence (tighter binds higher):
      - For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
      - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
-     - Tagged etyms pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
+     - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
      - Example: `[0, 1, 2] . [10, 20] -> [10, 21, 12]`.
 
 4) **Concatenation**:
@@ -135,7 +135,7 @@ From highest to lowest:
 
 - Repeat count must be a non-negative finite number.
 - Range endpoints must be finite numbers.
-- Delta mots support only simple numeric etyms (no tags/ranges/choices inside semicolon form).
+- Delta mots support only simple numeric pips (no tags/ranges/choices inside semicolon form).
 - Many operators require mots; attempting to use a non-mot where a mot is required is an error.
 
 ### Mixed examples
@@ -224,9 +224,9 @@ Andy {
   Value       = Choice
   Choice      = Choice "|" SingleValue  -- alt
               | SingleValue            -- single
-  SingleValue = Range | Etym
+  SingleValue = Range | Pip
   Range       = number "->" number
-  Etym         = Special
+  Pip         = Special
               | number "*" TimeScale
               | number "/" TimeScale
               | number
@@ -245,7 +245,7 @@ Andy {
 
 - `*` and `^` iterate the right mot’s values; a negative timeScale on the right reverses the left mot for that right value.
 - `.` tiles the right mot against the left; tags (e.g., `x`) result in pass-through of the left value at that position.
-- Choices are resolved at evaluation time; ranges expand to integer etyms before further processing.
+- Choices are resolved at evaluation time; ranges expand to integer pips before further processing.
 - The string form shows decimal time scales (fractions are normalized).
 
 

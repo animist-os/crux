@@ -15,12 +15,12 @@ test('absolute mot with commas', () => {
 // delta mot removed: semicolons have no meaning now
 
 test('timeScale using * (plain number)', () => {
-  assert.equal(evalToString('[0, 1*2]'), '[0, 1*2]');
+  assert.equal(evalToString('[0, 1 | * 2]'), '[0, 1*2]');
 });
 
 test('timeScale using / (fraction)', () => {
   // 1/4 prints as /4 form
-  assert.equal(evalToString('[0, 1/4]'), '[0, 1/4]');
+  assert.equal(evalToString('[0, 1 | / 4]'), '[0, 1/4]');
 });
 
 test('range expands inclusively', () => {
@@ -37,8 +37,18 @@ test('followed-by concat via comma between Expr', () => {
   assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });
 
-test.skip('juxtaposition concat between Expr', () => {
+test('juxtaposition concat between Expr', () => {
   assert.equal(evalToString('[0, 1] [2, 3]'), '[0, 1, 2, 3]');
+});
+
+test('adjacency does not cross newlines', () => {
+  const program = '[0, 1]\n[2, 3]';
+  assert.equal(evalToString(program), '[2, 3]');
+});
+
+test('trailing blank line is ignored', () => {
+  const program = '[0, r, 1, 2]\n';
+  assert.equal(evalToString(program), '[0, :r0, 1, 2]');
 });
 
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
@@ -126,11 +136,18 @@ test('random tag bare ? uses default range [-7,7]', () => {
 });
 
 test('random ranged a ? b bounds the integer range', () => {
-  const out = evalToString('[0, -2 ? 2, 3]');
+  const out = evalToString('[0, {-2 ? 2}, 3]');
   const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
   assert.ok(m, 'Output shape mismatch: ' + out);
   const rnd = parseInt(m[2], 10);
   assert.ok(Number.isInteger(rnd) && rnd >= -2 && rnd <= 2, 'rnd out of range: ' + rnd);
+});
+
+test('range endpoints support curly choice', () => {
+  // choose from 0..2 then build range -1 -> k
+  const out = evalToString('[-1 -> {0, 1, 2}]');
+  // Expect one of: [-1], [-1, 0], [-1, 0, 1]
+  assert.match(out, /^\[(\-1|\-1, 0|\-1, 0, 1)\]$/);
 });
 
 test('filter spread resets all timeScales with T', () => {
@@ -163,8 +180,8 @@ test('assignment then later expression with juxtaposition disabled across newlin
   assert.equal(evalToString(program), '[0, 1, 1, 2]');
 });
 
-test('choice picks one of the options', () => {
-  const out = evalToString('[0 | 1 | 2]');
+test('choice picks one of the options (curly)', () => {
+  const out = evalToString('[{0, 1, 2}]');
   // Should be a single element mot with one of 0,1,2
   assert.match(out, /^\[(0|1|2)\]$/);
 });

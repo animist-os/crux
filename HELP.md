@@ -51,9 +51,9 @@
 | Slice `start _ end` | `[0,1,2,3,4] -3 _ -1` | `[2, 3]` |
 
 
-Etyms:
+Pips:
 
 * Range: `[0->3] -> [0, 1, 2, 3]`
 * Choice: `[0 | 1 | 2] -> one of [0] [1] [2]`
-* Tags (character etyms): `r` (rest), `x` (omit in tile), `D` (displace tag)
+* Tags (character pips): `r` (rest), `x` (omit in tile), `D` (displace tag)
 

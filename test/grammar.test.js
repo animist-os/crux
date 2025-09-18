@@ -23,9 +23,59 @@ test('timeScale using / (fraction)', () => {
   assert.equal(evalToString('[0, 1 | / 4]'), '[0, 1/4]');
 });
 
+test('implicit multiply sugar after pipe for number', () => {
+  assert.equal(evalToString('[3 | 2]'), '[3*2]');
+  assert.equal(evalToString('[3 | 3/2]'), '[3*1.5]');
+});
+
+test('implicit multiply sugar after pipe for special', () => {
+  assert.equal(evalToString('[r | 2]'), '[:r0*2]');
+  assert.equal(evalToString('[r | 4]'), '[:r0*4]');
+});
+
+test('curly before pipe with implicit multiply', () => {
+  const out = evalToString('[ {1,2} | 2 ]');
+  // Expect either [1*2] or [2*2]
+  assert.match(out, /^\[(1\*2|2\*2)\]$/);
+});
+
+test('curly before pipe with explicit * randnum', () => {
+  // Right randnum picks factor 2 or 4, multiply the duration
+  const out = evalToString('[ {1,2} | * {2,4} ]');
+  assert.match(out, /^\[(1\*2|1\*4|2\*2|2\*4)\]$/);
+});
+
+test('curly before pipe with explicit / randnum', () => {
+  const out = evalToString('[ {1,2} | / {2,4} ]');
+  // 1/2 or 1/4 timeScale, printed as /2 or /4
+  assert.match(out, /^\[(1\/(2|4)|2\/(2|4))\]$/);
+});
+
 test('range expands inclusively', () => {
   assert.equal(evalToString('[0->3]'), '[0, 1, 2, 3]');
   assert.equal(evalToString('[3->1]'), '[3, 2, 1]');
+});
+
+test('range followed by pipe timescale applies to each element', () => {
+  assert.equal(evalToString('[1 -> 4 | 2]'), '[1*2, 2*2, 3*2, 4*2]');
+  assert.equal(evalToString('[0 -> 2 | 1/2]'), '[0/2, 1/2, 2/2]');
+});
+
+test('range followed by pipe divide with rand or number', () => {
+  assert.equal(evalToString('[1 -> 5 | /2]'), '[1/2, 2/2, 3/2, 4/2, 5/2]');
+});
+
+test('curly before pipe with /2 works inside a repeat', () => {
+  const out = evalToString('[{1,2,3} | /2]:8');
+  // 8 repeats of a single pip with /2
+  const m = out.match(/^\[(?:(?:\:?[a-z]*\d\/2|\-?\d\/2)(?:, )?){8}\]$/i);
+  assert.ok(m, 'Output not 8 pips with /2: ' + out);
+});
+
+test('implicit multiply after pipe still parses with whitespace', () => {
+  assert.equal(evalToString('[3 | 2]'), '[3*2]');
+  assert.equal(evalToString('[3|2]'), '[3*2]');
+  assert.equal(evalToString('[3 | 3/2]'), '[3*1.5]');
 });
 
 test('repeat postfix Expr : N (with and without spaces)', () => {

@@ -85,24 +85,31 @@ const g = ohm.grammar(String.raw`
       | SingleValue              -- single
 
     SingleValue
-      = Curly
+      = Pip
       | Range
-      | Pip
+      | Curly
 
     Range
       = RandNum "->" RandNum      -- inclusive
 
     Pip
-      = number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
+      = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+      | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
       | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
       | number hspaces? "*" hspaces? TimeScale              -- withTimeMul
       | number hspaces? "/" hspaces? TimeScale              -- withTimeDiv
-      | number                                               -- noTimeScale
+      | PlainNumber                                          -- noTimeScale
+      | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
       | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
       | Special hspaces? "*" hspaces? TimeScale             -- specialWithTimeMul
       | Special hspaces? "/" hspaces? TimeScale             -- specialWithTimeDiv
       | Special                                              -- special
+      | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
+      | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
+      | Curly hspaces? "|" hspaces? TimeScale               -- curlyWithTimeMulPipeImplicit
+      | Curly hspaces? "|" hspaces? "*" hspaces? RandNum    -- curlyWithTimeMulPipe
+      | Curly hspaces? "|" hspaces? "/" hspaces? RandNum    -- curlyWithTimeDivPipe
 
     RandNum
       = Curly
@@ -135,6 +142,10 @@ const g = ohm.grammar(String.raw`
     number
       = sign? digit+ ("." digit*)?
       | sign? digit* "." digit+
+
+    // Prevent bare number from capturing the start of a range
+    PlainNumber
+      = number ~ (hspaces? "->")
   
     sign = "+" | "-"
   
@@ -369,6 +380,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(n.parse(), 1 / d.parse());
   },
 
+  Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
+    return new Pip(n.parse(), ts.parse());
+  },
+
   // Classic star/slash timescale (still supported)
   Pip_withTimeMul(n, _h1, _star, _h2, ts) {
     return new Pip(n.parse(), ts.parse());
@@ -386,8 +401,38 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(0, 1 / ts.parse(), sym.sourceString);
   },
 
-  
+  // Range pip with pipe scaling (maps to elementwise over expansion)
+  Pip_rangeWithTimeMulPipeImplicit(range, _h1, _pipe, _h2, ts) {
+    const r = range.parse();
+    const tsVal = ts.parse();
+    return new RangePipe(r, { kind: 'mul', factor: tsVal });
+  },
 
+  Pip_rangeWithTimeDivPipe(range, _h1, _pipe, _h2, _slash, _h3, d) {
+    const r = range.parse();
+    const rhs = d.parse(); // number or RandNum
+    return new RangePipe(r, { kind: 'div', rhs });
+  },
+
+  Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
+    return new Pip(0, ts.parse(), sym.sourceString);
+  },
+
+  // Curly pip with pipe scaling
+  Pip_curlyWithTimeMulPipeImplicit(curly, _h1, _pipe, _h2, ts) {
+    const obj = curly.parse();
+    return new RandomPip(obj, ts.parse());
+  },
+  Pip_curlyWithTimeMulPipe(curly, _h1, _pipe, _h2, _star, _h3, m) {
+    const obj = curly.parse();
+    return new RandomPip(obj, m.parse());
+  },
+  Pip_curlyWithTimeDivPipe(curly, _h1, _pipe, _h2, _slash, _h3, d) {
+    const obj = curly.parse();
+    return new RandomPip(obj, 1 / d.parse());
+  },
+
+  
   TimeScale_frac(n, _slash, d) {
     return n.parse() / d.parse();
   },
@@ -1096,6 +1141,45 @@ class RandomChoice {
   }
 }
 
+// A pip whose step is chosen from a Curly (RandomRange or RandomChoice)
+// and then paired with a fixed timeScale
+class RandomPip {
+  constructor(randnum, timeScale = 1) {
+    this.randnum = randnum; // RandomRange | RandomChoice { seed? }
+    this.timeScale = timeScale;
+  }
+
+  toString() {
+    // Render as the resolved step with its timeScale; since evaluation resolves it,
+    // this method is used only if someone prints before eval. Fall back to step=0.
+    const ts = Math.abs(this.timeScale);
+    if (ts === 1) {
+      return String(0);
+    }
+    const inv = 1 / ts;
+    const invRounded = Math.round(inv);
+    const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
+    if (isInvInt) {
+      return `0/${invRounded}`;
+    }
+    const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
+    return `0*${tsStr}`;
+  }
+}
+
+// A deferred range + pipe scaling that expands during evaluation
+class RangePipe {
+  constructor(range, op) {
+    this.range = range;        // Range
+    this.op = op;              // { kind:'mul', factor:number } | { kind:'div', rhs:number|RandNum }
+  }
+
+  toString() {
+    // Non-critical representation
+    return '[range|ts]';
+  }
+}
+
 function resolveRandNumToNumber(value, rng) {
   if (typeof value === 'number') return value;
   if (value instanceof RandomRange) {
@@ -1273,6 +1357,20 @@ class Mot {
       } else if (value instanceof Range) {
         const pips = value.expandToPips(rng);
         for (const p of pips) resolved.push(p);
+      } else if (value instanceof RandomPip) {
+        // Resolve the step from the contained randnum using its seed if present
+        const step = resolveRandNumToNumber(value.randnum, rng);
+        resolved.push(new Pip(step, value.timeScale));
+      } else if (value instanceof RangePipe) {
+        // Expand range and apply scaling per element
+        const expanded = value.range.expandToPips(rng);
+        if (value.op.kind === 'mul') {
+          for (const p of expanded) resolved.push(new Pip(p.step, p.timeScale * value.op.factor));
+        } else {
+          // div by number or RandNum
+          const denom = typeof value.op.rhs === 'number' ? value.op.rhs : resolveRandNumToNumber(value.op.rhs, rng);
+          for (const p of expanded) resolved.push(new Pip(p.step, p.timeScale * (1 / denom)));
+        }
       } else if (value instanceof RandomRange) {
         const num = resolveRandNumToNumber(value, rng);
         resolved.push(new Pip(num, 1));

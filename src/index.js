@@ -108,10 +108,12 @@ const g = ohm.grammar(String.raw`
       = Curly
       | number
     Curly
-      = "{" CurlyBody "}"
+      = "{" CurlyBody "}" Seed?
     CurlyBody
       = number hspaces? "?" hspaces? number   -- range
       | ListOf<number, ",">                  -- list
+
+    Seed = "@" hexDigit hexDigit hexDigit hexDigit
 
     // Legacy random range form maintained temporarily if needed
     // RandomRange
@@ -286,8 +288,18 @@ const s = g.createSemantics().addOperation('parse', {
   SingleValue(x) {
     return x.parse();
   },
-  Curly(_o, body, _c) {
-    return body.parse();
+  Curly(_o, body, _c, seedOpt) {
+    const obj = body.parse();
+    let seed = null;
+    if (seedOpt && seedOpt.children && seedOpt.children.length > 0) {
+      seed = seedOpt.children[0].parse();
+    }
+    obj.seed = seed;
+    return obj;
+  },
+
+  Seed(_at, a, b, c, d) {
+    return (a.sourceString + b.sourceString + c.sourceString + d.sourceString).toLowerCase();
   },
 
   CurlyBody_range(a, _h1, _q, _h2, b) {
@@ -1073,25 +1085,29 @@ class RandomRange {
   constructor(start, end) {
     this.start = start;
     this.end = end;
+    this.seed = null;
   }
 }
 
 class RandomChoice {
   constructor(options) {
     this.options = options; // array of numbers
+    this.seed = null;
   }
 }
 
 function resolveRandNumToNumber(value, rng) {
   if (typeof value === 'number') return value;
   if (value instanceof RandomRange) {
+    const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
     const lo = Math.min(value.start, value.end);
     const hi = Math.max(value.start, value.end);
-    return Math.floor(rng() * (hi - lo + 1)) + lo;
+    return Math.floor(localRng() * (hi - lo + 1)) + lo;
   }
   if (value instanceof RandomChoice) {
     if (value.options.length === 0) throw new Error('empty random choice');
-    const idx = Math.floor(rng() * value.options.length);
+    const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+    const idx = Math.floor(localRng() * value.options.length);
     return value.options[idx];
   }
   throw new Error('Unsupported RandNum');
@@ -1127,61 +1143,64 @@ class Choice {
   }
 }
 
-class Mot {
-  constructor(values, rng_seed = null) {
-    this.values = values;
-    // Deterministic RNG seed (number|string|null). If null, use Math.random.
-    this.rng_seed = rng_seed;
-    this._rng = null; // lazily initialized RNG function when seed provided
-  }
+// Seed helpers for IDE-side annotation
+function formatSeed4(seed) {
+  // Ensure 4 lowercase hex chars
+  const s = String(seed).toLowerCase().replace(/[^0-9a-f]/g, '');
+  const padded = (s + '0000').slice(0, 4);
+  return padded;
+}
 
-  eval(env) {
-    const resolved = [];
-    // Determine RNG
-    const seed = this.rng_seed;
-    if (seed != null && this._rng == null) {
-      this._rng = createSeededRng(seed);
+function generateSeed4() {
+  const n = Math.floor(Math.random() * 0x10000);
+  return n.toString(16).padStart(4, '0');
+}
+
+// Collect seeds from a parsed AST (Prog or any node)
+function collectCurlySeedsFromAst(root) {
+  const seeds = [];
+  const visited = new Set();
+  const visit = (node) => {
+    if (node == null) return;
+    if (typeof node !== 'object') return;
+    if (visited.has(node)) return;
+    visited.add(node);
+    if (node instanceof RandomRange || node instanceof RandomChoice) {
+      if (node.seed != null) seeds.push(formatSeed4(node.seed));
     }
-    const rng = this._rng || Math.random;
-
-    for (const value of this.values) {
-      if (value instanceof Pip) {
-        // Resolve bare '?' tag to random in [-7,7]
-        if (value instanceof Pip && value.hasTag('?')) {
-          const rnd = Math.floor(rng() * (7 - (-7) + 1)) + (-7);
-          resolved.push(new Pip(rnd, value.timeScale));
-          continue;
-        }
-        resolved.push(value);
-      } else if (value instanceof Range) {
-        const pips = value.expandToPips();
-        for (const p of pips) resolved.push(p);
-      } else if (value instanceof RandomRange) {
-        const lo = Math.min(value.start, value.end);
-        const hi = Math.max(value.start, value.end);
-        const rnd = Math.floor(rng() * (hi - lo + 1)) + lo;
-        resolved.push(new Pip(rnd, 1));
-      } else if (value instanceof RandomChoice) {
-        if (value.options.length === 0) throw new Error('empty random choice');
-        const idx = Math.floor(rng() * value.options.length);
-        const v = value.options[idx];
-        resolved.push(new Pip(v, 1));
-      } else if (value instanceof Choice) {
-        resolved.push(value.pick(rng));
-      } else {
-        throw new Error('Unsupported mot value: ' + String(value));
-      }
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
     }
-    // Preserve RNG state if this motif will be evaluated again (e.g., inside repeats)
-    const out = new Mot(resolved);
-    out.rng_seed = this.rng_seed;
-    out._rng = this._rng;
-    return out;
-  }
+    for (const key of Object.keys(node)) {
+      visit(node[key]);
+    }
+  };
+  visit(root);
+  return seeds;
+}
 
-  toString() {
-    return '[' + this.values.map(value => value.toString()).join(', ') + ']';
+function collectCurlySeedsFromSource(input) {
+  const prog = parse(input);
+  return collectCurlySeedsFromAst(prog);
+}
+
+// Rewrite input by appending @hhhh (4 hex) after any `{...}` that lacks a seed
+function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
+  const lines = input.split(/\r?\n/);
+  const out = [];
+  const pattern = /\{[^{}]*\}(?!@[0-9a-fA-F]{4})/g;
+  for (const line of lines) {
+    const idx = line.indexOf('//');
+    if (idx === -1) {
+      out.push(line.replace(pattern, (m) => m + '@' + seedProvider()));
+    } else {
+      const code = line.slice(0, idx);
+      const comment = line.slice(idx);
+      out.push(code.replace(pattern, (m) => m + '@' + seedProvider()) + comment);
+    }
   }
+  return out.join('\n');
 }
 
 class Pip {
@@ -1225,6 +1244,59 @@ class Pip {
 }
 
  
+class Mot {
+  constructor(values, rng_seed = null) {
+    this.values = values;
+    // Deterministic RNG seed (number|string|null). If null, use Math.random.
+    this.rng_seed = rng_seed;
+    this._rng = null; // lazily initialized RNG function when seed provided
+  }
+
+  eval(env) {
+    const resolved = [];
+    // Determine RNG
+    const seed = this.rng_seed;
+    if (seed != null && this._rng == null) {
+      this._rng = createSeededRng(seed);
+    }
+    const rng = this._rng || Math.random;
+
+    for (const value of this.values) {
+      if (value instanceof Pip) {
+        // Resolve bare '?' tag to random in [-7,7]
+        if (value instanceof Pip && value.hasTag('?')) {
+          const rnd = Math.floor(rng() * (7 - (-7) + 1)) + (-7);
+          resolved.push(new Pip(rnd, value.timeScale));
+          continue;
+        }
+        resolved.push(value);
+      } else if (value instanceof Range) {
+        const pips = value.expandToPips(rng);
+        for (const p of pips) resolved.push(p);
+      } else if (value instanceof RandomRange) {
+        const num = resolveRandNumToNumber(value, rng);
+        resolved.push(new Pip(num, 1));
+      } else if (value instanceof RandomChoice) {
+        const num = resolveRandNumToNumber(value, rng);
+        resolved.push(new Pip(num, 1));
+      } else if (value instanceof Choice) {
+        resolved.push(value.pick(rng));
+      } else {
+        throw new Error('Unsupported mot value: ' + String(value));
+      }
+    }
+    // Preserve RNG state if this motif will be evaluated again (e.g., inside repeats)
+    const out = new Mot(resolved);
+    out.rng_seed = this.rng_seed;
+    out._rng = this._rng;
+    return out;
+  }
+
+  toString() {
+    return '[' + this.values.map(value => value.toString()).join(', ') + ']';
+  }
+}
+
 
 class SegmentTransform {
   constructor(expr, start = null, end = null) {
@@ -1292,5 +1364,5 @@ function interp(input) {
   console.log(value.toString());
 }
 
-export { parse, interp };
+export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4 };
 

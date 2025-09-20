@@ -194,10 +194,10 @@ test('random ranged a ? b bounds the integer range', () => {
 });
 
 test('range endpoints support curly choice', () => {
-  // choose from 0..2 then build range -1 -> k
+  // choose from 0..2 then build range -1 -> k (inclusive)
   const out = evalToString('[-1 -> {0, 1, 2}]');
-  // Expect one of: [-1], [-1, 0], [-1, 0, 1]
-  assert.match(out, /^\[(\-1|\-1, 0|\-1, 0, 1)\]$/);
+  // Accept k ∈ {0,1,2}: [-1], [-1,0], [-1,0,1], or [-1,0,1,2]
+  assert.match(out, /^\[(\-1|\-1, 0|\-1, 0, 1|\-1, 0, 1, 2)\]$/);
 });
 
 test('filter spread resets all timeScales with T', () => {

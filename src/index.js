@@ -357,7 +357,8 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_noTimeScale(n) {
-    return new Pip(n.parse(), 1);
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), 1, null, start);
   },
 
   Pip_special(sym) {
@@ -373,24 +374,29 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(n.parse(), m.parse());
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), m.parse(), null, start);
   },
 
   Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
-    return new Pip(n.parse(), 1 / d.parse());
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), 1 / d.parse(), null, start);
   },
 
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
-    return new Pip(n.parse(), ts.parse());
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), ts.parse(), null, start);
   },
 
   // Classic star/slash timescale (still supported)
   Pip_withTimeMul(n, _h1, _star, _h2, ts) {
-    return new Pip(n.parse(), ts.parse());
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), ts.parse(), null, start);
   },
 
   Pip_withTimeDiv(n, _h1, _slash, _h2, ts) {
-    return new Pip(n.parse(), 1 / ts.parse());
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), 1 / ts.parse(), null, start);
   },
 
   Pip_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
@@ -425,11 +431,13 @@ const s = g.createSemantics().addOperation('parse', {
   },
   Pip_curlyWithTimeMulPipe(curly, _h1, _pipe, _h2, _star, _h3, m) {
     const obj = curly.parse();
-    return new RandomPip(obj, m.parse());
+    // Defer random timeScale resolution to eval by storing an op spec
+    return new RandomPip(obj, { kind: 'mul', rhs: m.parse() });
   },
   Pip_curlyWithTimeDivPipe(curly, _h1, _pipe, _h2, _slash, _h3, d) {
     const obj = curly.parse();
-    return new RandomPip(obj, 1 / d.parse());
+    // Defer random timeScale resolution to eval by storing an op spec
+    return new RandomPip(obj, { kind: 'div', rhs: d.parse() });
   },
 
   
@@ -1146,6 +1154,7 @@ class RandomChoice {
 class RandomPip {
   constructor(randnum, timeScale = 1) {
     this.randnum = randnum; // RandomRange | RandomChoice { seed? }
+    // timeScale can be a number or an op spec { kind:'mul'|'div', rhs:number|RandNum }
     this.timeScale = timeScale;
   }
 
@@ -1288,10 +1297,11 @@ function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
 }
 
 class Pip {
-  constructor(step, timeScale = 1, tag = null) {
+  constructor(step, timeScale = 1, tag = null, sourceStart = null) {
     this.step = step;
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
+    this.sourceStart = sourceStart; // start character offset in source (when available)
   }
 
   mul(that) {
@@ -1360,7 +1370,18 @@ class Mot {
       } else if (value instanceof RandomPip) {
         // Resolve the step from the contained randnum using its seed if present
         const step = resolveRandNumToNumber(value.randnum, rng);
-        resolved.push(new Pip(step, value.timeScale));
+        let ts = 1;
+        const spec = value.timeScale;
+        if (typeof spec === 'number') {
+          ts = spec;
+        } else if (spec && typeof spec === 'object') {
+          const rhsRaw = spec.rhs;
+          const rhsVal = typeof rhsRaw === 'number' ? rhsRaw : resolveRandNumToNumber(rhsRaw, rng);
+          if (spec.kind === 'mul') ts = rhsVal;
+          else if (spec.kind === 'div') ts = 1 / rhsVal;
+          else ts = 1;
+        }
+        resolved.push(new Pip(step, ts));
       } else if (value instanceof RangePipe) {
         // Expand range and apply scaling per element
         const expanded = value.range.expandToPips(rng);
@@ -1429,8 +1450,225 @@ class SegmentTransform {
 
 
 
+// ---- Depth analysis (parse-time; no evaluation) ----
+
+const BINARY_TRANSFORMS = new Set([
+  Mul, Expand, Dot, DotExpand, Steps, DotSteps, Neighbor, DotNeighbor,
+  Anticip, Mirror, DotMirror, Lens, DotLens, TieOp, DotTie,
+  ConstraintOp, DotConstraint, FilterOp, DotFilter, RotateOp,
+]);
+
+function isBinaryTransformNode(node) {
+  for (const C of BINARY_TRANSFORMS) {
+    if (node instanceof C) return true;
+  }
+  return false;
+}
+
+function getFinalRootAstAndEnv(prog) {
+  const env = new Map();
+  let last = null;
+  for (const stmt of prog.stmts) {
+    last = stmt;
+    if (stmt instanceof Assign) {
+      env.set(stmt.name, stmt.expr);
+    }
+  }
+  const root = (last instanceof Assign) ? last.expr : last;
+  return { root, env };
+}
+
+// Collect leaf Mots with their binary-transform depth from the root.
+// - followRefs: when true, inline assignment RHS at Ref sites without adding depth.
+// - excludeConcat: when true, do not count concatenation (FollowedBy) as a transform.
+function collectMotLeavesWithDepth(root, env, { followRefs = true, excludeConcat = true } = {}) {
+  const out = [];
+  const visitingRef = new Set(); // guard cycles by name@depth
+
+  function visit(node, depth) {
+    if (!node) return;
+
+    if (isBinaryTransformNode(node)) {
+      visit(node.x, depth + 1);
+      visit(node.y, depth + 1);
+      return;
+    }
+
+    if (excludeConcat && node instanceof FollowedBy) {
+      visit(node.x, depth);
+      visit(node.y, depth);
+      return;
+    }
+
+    if (node instanceof SegmentTransform) {
+      visit(node.expr, depth);
+      return;
+    }
+
+    if (node instanceof Repeat) {
+      visit(node.expr, depth);
+      return;
+    }
+
+    if (node instanceof Ref) {
+      if (!followRefs) return;
+      if (!env.has(node.name)) return;
+      const key = `${node.name}@${depth}`;
+      if (visitingRef.has(key)) return;
+      visitingRef.add(key);
+      visit(env.get(node.name), depth);
+      visitingRef.delete(key);
+      return;
+    }
+
+    if (node instanceof Mot) {
+      out.push({ mot: node, depth });
+      return;
+    }
+
+    // Fallback: descend any obvious binary pair
+    if (node && typeof node === 'object' && 'x' in node && 'y' in node) {
+      visit(node.x, depth);
+      visit(node.y, depth);
+    }
+  }
+
+  visit(root, 0);
+  return out;
+}
+
+// Height (max distance to any leaf Mot) measured in binary transforms.
+// Concatenation, slice, repeat do not contribute height.
+function computeExprHeight(root, env, { followRefs = true, excludeConcat = true } = {}) {
+  const memo = new Map();
+  const visitingRef = new Set();
+
+  function height(node) {
+    if (!node) return 0;
+    if (memo.has(node)) return memo.get(node);
+
+    if (node instanceof SegmentTransform || node instanceof Repeat) {
+      const h = height(node.expr);
+      memo.set(node, h);
+      return h;
+    }
+
+    if (excludeConcat && node instanceof FollowedBy) {
+      const h = Math.max(height(node.x), height(node.y));
+      memo.set(node, h);
+      return h;
+    }
+
+    if (isBinaryTransformNode(node)) {
+      const h = 1 + Math.max(height(node.x), height(node.y));
+      memo.set(node, h);
+      return h;
+    }
+
+    if (node instanceof Ref) {
+      if (!followRefs || !env.has(node.name)) {
+        memo.set(node, 0);
+        return 0;
+      }
+      const key = node.name;
+      if (visitingRef.has(key)) {
+        memo.set(node, 0);
+        return 0;
+      }
+      visitingRef.add(key);
+      const h = height(env.get(node.name));
+      visitingRef.delete(key);
+      memo.set(node, h);
+      return h;
+    }
+
+    if (node instanceof Mot) {
+      memo.set(node, 0);
+      return 0;
+    }
+
+    // Default: if it looks like a binary pair, compute as such; else leaf
+    if (node && typeof node === 'object' && 'x' in node && 'y' in node) {
+      const h = Math.max(height(node.x), height(node.y));
+      memo.set(node, h);
+      return h;
+    }
+
+    memo.set(node, 0);
+    return 0;
+  }
+
+  return height(root);
+}
+
+// Convenience: compute Mot depths from the final statement's root.
+function computeMotDepthsFromRoot(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return collectMotLeavesWithDepth(root, env, options);
+}
+
+// Convenience: compute expression height from the final statement's root.
+function computeHeightFromLeaves(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return computeExprHeight(root, env, options);
+}
 
 
+
+
+
+
+
+
+// Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is exactly targetDepth from the root.
+// Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
+function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  const leaves = collectMotLeavesWithDepth(root, env, options);
+  const result = [];
+
+  for (const { mot, depth } of leaves) {
+    if (depth !== targetDepth) continue;
+    const idxs = [];
+    for (let i = 0; i < mot.values.length; i++) {
+      const v = mot.values[i];
+      if (v instanceof Pip && v.tag == null) {
+        if (typeof v.sourceStart === 'number') {
+          idxs.push(v.sourceStart);
+        }
+      }
+    }
+    result.push(idxs);
+  }
+  return result.flat();
+}
+
+// Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is at for above targetDepth from the root.
+// Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
+function findNumericValueIndicesAtDepthOrAbove(source, targetDepth, options = {}) {
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+This code will need to be gloablized differently in crux.js
+
+*/
 
 
 
@@ -1440,8 +1678,8 @@ class SegmentTransform {
 
 
 function stripLineComments(input) {
-  // Remove '//' comments to end-of-line
-  return input.replace(/\/\/.*$/gm, '');
+  // Replace '//' comments with spaces to preserve indices; keep newlines
+  return input.replace(/\/\/.*$/gm, (m) => ' '.repeat(m.length));
 }
 
 function parse(input) {
@@ -1462,5 +1700,4 @@ function interp(input) {
   console.log(value.toString());
 }
 
-export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4 };
-
+export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, computeMotDepthsFromRoot, computeHeightFromLeaves };

@@ -1646,12 +1646,30 @@ function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
   return result.flat();
 }
 
-// Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is at for above targetDepth from the root.
-// Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
-function findNumericValueIndicesAtDepthOrAbove(source, targetDepth, options = {}) {
 
+// Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
+function findNumericValueIndicesAtDepthOrAbove(source, minDepth, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  const leaves = collectMotLeavesWithDepth(root, env, options);
+  const result = [];
+
+  for (const { mot, depth } of leaves) {
+    // "or above" means shallower or equal depth (closer to root)
+    if (depth > minDepth) continue;
+    const idxs = [];
+    for (let i = 0; i < mot.values.length; i++) {
+      const v = mot.values[i];
+      if (v instanceof Pip && v.tag == null) {
+        if (typeof v.sourceStart === 'number') {
+          idxs.push(v.sourceStart);
+        }
+      }
+    }
+    result.push(idxs);
+  }
+  return result.flat();
 }
-
 
 
 
@@ -1700,4 +1718,4 @@ function interp(input) {
   console.log(value.toString());
 }
 
-export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, computeMotDepthsFromRoot, computeHeightFromLeaves };
+export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, findNumericValueIndicesAtDepthOrAbove, computeMotDepthsFromRoot, computeHeightFromLeaves };

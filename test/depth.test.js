@@ -4,6 +4,7 @@ import {
   computeMotDepthsFromRoot,
   computeHeightFromLeaves,
   findNumericValueIndicesAtDepth,
+  findNumericValueIndicesAtDepthOrAbove,
 } from '../src/index.js';
 
 function motDepths(source, options) {
@@ -68,6 +69,17 @@ test('indices at depth: numeric-only detection with concat returns source starts
   assert.deepEqual(findNumericValueIndicesAtDepth(src, 1), [[pos0, pos1], [pos2]]);
   // Depth 0: trailing mot => positions [[pos3]]
   assert.deepEqual(findNumericValueIndicesAtDepth(src, 0), [[pos3]]);
+});
+
+test('indices at depth or above: aggregates depth 1 and 0 layers', () => {
+  const src = '[0, 1] * [2], [r, 3, ?]';
+  const pos0 = src.indexOf('0');
+  const pos1 = src.indexOf('1');
+  const pos2 = src.indexOf('2]') - 0;
+  const pos3 = src.indexOf('3');
+  const out = findNumericValueIndicesAtDepthOrAbove(src, 1);
+  // Should include all three mots: first two at depth 1, last at depth 0
+  assert.deepEqual(out, [[pos0, pos1], [pos2], [pos3]]);
 });
 
 test('references inline for depth and height by default', () => {

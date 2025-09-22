@@ -82,6 +82,25 @@ test('indices at depth or above: aggregates depth 1 and 0 layers', () => {
   assert.deepEqual(out, [pos0, pos1, pos2, pos3]);
 });
 
+test('indices include endpoints of a range inside a mot', () => {
+  const src = '[1 -> -2,2,3, 5]';
+  const idxs = findNumericValueIndicesAtDepthOrAbove(src, 0);
+  // Expect the positions of the two range endpoints '1' and '-2'
+  const a = src.indexOf('1');
+  const b = src.indexOf('-2');
+  assert.ok(idxs.includes(a), 'Missing start index of range');
+  assert.ok(idxs.includes(b), 'Missing end index of range');
+});
+
+test('indices include numeric entries inside curly choice', () => {
+  const src = '[{4,8},2,3, 5]';
+  const idxs = findNumericValueIndicesAtDepthOrAbove(src, 0);
+  const p4 = src.indexOf('4');
+  const p8 = src.indexOf('8');
+  assert.ok(idxs.includes(p4), 'Missing index of 4 in curly');
+  assert.ok(idxs.includes(p8), 'Missing index of 8 in curly');
+});
+
 test('references inline for depth and height by default', () => {
   const src = 'foo = [0, 1] * [2]\nbar = foo * [3]';
   const ds = motDepths(src); // from final statement

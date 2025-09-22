@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parse } from '../src/index.js';
+import { parse, findAllTimescaleIndices } from '../src/index.js';
 
 function evalToString(input) {
   const prog = parse(input);
@@ -262,6 +262,17 @@ test('rest special accepts timeScale with spaces around operator', () => {
 
 test('rest special accepts timeScale using * (plain number)', () => {
   assert.equal(evalToString('[r*2]'), '[r*2]');
+});
+
+test('findAllTimescaleIndices finds timescale literals across forms', () => {
+  const src = '[0*2, 1/4, 2 | 3/2, 3 | * {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
+  const idxs = findAllTimescaleIndices(src);
+  // Should include the starts of: 2 (in *2), 4 (in /4), 3 and 2 (in 3/2),
+  // 2 and 4 in curly after *, 2 and 4 in curly after /, 2 after pipe implicit, and 3 after pipe for special
+  const expectedTokens = ['2', '4', '3', '2', '2', '4', '2', '4', '2', '3'];
+  for (const tok of expectedTokens) {
+    assert.ok(idxs.some(i => src.slice(i).startsWith(tok)), 'Missing timescale token: ' + tok);
+  }
 });
 
 // roman degrees removed

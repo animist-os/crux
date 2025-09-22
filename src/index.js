@@ -317,20 +317,30 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   CurlyBody_range(a, _h1, _q, _h2, b) {
-    return new RandomRange(a.parse(), b.parse());
+    // Capture positions of endpoints inside {a ? b}
+    const startPos = a.source.startIdx;
+    const endPos = b.source.startIdx;
+    return new RandomRange(a.parse(), b.parse(), startPos, endPos);
   },
 
   CurlyBody_list(entries) {
     const items = entries.parse();
-    const allNums = items.every(x => typeof x === 'number');
+    const allNumLits = items.every(x => x && typeof x === 'object' && x.__kind === 'numLit');
     const allRefs = items.every(x => x instanceof Ref);
-    if (allNums) return new RandomChoice(items);
+    if (allNumLits) {
+      const positions = items.map(x => x.pos);
+      const options = items.map(x => x.value);
+      return new RandomChoice(options, positions);
+    }
     if (allRefs) return new RandomRefChoice(items);
+    // Backward-compat: plain numbers (without position data)
+    const allNums = items.every(x => typeof x === 'number');
+    if (allNums) return new RandomChoice(items);
     throw new Error('Curly list must be all numbers or all identifiers');
   },
 
   CurlyEntry_num(n) {
-    return n.parse();
+    return { __kind: 'numLit', value: n.parse(), pos: n.source.startIdx };
   },
 
   CurlyEntry_ref(name) {
@@ -339,7 +349,12 @@ const s = g.createSemantics().addOperation('parse', {
 
 
   Range_inclusive(start, _dots, end) {
-    return new Range(start.parse(), end.parse());
+    // Record source positions for the range endpoints so tools can locate them in source
+    const a = start.parse();
+    const b = end.parse();
+    const aPos = start.source.startIdx;
+    const bPos = end.source.startIdx;
+    return new Range(a, b, aPos, bPos);
   },
 
   // RandomRange_between removed (use CurlyBody_range)
@@ -489,6 +504,116 @@ const s = g.createSemantics().addOperation('parse', {
   _terminal() {
     return this.sourceString;
   },
+});
+
+// Collect all source indices of timescale numbers across the entire program.
+// This inspects syntactic forms only (no evaluation), so indices map to original source.
+const tsSemantics = g.createSemantics().addOperation('collectTs', {
+  Prog(stmts, _optNls) {
+    const out = [];
+    for (const s of stmts.children) {
+      const v = s.collectTs();
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  Stmt(node) { return node.collectTs(); },
+  AssignStmt(_name, _eq, expr) { return expr.collectTs(); },
+  ExprStmt(expr) { return expr.collectTs(); },
+  Expr(e) { return e.collectTs(); },
+  FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  FollowedByExpr_juxt(x, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr(x) { return x.collectTs(); },
+  // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
+  MulExpr_dotStar(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotExpand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotNeighbor(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotSteps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotMirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotLens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotTie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotFilter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_neighbor(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_anticip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_tie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_filter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  RepeatExpr_repeatPost(expr, _h1, _colon, _h2, n) { return expr.collectTs(); },
+  RepeatExpr(expr) { return expr.collectTs(); },
+  PostfixExpr_slice(x, _sl) { return x.collectTs(); },
+  PriExpr_ref(_name) { return []; },
+  PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
+  PriExpr_parens(_op, e, _cp) { return e.collectTs(); },
+  MotBody_absolute(values) { return values.collectTs(); },
+  Choice_alt(left, _bar, right) { return [...left.collectTs(), ...right.collectTs()]; },
+  Choice_single(value) { return value.collectTs(); },
+  SingleValue(x) { return x.collectTs(); },
+  Range_inclusive(_a, _dots, _b) { return []; },
+  Pip_noTimeScale(_n) { return []; },
+  // Default: flatten children
+  _iter(...children) {
+    const out = [];
+    for (const c of children) {
+      const v = (c && typeof c.collectTs === 'function') ? c.collectTs() : [];
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  _terminal() { return []; },
+  NonemptyListOf(x, _sep, xs) { return [...x.collectTs(), ...xs.collectTs()]; },
+  EmptyListOf() { return []; },
+
+  // TimeScale forms
+  TimeScale_frac(n, _slash, d) {
+    return [n.source.startIdx, d.source.startIdx];
+  },
+  TimeScale_plain(n) {
+    return [n.source.startIdx];
+  },
+
+  // Pipe implicit timescale after number / special / range / curly
+  Pip_withTimeMulPipeImplicit(_n, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  Pip_withTimeMulPipe(_n, _h1, _pipe, _h2, _star, _h3, m) {
+    // m is RandNum (Curly or number). If Curly, recurse; if number, take its start.
+    try { return m.collectTs(); } catch (_) { return [m.source.startIdx]; }
+  },
+  Pip_withTimeDivPipe(_n, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+
+  Pip_specialWithTimeMulPipeImplicit(_sym, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  Pip_specialWithTimeMulPipe(_sym, _h1, _pipe, _h2, _star, _h3, m) {
+    try { return m.collectTs(); } catch (_) { return [m.source.startIdx]; }
+  },
+  Pip_specialWithTimeDivPipe(_sym, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+
+  Pip_rangeWithTimeMulPipeImplicit(_range, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  Pip_rangeWithTimeDivPipe(_range, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+
+  Pip_curlyWithTimeMulPipeImplicit(_curly, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) { return m.collectTs(); },
+  Pip_curlyWithTimeDivPipe(_curly, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+
+  // Classic star/slash forms
+  Pip_withTimeMul(_n, _h1, _star, _h2, ts) { return ts.collectTs(); },
+  Pip_withTimeDiv(_n, _h1, _slash, _h2, ts) { return ts.collectTs(); },
+  Pip_specialWithTimeMul(_sym, _h1, _star, _h2, ts) { return ts.collectTs(); },
+  Pip_specialWithTimeDiv(_sym, _h1, _slash, _h2, ts) { return ts.collectTs(); },
+
+  // RandNum used as timescale (number or curly)
+  RandNum(node) { return node.collectTs(); },
+  Curly(_o, body, _c, _seedOpt) { return body.collectTs(); },
+  CurlyBody_list(entries) { return entries.collectTs(); },
+  CurlyEntry_num(n) { return [n.source.startIdx]; },
+  CurlyEntry_ref(_name) { return []; },
+  CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
+  number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
 });
 
 class Prog {
@@ -1141,9 +1266,12 @@ class Ref {
 }
 
 class Range {
-  constructor(start, end) {
+  constructor(start, end, startPos = null, endPos = null) {
     this.start = start;
     this.end = end;
+    // Source indices of numeric endpoints when available
+    this.startPos = startPos;
+    this.endPos = endPos;
   }
 
   // expands to a sequence of integer steps inclusive
@@ -1160,17 +1288,22 @@ class Range {
 }
 
 class RandomRange {
-  constructor(start, end) {
+  constructor(start, end, startPos = null, endPos = null) {
     this.start = start;
     this.end = end;
     this.seed = null;
+    // Source indices of endpoints inside {a ? b} when numeric
+    this.startPos = startPos;
+    this.endPos = endPos;
   }
 }
 
 class RandomChoice {
-  constructor(options) {
+  constructor(options, positions = null) {
     this.options = options; // array of numbers
     this.seed = null;
+    // Optional source indices for each numeric option when parsed from CurlyBody_list
+    this.positions = Array.isArray(positions) ? positions : null;
   }
 }
 
@@ -1653,6 +1786,32 @@ function computeExprHeight(root, env, { followRefs = true, excludeConcat = true 
 
 
 
+// Convenience: compute Mot depths from the final statement's root.
+function computeMotDepthsFromRoot(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return collectMotLeavesWithDepth(root, env, options);
+}
+
+// Convenience: compute expression height from the final statement's root.
+function computeHeightFromLeaves(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return computeExprHeight(root, env, options);
+}
+
+// Find all source indices where a timescale literal appears in the source program.
+function findAllTimescaleIndices(source) {
+  const withoutComments = stripLineComments(source);
+  const matchResult = g.match(withoutComments);
+  if (matchResult.failed()) return [];
+  const idxs = tsSemantics(matchResult).collectTs();
+  // Deduplicate and sort for stability
+  const uniq = Array.from(new Set(idxs)).sort((a, b) => a - b);
+  return uniq;
+}
+
+
 
 
 
@@ -1669,9 +1828,38 @@ function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Plain numeric pip
       if (v instanceof Pip && v.tag == null) {
-        if (typeof v.sourceStart === 'number') {
-          idxs.push(v.sourceStart);
+        if (typeof v.sourceStart === 'number') idxs.push(v.sourceStart);
+      }
+      // Include explicit range endpoint literals
+      else if (v instanceof Range) {
+        if (typeof v.startPos === 'number') idxs.push(v.startPos);
+        if (typeof v.endPos === 'number') idxs.push(v.endPos);
+      }
+      // Include endpoints for deferred range with pipe scaling
+      else if (v instanceof RangePipe && v.range) {
+        const r = v.range;
+        if (typeof r.startPos === 'number') idxs.push(r.startPos);
+        if (typeof r.endPos === 'number') idxs.push(r.endPos);
+      }
+      // Include curly-based random specs
+      else if (v instanceof RandomRange) {
+        if (typeof v.startPos === 'number') idxs.push(v.startPos);
+        if (typeof v.endPos === 'number') idxs.push(v.endPos);
+      } else if (v instanceof RandomChoice) {
+        if (Array.isArray(v.positions)) {
+          for (const p of v.positions) if (typeof p === 'number') idxs.push(p);
+        }
+      } else if (v instanceof RandomPip) {
+        const rnd = v.randnum;
+        if (rnd instanceof RandomRange) {
+          if (typeof rnd.startPos === 'number') idxs.push(rnd.startPos);
+          if (typeof rnd.endPos === 'number') idxs.push(rnd.endPos);
+        } else if (rnd instanceof RandomChoice) {
+          if (Array.isArray(rnd.positions)) {
+            for (const p of rnd.positions) if (typeof p === 'number') idxs.push(p);
+          }
         }
       }
     }
@@ -1679,22 +1867,6 @@ function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
   }
   return result.flat();
 }
-
-// Convenience: compute Mot depths from the final statement's root.
-function computeMotDepthsFromRoot(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
-  return collectMotLeavesWithDepth(root, env, options);
-}
-
-// Convenience: compute expression height from the final statement's root.
-function computeHeightFromLeaves(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
-  return computeExprHeight(root, env, options);
-}
-
-
 
 
 
@@ -1711,9 +1883,38 @@ function findNumericValueIndicesAtDepthOrAbove(source, minDepth, options = {}) {
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Plain numeric pip
       if (v instanceof Pip && v.tag == null) {
-        if (typeof v.sourceStart === 'number') {
-          idxs.push(v.sourceStart);
+        if (typeof v.sourceStart === 'number') idxs.push(v.sourceStart);
+      }
+      // Include explicit range endpoints
+      else if (v instanceof Range) {
+        if (typeof v.startPos === 'number') idxs.push(v.startPos);
+        if (typeof v.endPos === 'number') idxs.push(v.endPos);
+      }
+      // Include endpoints for deferred range with pipe scaling
+      else if (v instanceof RangePipe && v.range) {
+        const r = v.range;
+        if (typeof r.startPos === 'number') idxs.push(r.startPos);
+        if (typeof r.endPos === 'number') idxs.push(r.endPos);
+      }
+      // Include curly-based random specs
+      else if (v instanceof RandomRange) {
+        if (typeof v.startPos === 'number') idxs.push(v.startPos);
+        if (typeof v.endPos === 'number') idxs.push(v.endPos);
+      } else if (v instanceof RandomChoice) {
+        if (Array.isArray(v.positions)) {
+          for (const p of v.positions) if (typeof p === 'number') idxs.push(p);
+        }
+      } else if (v instanceof RandomPip) {
+        const rnd = v.randnum;
+        if (rnd instanceof RandomRange) {
+          if (typeof rnd.startPos === 'number') idxs.push(rnd.startPos);
+          if (typeof rnd.endPos === 'number') idxs.push(rnd.endPos);
+        } else if (rnd instanceof RandomChoice) {
+          if (Array.isArray(rnd.positions)) {
+            for (const p of rnd.positions) if (typeof p === 'number') idxs.push(p);
+          }
         }
       }
     }
@@ -1721,8 +1922,6 @@ function findNumericValueIndicesAtDepthOrAbove(source, minDepth, options = {}) {
   }
   return result.flat();
 }
-
-
 
 
 
@@ -1769,4 +1968,5 @@ function interp(input) {
   console.log(value.toString());
 }
 
-export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, findNumericValueIndicesAtDepthOrAbove, computeMotDepthsFromRoot, computeHeightFromLeaves };
+export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, findNumericValueIndicesAtDepthOrAbove, computeMotDepthsFromRoot, computeHeightFromLeaves, findAllTimescaleIndices };
+

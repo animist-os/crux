@@ -29,8 +29,8 @@ test('implicit multiply sugar after pipe for number', () => {
 });
 
 test('implicit multiply sugar after pipe for special', () => {
-  assert.equal(evalToString('[r | 2]'), '[:r0*2]');
-  assert.equal(evalToString('[r | 4]'), '[:r0*4]');
+  assert.equal(evalToString('[r | 2]'), '[r*2]');
+  assert.equal(evalToString('[r | 4]'), '[r*4]');
 });
 
 test('curly before pipe with implicit multiply', () => {
@@ -98,7 +98,7 @@ test('adjacency does not cross newlines', () => {
 
 test('trailing blank line is ignored', () => {
   const program = '[0, r, 1, 2]\n';
-  assert.equal(evalToString(program), '[0, :r0, 1, 2]');
+  assert.equal(evalToString(program), '[0, r, 1, 2]');
 });
 
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
@@ -236,18 +236,32 @@ test('choice picks one of the options (curly)', () => {
   assert.match(out, /^\[(0|1|2)\]$/);
 });
 
+test('curly refs choose a mot by name and inline it', () => {
+  const program = 'A = [0, 1]\nB = [3, 4]\nC = [{A,B}]\nC';
+  const out = evalToString(program);
+  assert.match(out, /^\[(0, 1|3, 4)\]$/);
+});
+
+test('curly refs inside repeat produce 8 values', () => {
+  const program = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
+  const out = evalToString(program);
+  // One chosen mot of length 2 repeated 4 times -> 8 values
+  const m = out.match(/^\[(?:-?\d+(?:\*\d+(?:\.\d+)?)?(?:\/\d+)?(?:, )?){8}\]$/);
+  assert.ok(m, 'Output not 8 pips: ' + out);
+});
+
 // '_' tag removed
 
 test('rest special accepts timeScale using / (fraction)', () => {
-  assert.equal(evalToString('[0, r/2, 1]'), '[0, :r0/2, 1]');
+  assert.equal(evalToString('[0, r/2, 1]'), '[0, r/2, 1]');
 });
 
 test('rest special accepts timeScale with spaces around operator', () => {
-  assert.equal(evalToString('[0, r / 2, 1]'), '[0, :r0/2, 1]');
+  assert.equal(evalToString('[0, r / 2, 1]'), '[0, r/2, 1]');
 });
 
 test('rest special accepts timeScale using * (plain number)', () => {
-  assert.equal(evalToString('[r*2]'), '[:r0*2]');
+  assert.equal(evalToString('[r*2]'), '[r*2]');
 });
 
 // roman degrees removed

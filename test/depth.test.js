@@ -65,10 +65,10 @@ test('indices at depth: numeric-only detection with concat returns source starts
   const pos2 = src.indexOf('2]'); // use the digit 2 in the second mot
   const pos3 = src.indexOf('3');
   assert.ok(pos0 >= 0 && pos1 > pos0 && pos2 > pos1 && pos3 > pos2);
-  // Depth 1: two mots => positions [[pos0,pos1], [pos2]]
-  assert.deepEqual(findNumericValueIndicesAtDepth(src, 1), [[pos0, pos1], [pos2]]);
-  // Depth 0: trailing mot => positions [[pos3]]
-  assert.deepEqual(findNumericValueIndicesAtDepth(src, 0), [[pos3]]);
+  // Depth 1: flattened indices from both mots
+  assert.deepEqual(findNumericValueIndicesAtDepth(src, 1), [pos0, pos1, pos2]);
+  // Depth 0: flattened indices from trailing mot
+  assert.deepEqual(findNumericValueIndicesAtDepth(src, 0), [pos3]);
 });
 
 test('indices at depth or above: aggregates depth 1 and 0 layers', () => {
@@ -78,8 +78,8 @@ test('indices at depth or above: aggregates depth 1 and 0 layers', () => {
   const pos2 = src.indexOf('2]') - 0;
   const pos3 = src.indexOf('3');
   const out = findNumericValueIndicesAtDepthOrAbove(src, 1);
-  // Should include all three mots: first two at depth 1, last at depth 0
-  assert.deepEqual(out, [[pos0, pos1], [pos2], [pos3]]);
+  // Should include all indices: first two mots (depth 1) and last (depth 0)
+  assert.deepEqual(out, [pos0, pos1, pos2, pos3]);
 });
 
 test('references inline for depth and height by default', () => {
@@ -93,11 +93,11 @@ test('references inline for depth and height by default', () => {
   ]);
   const h = computeHeightFromLeaves(src);
   assert.equal(h, 2);
-  // Source positions at depth 2: [[pos0,pos1], [pos2]] from the first line
+  // Source positions at depth 2: flattened [pos0, pos1, pos2] from the first line
   const pos0 = src.indexOf('0');
   const pos1 = src.indexOf('1');
   const pos2 = src.indexOf('2]') - 0; // digit '2' in first line
-  assert.deepEqual(findNumericValueIndicesAtDepth(src, 2), [[pos0, pos1], [pos2]]);
+  assert.deepEqual(findNumericValueIndicesAtDepth(src, 2), [pos0, pos1, pos2]);
 });
 
 

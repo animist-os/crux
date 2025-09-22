@@ -56,7 +56,7 @@ const g = ohm.grammar(String.raw`
     RepeatExpr
       = PostfixExpr hspaces? ":" hspaces? number  -- repeatPost
       | PostfixExpr
-
+  
     PostfixExpr
       = PostfixExpr SliceOp  -- slice
       | PriExpr
@@ -118,7 +118,10 @@ const g = ohm.grammar(String.raw`
       = "{" CurlyBody "}" Seed?
     CurlyBody
       = number hspaces? "?" hspaces? number   -- range
-      | ListOf<number, ",">                  -- list
+      | ListOf<CurlyEntry, ",">              -- list
+    CurlyEntry
+      = number  -- num
+      | ident   -- ref
 
     Seed = "@" hexDigit hexDigit hexDigit hexDigit
 
@@ -317,8 +320,21 @@ const s = g.createSemantics().addOperation('parse', {
     return new RandomRange(a.parse(), b.parse());
   },
 
-  CurlyBody_list(nums) {
-    return new RandomChoice(nums.parse());
+  CurlyBody_list(entries) {
+    const items = entries.parse();
+    const allNums = items.every(x => typeof x === 'number');
+    const allRefs = items.every(x => x instanceof Ref);
+    if (allNums) return new RandomChoice(items);
+    if (allRefs) return new RandomRefChoice(items);
+    throw new Error('Curly list must be all numbers or all identifiers');
+  },
+
+  CurlyEntry_num(n) {
+    return n.parse();
+  },
+
+  CurlyEntry_ref(name) {
+    return new Ref(name.sourceString);
   },
 
 
@@ -427,16 +443,25 @@ const s = g.createSemantics().addOperation('parse', {
   // Curly pip with pipe scaling
   Pip_curlyWithTimeMulPipeImplicit(curly, _h1, _pipe, _h2, ts) {
     const obj = curly.parse();
+    if (!(obj instanceof RandomRange || obj instanceof RandomChoice)) {
+      throw new Error('Curly with identifiers cannot be used with timeScale pipe');
+    }
     return new RandomPip(obj, ts.parse());
   },
   Pip_curlyWithTimeMulPipe(curly, _h1, _pipe, _h2, _star, _h3, m) {
     const obj = curly.parse();
     // Defer random timeScale resolution to eval by storing an op spec
+    if (!(obj instanceof RandomRange || obj instanceof RandomChoice)) {
+      throw new Error('Curly with identifiers cannot be used with timeScale pipe');
+    }
     return new RandomPip(obj, { kind: 'mul', rhs: m.parse() });
   },
   Pip_curlyWithTimeDivPipe(curly, _h1, _pipe, _h2, _slash, _h3, d) {
     const obj = curly.parse();
     // Defer random timeScale resolution to eval by storing an op spec
+    if (!(obj instanceof RandomRange || obj instanceof RandomChoice)) {
+      throw new Error('Curly with identifiers cannot be used with timeScale pipe');
+    }
     return new RandomPip(obj, { kind: 'div', rhs: d.parse() });
   },
 
@@ -1149,6 +1174,15 @@ class RandomChoice {
   }
 }
 
+// Random choice among references to previously assigned mots.
+// At evaluation, pick one reference uniformly, resolve its Mot from env, and expand.
+class RandomRefChoice {
+  constructor(refs) {
+    this.refs = refs; // array of Ref
+    this.seed = null;
+  }
+}
+
 // A pip whose step is chosen from a Curly (RandomRange or RandomChoice)
 // and then paired with a fixed timeScale
 class RandomPip {
@@ -1258,7 +1292,7 @@ function collectCurlySeedsFromAst(root) {
     if (typeof node !== 'object') return;
     if (visited.has(node)) return;
     visited.add(node);
-    if (node instanceof RandomRange || node instanceof RandomChoice) {
+    if (node instanceof RandomRange || node instanceof RandomChoice || node instanceof RandomRefChoice) {
       if (node.seed != null) seeds.push(formatSeed4(node.seed));
     }
     if (Array.isArray(node)) {
@@ -1404,6 +1438,16 @@ class Mot {
       } else if (value instanceof RandomChoice) {
         const num = resolveRandNumToNumber(value, rng);
         resolved.push(new Pip(num, 1));
+      } else if (value instanceof RandomRefChoice) {
+        // Choose a referenced mot and inline its values
+        if (!Array.isArray(value.refs) || value.refs.length === 0) {
+          throw new Error('empty random mot choice');
+        }
+        const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+        const idx = Math.floor(localRng() * value.refs.length);
+        const ref = value.refs[idx];
+        const chosen = requireMot(ref.eval(env));
+        for (const p of chosen.values) resolved.push(p);
       } else if (value instanceof Choice) {
         resolved.push(value.pick(rng));
       } else {

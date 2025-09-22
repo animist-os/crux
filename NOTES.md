@@ -409,11 +409,11 @@ TODOs:
     4[0, -1?1] ~= [0, 1, 0, -1, 0, -1, 0, 0]
 
 
-  | for random choice
+  || for random choice
 
-     [1 | 2, 0] ~= [1, 0]
+     [1 || 2, 0] ~= [1, 0]
 
-    4[0 | 1 | 2] ~= [2, 0, 1, 1]
+    4[0 || 1 || 2] ~= [2, 0, 1, 1]
     
     N.B. the random operators suggests a need for optional seedability of the rng
 

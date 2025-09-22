@@ -104,7 +104,7 @@ B . [0, -12]
 
 ### WIP - Core
 
-- Pip: step (integer/float) | timeScale (defaults to "0 | 1"). Example: `0`, '-2', `3 | 1/2`,  `r`: rest
+- Pip: step (integer/float) | timeScale (defaults to 1). Example: `0`, `-2`, `3 | 1/2`; `r` = rest
 - Mot: list of values: `[0, 1/2, -2]`.
 
 - Spread Add: `[0, 1, 2 | 3] * [3, -1] // [3, 4, 5 | 3, -1, 0, 1 | 3]`

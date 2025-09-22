@@ -32,7 +32,7 @@ Evaluates to `[0, 1, 2]`.
   - **Range**: `a->b` expands inclusively to integer steps. Examples:
     - `[0->3] -> [0, 1, 2, 3]`
     - `[3->1] -> [3, 2, 1]`
-  - **Choice**: `x | y | z` picks one option at evaluation time. Example: `[0 | 1 | 2] -> [0]` or `[1]` or `[2]`.
+  - **Choice**: `x || y || z` picks one option at evaluation time. Example: `[0 || 1 || 2] -> [0]` or `[1]` or `[2]`.
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
@@ -148,7 +148,7 @@ From highest to lowest:
 ([0->2]), [3*2]              -> [0, 1, 2, 3*2]
 
 // Choices (result varies)
-[0 | 1 | 2]                  -> one of [0], [1], [2]
+[0 || 1 || 2]                -> one of [0], [1], [2]
 
 // Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
@@ -222,7 +222,7 @@ Andy {
   MotBody   = ListOf<Value, ",">
 
   Value       = Choice
-  Choice      = Choice "|" SingleValue  -- alt
+  Choice      = Choice "||" SingleValue  -- alt
               | SingleValue            -- single
   SingleValue = Range | Pip
   Range       = number "->" number

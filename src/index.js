@@ -440,7 +440,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new RandomPip(obj, { kind: 'div', rhs: d.parse() });
   },
 
-  
+
   TimeScale_frac(n, _slash, d) {
     return n.parse() / d.parse();
   },
@@ -590,7 +590,7 @@ class Dot {
     const yv = requireMot(this.y.eval(env));
     const values = [];
 
-    for (let xi =0; xi < xv.values.length; xi++) {
+    for (let xi = 0; xi < xv.values.length; xi++) {
       let yi = xi % yv.values.length;
       const left = xv.values[xi];
       const right = yv.values[yi];
@@ -610,7 +610,7 @@ class Dot {
           continue;
         }
         // funky buit sensible for Dot operation with rests on either side?
-        if(left.hasTag('r') || right.hasTag('r')) {
+        if (left.hasTag('r') || right.hasTag('r')) {
           values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
@@ -820,7 +820,7 @@ class Mirror {
     for (const r of right.values) {
       const anchor = r.step;
       for (const a of left.values) {
-        
+
         const combinedTag = a.tag ?? r.tag ?? null;
         const mirrored = 2 * anchor - a.step;
         out.push(new Pip(mirrored, a.timeScale * r.timeScale, combinedTag));
@@ -843,8 +843,8 @@ class DotMirror {
     for (let i = 0; i < left.values.length; i++) {
       const a = left.values[i];
       const r = right.values[i % right.values.length];
-      
-      
+
+
       const combinedTag = a.tag ?? r.tag ?? null;
       const mirrored = 2 * r.step - a.step;
       out.push(new Pip(mirrored, a.timeScale * r.timeScale, combinedTag));
@@ -1009,7 +1009,7 @@ class ConstraintOp {
   }
 }
 
-class DotConstraint extends ConstraintOp {}
+class DotConstraint extends ConstraintOp { }
 
 class FilterOp {
   constructor(x, y) {
@@ -1053,7 +1053,7 @@ class DotFilter {
 }
 
 function applyFilterMask(pip, mask) {
-  
+
   const tag = mask.tag;
   // T: reset timeScale (or set to mask's timeScale if provided)
   if (tag === 'T') {
@@ -1315,21 +1315,27 @@ class Pip {
   }
 
   toString() {
-    const tag_str = this.tag ? `:${this.tag}` : '';
+    const tag_str = this.tag ? `${this.tag}` : '';
+    let step_str;
+    if (this.tag == 'r') {
+      step_str = tag_str;
+    } else {
+      step_str = `${this.step}`;
+    }
     const ts = Math.abs(this.timeScale);
     if (ts === 1) {
-      return `${tag_str}${this.step}`;
+      return `${step_str}`;
     }
     // Prefer division form when ts is (approximately) 1/n
     const inv = 1 / ts;
     const invRounded = Math.round(inv);
     const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
     if (isInvInt) {
-      return `${tag_str}${this.step}/${invRounded}`;
+      return `${step_str}/${invRounded}`;
     }
     // Fallback to multiply form
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-    return `${tag_str}${this.step}*${tsStr}`;
+    return `${step_str}*${tsStr}`;
   }
 
   hasTag(tag) {
@@ -1337,7 +1343,7 @@ class Pip {
   }
 }
 
- 
+
 class Mot {
   constructor(values, rng_seed = null) {
     this.values = values;
@@ -1601,22 +1607,6 @@ function computeExprHeight(root, env, { followRefs = true, excludeConcat = true 
   return height(root);
 }
 
-// Convenience: compute Mot depths from the final statement's root.
-function computeMotDepthsFromRoot(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
-  return collectMotLeavesWithDepth(root, env, options);
-}
-
-// Convenience: compute expression height from the final statement's root.
-function computeHeightFromLeaves(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
-  return computeExprHeight(root, env, options);
-}
-
-
-
 
 
 
@@ -1645,6 +1635,23 @@ function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
   }
   return result.flat();
 }
+
+// Convenience: compute Mot depths from the final statement's root.
+function computeMotDepthsFromRoot(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return collectMotLeavesWithDepth(root, env, options);
+}
+
+// Convenience: compute expression height from the final statement's root.
+function computeHeightFromLeaves(source, options = {}) {
+  const prog = parse(source);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+  return computeExprHeight(root, env, options);
+}
+
+
+
 
 
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.

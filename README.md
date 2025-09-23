@@ -50,8 +50,8 @@ console.log(result.toString()); // [0, 1, 2]
 
 ## Spread vs tile
 
-- Spread family: `*`, `^`, `->`, `n`, `m`, `l`, `t`, `c`, `f`
-- Tile family: `.`, `.^`, `.->`, `.n`, `.m`, `.l`, `.t`, `.c`, `.f`
+- Spread family: `*`, `^`, `->`, `n`, `m`, `l`, `t`, `c`, `j`
+- Tile family: `.`, `.^`, `.->`, `.n`, `.m`, `.l`, `.t`, `.c`, `.j`
 
 Examples
 ```text
@@ -68,8 +68,9 @@ Examples
 - Mirror: `[0,2,4] m [2]`, `[0,2,4] .m [1]`
 - Lens (windows): `[0,1,2,3] l [2]`, `[0,1,2] .l [2]`
 - Tie: `[0,0/2,0/2,1] t  // [0*2, 1]`
+- Jam: `[0,1,2,3] j [0,7]  // [0,0,0,0, 7,7,7,7]`, `[0,1,2,3] .j [0,7]  // [0,7,0,7]`
 - Constraint: `[0,1,2,3] c [1,0,1,x]  // [0,2]`
-- Filter: `[0*2,1/4,2] f [T]  // reset durations`, `[0,1/3,2*5] f [T/2]`
+// Filter removed; use jam with pipe-only entries to pass-through and override timeScale.
 
 ## Tag behavior (tile ops)
 

@@ -9,6 +9,7 @@
 - Tile add: `.` or `.*` — elementwise add with RHS tiled.
 - Tile mul: `.^` — elementwise multiply with RHS tiled.
 - Rotate: `~` — for each k in RHS, rotate LHS by k and append.
+- Jam: `j` (spread), `.j` (tile) — replace steps/timeScales with RHS; `|` entries pass through.
 - Steps (spread): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
 - Steps (tile): `.->` — per-position run for each LHS value up to k (tiled).
 
@@ -16,7 +17,7 @@
 - Lens: `l` (spread), `.l` (tile) — sliding window emission.
 - Tie: `t` (postfix unary), `.t` (tile) — `t` merges adjacent equal-step pips; `.t` uses mask.
 - Constraint: `c` (spread), `.c` (tile) — keep/omit via mask; timeScales multiply.
-- Filter: `f` (spread), `.f` (tile) — reset components: `T` timeScale->1 (or set via `T/2`), `S` step->0.
+// Filter removed (use jam with pipe-only forms instead).
 
 
 
@@ -45,12 +46,12 @@ Pips:
 | Mirror (tile) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
 | Lens (spread) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
 | Lens (tile) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
+| Jam (spread) `j` | `[0,1,2,3] j [0,7]` | `[0,0,0,0, 7,7,7,7]` |
+| Jam (tile) `.j` | `[0,1,2,3] .j [0,7]` | `[0,7,0,7]` |
 | Tie (postfix) `t` | `[0, 0/2, 0/2, 1] t` | `[0*2, 1]` |
 | Tie (tile) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
 | Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
-| Filter (spread) `f` | `[0*2, 1/4, 2] f [T]` | `[0, 1, 2]` |
-| Filter (tile) `.f` | `[0*2, 1/4, 2*3] .f [T, S]` | `[0, 0/4, 2*3]` |
-| Filter time-target `f` | `[0, 1/3, 2*5] f [T/2]` | `[0/2, 1/2, 2/2]` |
+// Filter examples removed; use jam with pipe-only entries to pass-through while overriding timeScale.
 | Slice `start _ end` | `[0,1,2,3,4] -3 _ -1` | `[2, 3]` |
 
 

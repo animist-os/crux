@@ -46,17 +46,17 @@ const g = ohm.grammar(String.raw`
       = MulExpr ".*" AppendExpr -- dotStar
       | MulExpr ".^" AppendExpr -- dotExpand
       | MulExpr ".->" AppendExpr -- dotSteps
+      | MulExpr ".j" AppendExpr -- dotJam
       | MulExpr ".m" AppendExpr  -- dotMirror
       | MulExpr ".l" AppendExpr  -- dotLens
       | MulExpr ".t" AppendExpr  -- dotTie
       | MulExpr ".c" AppendExpr  -- dotConstraint
-      | MulExpr ".f" AppendExpr  -- dotFilter
       | MulExpr "->" AppendExpr  -- steps
       
+      | MulExpr "j" AppendExpr   -- jam
       | MulExpr "m" AppendExpr   -- mirror
       | MulExpr "l" AppendExpr   -- lens
       | MulExpr "c" AppendExpr   -- constraint
-      | MulExpr "f" AppendExpr   -- filter
       | MulExpr "*" AppendExpr  -- mul
       | MulExpr "^" AppendExpr  -- expand
       | MulExpr "." AppendExpr  -- dot
@@ -103,6 +103,11 @@ const g = ohm.grammar(String.raw`
       = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
       | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
       | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
+      | number hspaces? "|"                                  -- withPipeNoTs
+      | "|" hspaces? TimeScale                               -- pipeOnlyTs
+      | "|" hspaces? "*" hspaces? RandNum                    -- pipeOnlyMul
+      | "|" hspaces? "/" hspaces? RandNum                    -- pipeOnlyDiv
+      | "|"                                                 -- pipeBare
       | number hspaces? "*" hspaces? TimeScale              -- withTimeMul
       | number hspaces? "/" hspaces? TimeScale              -- withTimeDiv
       | PlainNumber                                          -- noTimeScale
@@ -210,6 +215,14 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotExpand(x.parse(), y.parse());
   },
 
+  MulExpr_jam(x, _j, y) {
+    return new JamOp(x.parse(), y.parse());
+  },
+
+  MulExpr_dotJam(x, _dj, y) {
+    return new DotJam(x.parse(), y.parse());
+  },
+
   MulExpr_steps(x, _arrow, y) {
     return new Steps(x.parse(), y.parse());
   },
@@ -251,13 +264,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotConstraint(x.parse(), y.parse());
   },
 
-  MulExpr_filter(x, _f, y) {
-    return new FilterOp(x.parse(), y.parse());
-  },
-
-  MulExpr_dotFilter(x, _dotf, y) {
-    return new DotFilter(x.parse(), y.parse());
-  },
+  
 
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
@@ -437,6 +444,43 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(n.parse(), ts.parse(), null, start);
   },
 
+  Pip_withPipeNoTs(n, _h1, _pipe) {
+    const start = n.source.startIdx;
+    const p = new Pip(n.parse(), 1, null, start);
+    p._pipeOnly = true;
+    p._jamPass = 'ts'; // override step with RHS, preserve LHS timeScale
+    return p;
+  },
+
+  Pip_pipeOnlyTs(_pipe, _h1, ts) {
+    const p = new Pip(0, ts.parse(), null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS
+    return p;
+  },
+
+  Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
+    // treat as override to provided factor; allow RandNum
+    const p = new Pip(0, m.parse(), null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'step';
+    return p;
+  },
+
+  Pip_pipeOnlyDiv(_pipe, _h1, _slash, _h2, d) {
+    const p = new Pip(0, 1 / d.parse(), null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'step';
+    return p;
+  },
+
+  Pip_pipeBare(_pipe) {
+    const p = new Pip(0, 1, null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'both'; // preserve both step and timeScale from LHS
+    return p;
+  },
+
   // Classic star/slash timescale (still supported)
   Pip_withTimeMul(n, _h1, _star, _h2, ts) {
     const start = n.source.startIdx;
@@ -545,19 +589,19 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
   MulExpr_dotStar(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotExpand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotJam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotSteps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotMirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotLens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotTie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_dotFilter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_jam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   AppendExpr_tiePostfix(x, _op) { return x.collectTs(); },
   MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_filter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -780,6 +824,66 @@ class Dot {
       values.push(left.mul(right));
     }
     return new Mot(values);
+  }
+}
+
+class JamOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    for (const r of right.values) {
+      const passThrough = (r._pipeOnly === true);
+      if (passThrough) {
+        if (r._jamPass === 'ts') {
+          for (const a of left.values) out.push(new Pip(r.step, a.timeScale, a.tag));
+        } else if (r._jamPass === 'step') {
+          for (const a of left.values) out.push(new Pip(a.step, r.timeScale, a.tag));
+        } else {
+          for (const a of left.values) out.push(new Pip(a.step, a.timeScale, a.tag));
+        }
+      } else {
+        for (const _ of left.values) {
+          out.push(new Pip(r.step, r.timeScale, r.tag));
+        }
+      }
+    }
+    return new Mot(out);
+  }
+}
+
+class DotJam {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    const m = right.values.length;
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      const r = right.values[i % m];
+      if (r._pipeOnly === true) {
+        if (r._jamPass === 'ts') {
+          out.push(new Pip(r.step, 1, null));
+        } else if (r._jamPass === 'step') {
+          out.push(new Pip(a.step, r.timeScale, a.tag));
+        } else {
+          out.push(new Pip(a.step, a.timeScale, a.tag));
+        }
+      } else {
+        out.push(new Pip(r.step, r.timeScale, r.tag));
+      }
+    }
+    return new Mot(out);
   }
 }
 
@@ -1100,62 +1204,7 @@ class ConstraintOp {
 
 class DotConstraint extends ConstraintOp { }
 
-class FilterOp {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    // Spread semantics: apply the filters in RHS sequentially to the whole mot
-    let current = left.values;
-    for (const r of right.values) {
-      current = current.map(a => applyFilterMask(a, r));
-    }
-    return new Mot(current);
-  }
-}
-
-class DotFilter {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    const out = [];
-    for (let i = 0; i < left.values.length; i++) {
-      const a = left.values[i];
-      if (i < right.values.length) {
-        const r = right.values[i];
-        out.push(applyFilterMask(a, r));
-      } else {
-        out.push(a);
-      }
-    }
-    return new Mot(out);
-  }
-}
-
-function applyFilterMask(pip, mask) {
-
-  const tag = mask.tag;
-  // T: reset timeScale (or set to mask's timeScale if provided)
-  if (tag === 'T') {
-    const newTs = mask.timeScale != null ? mask.timeScale : 1;
-    return new Pip(pip.step, newTs, pip.tag);
-  }
-  // S: reset step to 0 (keep timeScale)
-  if (tag === 'S') {
-    return new Pip(0, pip.timeScale, pip.tag);
-  }
-  // Default: no change
-  return pip;
-}
+// filter operator removed (use jam instead)
 
 
 function requireMot(value) {
@@ -1594,8 +1643,8 @@ function stringToSeed(str) {
 
 const BINARY_TRANSFORMS = new Set([
   Mul, Expand, Dot, DotExpand, Steps, DotSteps,
-  Mirror, DotMirror, Lens, DotLens, DotTie,
-  ConstraintOp, DotConstraint, FilterOp, DotFilter, RotateOp,
+  Mirror, DotMirror, Lens, DotLens, DotTie, JamOp, DotJam,
+  ConstraintOp, DotConstraint, RotateOp,
 ]);
 
 function isBinaryTransformNode(node) {

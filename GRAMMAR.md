@@ -75,6 +75,8 @@ In decreasing precedence (tighter binds higher):
    - `.^` tile-mul (elementwise expand):
      - Same tiling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`
+   - `j` jam (spread) / `.j` (tile):
+     - Replace steps/timeScales with RHS values; pipe-only `|` entries pass through left.
    - `m` mirror (spread) / `.m` (tile):
      - Reflect steps around anchor k: `a -> 2k - a`.
    - `l` lens (spread) / `.l` (tile):
@@ -84,10 +86,6 @@ In decreasing precedence (tighter binds higher):
      - Tile `.t` uses RHS mask to allow merges forward.
    - `c` constraint (spread) / `.c` (tile):
      - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
-   - `f` filter (spread) / `.f` (tile):
-     - Reset components to neutral defaults using tags in RHS:
-       - `T` -> reset timeScale to 1 (or to provided `T/k` or `T*k` value)
-       - `S` -> reset step to 0
    - `->` steps (spread):
      - For each right value `k`, output the left mot transposed by all integers from 0 to `k` (sign supported), concatenated.
      - Example: `[0, 3] -> [4] -> [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]`
@@ -186,7 +184,9 @@ Crux {
   MulExpr     = MulExpr ".*" RepeatExpr
               | MulExpr ".^" RepeatExpr
               | MulExpr ".->" RepeatExpr
+              | MulExpr ".j" RepeatExpr
               | MulExpr "->" RepeatExpr
+              | MulExpr "j" RepeatExpr
               | MulExpr "*" RepeatExpr
               | MulExpr "^" RepeatExpr
               | MulExpr "." RepeatExpr

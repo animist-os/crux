@@ -174,6 +174,20 @@ test('tie tile uses mask to allow merging forward', () => {
   assert.equal(evalToString('[0/2, 0/2, 0/2, 1] .t [1]'), '[0*1.5, 1]');
 });
 
+test('jam spread replaces values with RHS, one block per RHS value', () => {
+  assert.equal(evalToString('[0,1,2,3] j [7]'), '[7, 7, 7, 7]');
+  assert.equal(evalToString('[0,1,2,3] j [0, 7]'), '[0, 0, 0, 0, 7, 7, 7, 7]');
+});
+
+test('jam tile replaces per-position using tiled RHS', () => {
+  assert.equal(evalToString('[0,1,2,3] .j [0, 7]'), '[0, 7, 0, 7]');
+});
+
+test('jam pass-through via pipe marker in RHS', () => {
+  assert.equal(evalToString('[0,1,2,3] j [ | , 7]'), '[0, 1, 2, 3, 7, 7, 7, 7]');
+  assert.equal(evalToString('[0,1,2,3] .j [ | , 7]'), '[0, 7, 2, 7]');
+});
+
 test('constraint keeps where mask nonzero and not x', () => {
   assert.equal(evalToString('[0, 1, 2, 3] c [1, 0, 1, x]'), '[0, 2]');
 });
@@ -202,20 +216,9 @@ test('range endpoints support curly choice', () => {
   assert.match(out, /^\[(\-1|\-1, 0|\-1, 0, 1|\-1, 0, 1, 2)\]$/);
 });
 
-test('filter spread resets all timeScales with T', () => {
-  assert.equal(evalToString('[0*2, 1/4, 2] f [T]'), '[0, 1, 2]');
-});
-
-test('filter spread resets steps with S', () => {
-  assert.equal(evalToString('[0, 1/2, 2/4] f [S]'), '[0, 0/2, 0/4]');
-});
-
-test('filter tile per-position T,S masks', () => {
-  assert.equal(evalToString('[0*2, 1/4, 2*3] .f [T, S]'), '[0, 0/4, 2*3]');
-});
-
-test('filter T/2 sets timeScale to specific value', () => {
-  assert.equal(evalToString('[0, 1/3, 2*5] f [T/2]'), '[0/2, 1/2, 2/2]');
+test('jam can reset durations via pass-through with timeScale', () => {
+  assert.equal(evalToString('[0*2, 1/4, 2] j [|]'), '[0, 1, 2]');
+  assert.equal(evalToString('[0, 1/3, 2*5] j [| /2]'), '[0/2, 1/2, 2/2]');
 });
 
 test('parens for grouping (expand then add identity)', () => {

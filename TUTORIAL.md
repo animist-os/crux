@@ -22,19 +22,60 @@ This document walks you interactively through the Crux grammar.
 - **Reference**: use a previously assigned `Name` in an expression.
 
 
-## 1) Fundamentals
+## Fundamentals
 
 ```text
-[0, 1, 2]                 // three pips, unit duration
+[0, 1, 2, 4]                 // four pips, unit duration
 ```
 ```
-[0/2, 1*3, -2/4]          // timeScale by division or multiplication
-```
-```
-[3 | 2, 4 | 3/2]          // timeScale via pipe (multiply or set)
+[0, 1 | 2, 3 | /2, 4 | 3/2]  // four pips, with different relative durations
 ```
 
-Ranges, choices, random
+## Two mapping semantics
+
+- Spread family: `*`, `^`, `->`, `m`, `l`, `c`, `j`
+- Tile family: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
+
+### Add vs multiply
+```text
+[0,1,2] * [1]              // [1, 2, 3]
+```
+```
+[0,1,2] * [1, -2]          // [0,1,2,-2,-1,0]
+```
+```
+[1,2] ^ [2]               // [2, 4]
+```
+```
+[0,1,2] . [5,-5]         // [5, -4, 7]
+```
+```
+[1,2] : 4 .^ [-2,2,3]          // [-2, 4, 3, -4, 2, 6, -2, 4]
+```
+
+Jam (replace or pass-through)
+```text
+[0,1,2,3] j [7]           // [7, 7, 7, 7]
+```
+```
+[0,1,2,3] .j [0,7]        // [0, 7, 0, 7]
+```
+```
+[0, 1/4, 2] j [| 1]       // reset durations -> [0, 1, 2]
+```
+```
+[0, 1, 2, 3] .j [| 1, | /2 , | /2, |2]        // apply a rhythm -> [0, 1, 2]
+```
+```
+[0, 1, 2, 3] :4 .j [| /4, | /4 , | /2, | 2]  // apply a rhythm
+```
+```
+[0,1,2,3] j [ | , 7]      // pass-through then 7s
+```
+
+
+## Ranges, choices, random
+
 ```text
 [0->3]                    // [0, 1, 2, 3]
 ```
@@ -45,10 +86,13 @@ Ranges, choices, random
 [?]                       // bare random integer in [-7, 7]
 ```
 ```
-[{ -2 ? 2 }]               // inclusive integer in [-2, 2]
+[{ -2 ? 2 }]               // random integer in [-2, 2] inclusive
 ```
 ```
-[{1 ? 6}@c0de]            // seeded random (stable per seed)
+[{1 ? 6}] :16              // random integer changes within repeats
+```
+```
+[{1 ? 6}@c0de] :16        // seeded random (stable per seed)
 ```
 ```
 [{0,2,5} | 2]             // random step with fixed timeScale
@@ -57,7 +101,7 @@ Ranges, choices, random
 [1 -> 4 | / {2,4}]        // range with random per-element divide
 ```
 
-Tags
+## Tags
 - `r`: rest (silence with duration)
 - `x`: omit (drops the position in tile ops and constraint)
 
@@ -71,14 +115,36 @@ Tags
 [0, 1, x]                 // x is meaningful in tile ops / constraint
 ```
 
-## 2) Sequencing
+## Variables
+
+Assigning an expression to a variable makes the expression reusable.   Note that the assignment "freezes" any randomness in the expression.  If you want to keep the randomness alive, you can "unpack" the variables.
+
+```
+A = [0, 1]
+A * [7]                 // [7, 8]
+```
+```
+A = [-1, 0, 1]
+A * A                   // [-2,-1,0,-1,0,1,0,1,2]
+```
+```
+schenkerNeighbor = [0, 0, 1, 0]
+basicNotes = [0, 1, 2 , 3]
+schenkerNeighbor * basicNotes t
+```
+```
+A = [{-1 ? 2}, {4 ? 6}] :2
+A : 4
+```
+
+## Sequencing
 
 Concatenate - use either "," or adjacency
 ```text
 [0, 1], [2]             // [0, 1, 2]
 ```
 ```
-[0, 1] [2, 3]           // [0, 1, 2, 3]
+[0, 1] [2, 3]           // [0, 1, 2, 3] -- may be deprecated to require commas
 ```
 Note: adjacency does not cross newlines.
 
@@ -107,48 +173,13 @@ Slice
 [0 -> 8] 3 _ {5,7}        // end index can be random from a list
 ```
 
-## 3) Two mapping semantics
-
-- Spread family: `*`, `^`, `->`, `m`, `l`, `c`, `j`
-- Tile family: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
-
-Add vs multiply
-```text
-[0,1,2] * [1]              // [1, 2, 3]
-```
-```
-[0,1,2] * [1, -2]          // negative ts on RHS reverses LHS per block
-```
-```
-[1,2] ^ [2]               // [2, 4]
-```
-```
-[0,1,2] . [10,20]         // [10, 21, 12]
-```
-```
-[1,2] .^ [2]              // [2, 4]
-```
-
-Jam (replace or pass-through)
-```text
-[0,1,2,3] j [7]           // [7, 7, 7, 7]
-```
-```
-[0,1,2,3] .j [0,7]        // [0, 7, 0, 7]
-```
-```
-[0*2, 1/4, 2] j [|]       // reset durations -> [0, 1, 2]
-```
-```
-[0,1,2,3] j [ | , 7]      // pass-through then 7s
-```
 
 Rotate
 ```text
 [0,1,2,3] ~ [-1]          // [3, 0, 1, 2]
 ```
 
-## 4) Steps
+### Steps
 
 ```text
 [0,3] -> [2]              // [0,3, 1,4, 2,5]
@@ -157,7 +188,7 @@ Rotate
 [0,3] .-> [2]             // [0,1,2, 3,4,5]
 ```
 
-## 5) Mirror
+### Mirror
 
 ```text
 [0, 2, 4] m [2]           // [4, 2, 0]
@@ -166,7 +197,7 @@ Rotate
 [0, 2, 4] .m [1]          // [2, 0, -2]
 ```
 
-## 6) Lens (sliding windows)
+### Lens (sliding windows)
 
 ```text
 [0,1,2,3] l [2]           // [0,1, 1,2, 2,3]
@@ -178,21 +209,21 @@ Rotate
 [0,1,2] .l [2]            // [0,1, 1,2, 2,0]
 ```
 
-## 7) Tie (duration merge)
+### Tie (duration merge)
 ```text
-[0, 0/2, 0/2, 1] t        // [0*2, 1]
+[0 | /2, 0 | /2, 1] t        // [0 | 1, 1]
 ```
 ```
-[0/2, 0/2, 0/2, 1] .t [1] // [0*1.5, 1]
+[0 | /2, 0 | /2, 0 | /2, 1] .t [1]
 ```
 
-## 8) Constraint (keep/omit)
+### Constraint (keep/omit)
 ```text
 [0,1,2,3] c [1,0,1,x]     // [0, 2]
 [0,1,2,3] .c [1,0,1,x]    // [0, 2]
 ```
 
-## 9) Jam (replace/override)
+### Jam (replace/override)
 ```text
 [0,1,2,3] j [0, 7]        // [0,0,0,0, 7,7,7,7]
 ```
@@ -200,13 +231,13 @@ Rotate
 [0,1,2,3] .j [0, 7]       // [0, 7, 0, 7]
 ```
 ```
-[0*2, 1/4, 2] j [|]       // reset durations -> [0, 1, 2]
+[0 | 2, 1 | /4, 2] j [|]       // reset durations -> [0, 1, 2]
 ```
 ```
-[0, 1, 2] j [| /2]        // halve durations -> [0/2, 1/2, 2/2]
+[0, 1, 2] j [| /2]        // halve durations -> [0 | /2, 1 | /2, 2 | /2]
 ```
 
-## 10) Tag behavior in tile ops
+## Tag behavior in tile ops
 
 - `x` (RHS): omit position
 - `x` (LHS): pass-through left
@@ -217,7 +248,7 @@ Rotate
 [0,1,2] . [x, 10]         // [0, 12]
 ```
 
-## 11) Examples
+## Examples
 
 
 Melodic elaboration
@@ -234,7 +265,7 @@ A -> [4]
 A .-> [4]
 ```
 
-Windowed mots
+Windowed motifs
 ```text
 A = [0,1,2,3]
 A l [3]

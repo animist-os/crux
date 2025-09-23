@@ -31,15 +31,20 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
   
   FollowedByExpr
-      = FollowedByExpr "," MulExpr   -- fby
-      | FollowedByExpr MulExpr         -- juxt
+      = FollowedByExpr "," TieExpr   -- fby
+      | FollowedByExpr TieExpr         -- juxt
+      | TieExpr
+
+  // Make postfix tie 't' LOWER precedence than multiplicative ops by
+  // placing it above MulExpr in the hierarchy.
+  TieExpr
+      = TieExpr "t"                              -- tiePostfix
       | MulExpr
 
   AppendExpr
       = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
       | AppendExpr SliceOp                          -- slice
-      | AppendExpr "t"                              -- tiePostfix
       | PostfixExpr
   
   MulExpr
@@ -252,7 +257,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotTie(x.parse(), y.parse());
   },
 
-  AppendExpr_tiePostfix(x, _t) {
+  TieExpr_tiePostfix(x, _t) {
     return new TieOp(x.parse());
   },
 
@@ -600,7 +605,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  AppendExpr_tiePostfix(x, _op) { return x.collectTs(); },
+  TieExpr_tiePostfix(x, _op) { return x.collectTs(); },
   MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },

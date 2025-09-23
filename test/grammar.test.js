@@ -262,16 +262,17 @@ test('curly refs followed by :N multiplies by zero-mot', () => {
 
 // '_' tag removed
 
-test('rest special accepts timeScale using / (fraction)', () => {
-  assert.equal(evalToString('[0, r/2, 1]'), '[0, r/2, 1]');
+test('rest special accepts timeScale via pipe using / (fraction)', () => {
+  assert.equal(evalToString('[0, r | /2, 1]'), '[0, r/2, 1]');
 });
 
-test('rest special accepts timeScale with spaces around operator', () => {
-  assert.equal(evalToString('[0, r / 2, 1]'), '[0, r/2, 1]');
+test('rest special accepts timeScale via pipe with spaces', () => {
+  assert.equal(evalToString('[0, r |  /  2 , 1]'), '[0, r/2, 1]');
 });
 
-test('rest special accepts timeScale using * (plain number)', () => {
-  assert.equal(evalToString('[r*2]'), '[r*2]');
+// legacy special * form removed; use pipe instead
+test('rest special accepts timeScale via pipe', () => {
+  assert.equal(evalToString('[r | 2]'), '[r*2]');
 });
 
 test('findAllTimescaleIndices finds timescale literals across forms', () => {

@@ -104,7 +104,7 @@ const g = ohm.grammar(String.raw`
     Range
       = RandNum "->" RandNum      -- inclusive
 
-    Pip
+  Pip
       = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
       | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
       | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
@@ -117,8 +117,6 @@ const g = ohm.grammar(String.raw`
       | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
       | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
-      | Special hspaces? "*" hspaces? TimeScale             -- specialWithTimeMul
-      | Special hspaces? "/" hspaces? TimeScale             -- specialWithTimeDiv
       | Special                                              -- special
       | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
       | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
@@ -487,13 +485,7 @@ const s = g.createSemantics().addOperation('parse', {
   // Classic star/slash timescale (still supported)
   // Legacy * and / forms without a pipe have been removed.
 
-  Pip_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString);
-  },
-
-  Pip_specialWithTimeDiv(sym, _h1, _slash, _h2, ts) {
-    return new Pip(0, 1 / ts.parse(), sym.sourceString);
-  },
+  // Legacy special timescale without pipe removed
 
   // Range pip with pipe scaling (maps to elementwise over expansion)
   Pip_rangeWithTimeMulPipeImplicit(range, _h1, _pipe, _h2, ts) {
@@ -656,8 +648,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
 
   // Classic star/slash forms
   // Legacy * and / timescale on number removed: no collectTs actions
-  Pip_specialWithTimeMul(_sym, _h1, _star, _h2, ts) { return ts.collectTs(); },
-  Pip_specialWithTimeDiv(_sym, _h1, _slash, _h2, ts) { return ts.collectTs(); },
+  // Legacy special * and / forms removed; no collectTs
 
   // RandNum used as timescale (number or curly)
   RandNum(node) { return node.collectTs(); },

@@ -2,7 +2,7 @@
 
 ### Operators (spread vs tile)
 - Concatenation: `,` or juxtaposition — concatenate mots.
-- Repeat: `Expr : N` — repeat a mot N times.
+- Repeat: `Expr : N` — repeat a mot N times, unpacks to a spread add followed by an identity mot of length N
 - Slice: `start _ end`, `start _`, `_ end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
@@ -16,6 +16,7 @@
 - Filter: `f` (spread), `.f` (tile) — reset components: `T` timeScale->1 (or set via `T/2`), `S` step->0.
 - Steps (spread): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
 - Steps (tile): `.->` — per-position run for each LHS value up to k (tiled).
+
 - Neighbor (spread): `n` — each a becomes `[a, a+k, a]`, for each k in RHS; concat.
 - Neighbor (tile): `.n` — interleave `[A] + [A+k] + [A]` with k tiled over A.
 - Anticipatory neighbor (spread): `a` — each a becomes `[a+k, a]`; concat.

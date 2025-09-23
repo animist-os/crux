@@ -72,11 +72,16 @@ const g = ohm.grammar(String.raw`
       | "[" MotBody "]"            -- mot
       | "(" Expr ")"                  -- parens
 
-    SliceOp
-      = Index hspaces? "_" hspaces? Index   -- both
-      | Index hspaces? "_"                 -- startOnly
-      | "_" hspaces? Index                 -- endOnly
-      | "_" Index                          -- endOnlyTight
+  SliceOp
+      = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
+      | SliceIndex hspaces? "_"                       -- startOnly
+      | "_" hspaces? SliceIndex                       -- endOnly
+      | "_" SliceIndex                                -- endOnlyTight
+
+    // Slice indices can be plain numbers or random numbers (curly)
+    SliceIndex
+      = RandNum  -- rand
+      | Index    -- num
 
     Index = sign? digit+
 
@@ -389,6 +394,9 @@ const s = g.createSemantics().addOperation('parse', {
   SliceOp_endOnlyTight(_us, end) {
     return { start: null, end: end.parse() };
   },
+
+  SliceIndex_rand(rn) { return rn.parse(); },
+  SliceIndex_num(idx) { return idx.parse(); },
 
   Index(_sign, _digits) {
     return parseInt(this.sourceString, 10);
@@ -1606,7 +1614,15 @@ class SegmentTransform {
     // Normalize indices: allow negative indices to count from end
     const normIndex = (idx, defaultValue) => {
       if (idx == null) return defaultValue;
-      let k = Math.trunc(idx);
+      let k;
+      if (typeof idx === 'number') {
+        k = Math.trunc(idx);
+      } else {
+        // RandNum (RandomRange | RandomChoice)
+        const rng = motif._rng || Math.random;
+        const num = resolveRandNumToNumber(idx, rng);
+        k = Math.trunc(num);
+      }
       if (k < 0) k = n + k; // -1 => n-1
       return Math.max(0, Math.min(n, k));
     };

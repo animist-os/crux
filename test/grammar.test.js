@@ -245,9 +245,11 @@ test('curly refs choose a mot by name and inline it', () => {
 });
 
 test('curly refs followed by :N multiplies by zero-mot', () => {
-  const programLeft = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
-  const programRight = 'A = [0, 1]\nB = [3, 4]\n[{A,B}] * [0, 0, 0, 0]';
-  assert.equal(evalToString(programLeft), evalToString(programRight));
+  const left = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
+  const out = evalToString(left);
+  const expectedA = evalToString('A = [0, 1]\nB = [3, 4]\nA * [0, 0, 0, 0]');
+  const expectedB = evalToString('A = [0, 1]\nB = [3, 4]\nB * [0, 0, 0, 0]');
+  assert.ok(out === expectedA || out === expectedB, 'Output not equal to A*zeros or B*zeros: ' + out);
 });
 
 // '_' tag removed
@@ -306,6 +308,12 @@ test('slice operator startOnly: start _', () => {
 
 test('slice operator endOnly: _ end', () => {
   assert.equal(evalToString('[0, 1, 2, 3, 4] _ 3'), '[0, 1, 2]');
+});
+
+test('slice end is randomly chosen from curly list', () => {
+  // [0->8] expands to [0,1,2,3,4,5,6,7,8]; slicing 3..{5,7} with exclusive end yields [3,4] or [3,4,5,6]
+  const out = evalToString('[0 -> 8] 3 _ {5,7}');
+  assert.ok(out === '[3, 4]' || out === '[3, 4, 5, 6]', 'Unexpected slice: ' + out);
 });
 
 test('rotate operator ~ applies right rotations per right mot', () => {

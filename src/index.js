@@ -113,8 +113,6 @@ const g = ohm.grammar(String.raw`
       | "|" hspaces? "*" hspaces? RandNum                    -- pipeOnlyMul
       | "|" hspaces? "/" hspaces? RandNum                    -- pipeOnlyDiv
       | "|"                                                 -- pipeBare
-      | number hspaces? "*" hspaces? TimeScale              -- withTimeMul
-      | number hspaces? "/" hspaces? TimeScale              -- withTimeDiv
       | PlainNumber                                          -- noTimeScale
       | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
@@ -487,15 +485,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   // Classic star/slash timescale (still supported)
-  Pip_withTimeMul(n, _h1, _star, _h2, ts) {
-    const start = n.source.startIdx;
-    return new Pip(n.parse(), ts.parse(), null, start);
-  },
-
-  Pip_withTimeDiv(n, _h1, _slash, _h2, ts) {
-    const start = n.source.startIdx;
-    return new Pip(n.parse(), 1 / ts.parse(), null, start);
-  },
+  // Legacy * and / forms without a pipe have been removed.
 
   Pip_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
     return new Pip(0, ts.parse(), sym.sourceString);
@@ -665,8 +655,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   Pip_curlyWithTimeDivPipe(_curly, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
 
   // Classic star/slash forms
-  Pip_withTimeMul(_n, _h1, _star, _h2, ts) { return ts.collectTs(); },
-  Pip_withTimeDiv(_n, _h1, _slash, _h2, ts) { return ts.collectTs(); },
+  // Legacy * and / timescale on number removed: no collectTs actions
   Pip_specialWithTimeMul(_sym, _h1, _star, _h2, ts) { return ts.collectTs(); },
   Pip_specialWithTimeDiv(_sym, _h1, _slash, _h2, ts) { return ts.collectTs(); },
 

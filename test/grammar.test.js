@@ -114,7 +114,7 @@ test('trailing blank line is ignored', () => {
 });
 
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
-  assert.equal(evalToString('[1, 2, 3] * [0 * -1]'), '[3, 2, 1]');
+  assert.equal(evalToString('[1, 2, 3] * [0 | -1]'), '[3, 2, 1]');
 });
 
 test('expand multiplies steps elementwise', () => {
@@ -166,12 +166,12 @@ test('lens tile rolling window per-position', () => {
 });
 
 test('tie postfix merges equal steps by adding timeScale', () => {
-  assert.equal(evalToString('[0, 0/2, 0/2, 1] t'), '[0*2, 1]');
+  assert.equal(evalToString('[0, 0 | /2, 0 | /2, 1] t'), '[0*2, 1]');
 });
 
 test('tie tile uses mask to allow merging forward', () => {
   // mask nonzero allows merge at those boundaries
-  assert.equal(evalToString('[0/2, 0/2, 0/2, 1] .t [1]'), '[0*1.5, 1]');
+  assert.equal(evalToString('[0 | /2, 0 | /2, 0 | /2, 1] .t [1]'), '[0*1.5, 1]');
 });
 
 test('jam spread replaces values with RHS, one block per RHS value', () => {
@@ -217,8 +217,8 @@ test('range endpoints support curly choice', () => {
 });
 
 test('jam can reset durations via pass-through with timeScale', () => {
-  assert.equal(evalToString('[0*2, 1/4, 2] j [|]'), '[0, 1, 2]');
-  assert.equal(evalToString('[0, 1/3, 2*5] j [| /2]'), '[0/2, 1/2, 2/2]');
+  assert.equal(evalToString('[0 | 2, 1 | /4, 2] j [|]'), '[0, 1, 2]');
+  assert.equal(evalToString('[0, 1 | /3, 2 | *5] j [| /2]'), '[0/2, 1/2, 2/2]');
 });
 
 test('parens for grouping (expand then add identity)', () => {
@@ -275,7 +275,7 @@ test('rest special accepts timeScale using * (plain number)', () => {
 });
 
 test('findAllTimescaleIndices finds timescale literals across forms', () => {
-  const src = '[0*2, 1/4, 2 | 3/2, 3 | * {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
+  const src = '[0 | 2, 1 | /4, 2 | 3/2, 3 | * {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
   const idxs = findAllTimescaleIndices(src);
   // Should include the starts of: 2 (in *2), 4 (in /4), 3 and 2 (in 3/2),
   // 2 and 4 in curly after *, 2 and 4 in curly after /, 2 after pipe implicit, and 3 after pipe for special

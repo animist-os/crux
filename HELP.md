@@ -55,7 +55,6 @@ Pips:
 
 
 
-
 ### All RNG-bearing syntax, with examples
 
 - **Bare random pip `?`**: random integer step in [-7, 7]
@@ -79,12 +78,6 @@ Pips:
 ```text
 [{1 ? 6}@c0de]
 [{0,2,5}@beef]
-```
-
-- **Choice expression `x || y || z`**: picks one option at eval time
-```text
-[0 || 1 || 2]
-[[0->2] || 10]      // can mix ranges (expanded) and pips
 ```
 
 - **Random endpoints in ranges**:
@@ -135,17 +128,9 @@ Pips:
 [? | / {2,4}]
 ```
 
-- **Seeding helper (rewrite any `{...}` lacking a seed)**
-```js
-// JS API:
-// rewriteCurlySeeds("A = [{1,2}]")  -> "A = [{1,2}@1a2b]"
-```
 
 - Note: You can combine these forms inside larger expressions (concat, spread/tile ops, etc.). RNG is used wherever a `Curly`, `?`, or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
 
-- If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression. Choices written with `||` use the program’s RNG (non-seeded per-choice).
+- If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression.
 
 - In tests/docs, some older examples show `|` for choices; in the current grammar, use `||` for choices, and reserve single `|` for timeScale piping.
-
-- - -
-- Added a concise catalog of every RNG syntax in the grammar with minimal examples, including seeded curly, choice `||`, random endpoints, and random timeScale after `|`.

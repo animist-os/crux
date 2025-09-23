@@ -89,11 +89,7 @@ const g = ohm.grammar(String.raw`
       = ListOf<Value, ",">            -- absolute
   
     Value
-      = Choice
-
-    Choice
-      = Choice "||" SingleValue  -- alt
-      | SingleValue              -- single
+      = SingleValue
 
     SingleValue
       = Pip
@@ -134,7 +130,9 @@ const g = ohm.grammar(String.raw`
       = number  -- num
       | ident   -- ref
 
-    Seed = "@" hexDigit hexDigit hexDigit hexDigit
+    Seed = "@" SeedChars
+    SeedChars = seedChar+
+    seedChar = letter | digit | "_"
 
     // Legacy random range form maintained temporarily if needed
     // RandomRange
@@ -308,13 +306,8 @@ const s = g.createSemantics().addOperation('parse', {
   MotBody_absolute(values) {
     return { kind: 'absolute', values: values.parse() };
   },
-  Choice_alt(left, _bar, right) {
-    return new Choice(left.parse(), right.parse());
-  },
-
-  Choice_single(value) {
-    return value.parse();
-  },
+  
+  
 
   SingleValue(x) {
     return x.parse();
@@ -329,8 +322,8 @@ const s = g.createSemantics().addOperation('parse', {
     return obj;
   },
 
-  Seed(_at, a, b, c, d) {
-    return (a.sourceString + b.sourceString + c.sourceString + d.sourceString).toLowerCase();
+  Seed(_at, chars) {
+    return stringToSeed(chars.sourceString);
   },
 
   CurlyBody_range(a, _h1, _q, _h2, b) {
@@ -577,8 +570,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_parens(_op, e, _cp) { return e.collectTs(); },
   MotBody_absolute(values) { return values.collectTs(); },
-  Choice_alt(left, _bar, right) { return [...left.collectTs(), ...right.collectTs()]; },
-  Choice_single(value) { return value.collectTs(); },
+  
   SingleValue(x) { return x.collectTs(); },
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
@@ -1322,35 +1314,7 @@ function resolveRandNumToNumber(value, rng) {
   throw new Error('Unsupported RandNum');
 }
 
-class Choice {
-  constructor(left, right) {
-    this.left = left;
-    this.right = right;
-    // flatten nested choices into a single array of options
-    const flatten = (node) => {
-      if (node instanceof Choice) return [...flatten(node.left), ...flatten(node.right)];
-      return [node];
-    };
-    this.options = [...flatten(left), ...flatten(right)];
-  }
-
-  pick(rng = Math.random) {
-    const flatOptions = this.options.map(opt => {
-      if (opt instanceof Range) {
-        // Expand range to all discrete integer pips, then pick from that expansion
-        return opt.expandToPips(rng);
-      }
-      if (opt instanceof Pip) return [opt];
-      throw new Error('Unsupported choice option');
-    }).flat();
-
-    if (flatOptions.length === 0) {
-      throw new Error('empty choice');
-    }
-    const idx = Math.floor(rng() * flatOptions.length);
-    return flatOptions[idx];
-  }
-}
+// Choice operator removed; use Curly instead
 
 // Seed helpers for IDE-side annotation
 function formatSeed4(seed) {
@@ -1530,8 +1494,6 @@ class Mot {
         const ref = value.refs[idx];
         const chosen = requireMot(ref.eval(env));
         for (const p of chosen.values) resolved.push(p);
-      } else if (value instanceof Choice) {
-        resolved.push(value.pick(rng));
       } else {
         throw new Error('Unsupported mot value: ' + String(value));
       }
@@ -1586,7 +1548,19 @@ class SegmentTransform {
 
 
 
+// utilities
 
+function stringToSeed(str) {
+  let hash = 5381;
+  let i = str.length;
+
+  while (i) {
+    hash = (hash * 33) ^ str.charCodeAt(--i);
+  }
+
+  // Ensure the hash is a positive 32-bit integer
+  return hash >>> 0; 
+}
 
 
 

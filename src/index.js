@@ -11,7 +11,6 @@ globalThis.golden = golden;
 
 
 
-
 const g = ohm.grammar(String.raw`
   Andy {
   
@@ -32,20 +31,16 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
   
   FollowedByExpr
-      = FollowedByExpr "," TieExpr   -- fby
-      | FollowedByExpr TieExpr         -- juxt
-      | TieExpr
+      = FollowedByExpr "," MulExpr   -- fby
+      | FollowedByExpr MulExpr         -- juxt
+      | MulExpr
 
   AppendExpr
       = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
       | AppendExpr SliceOp                          -- slice
+      | AppendExpr "t"                              -- tiePostfix
       | PostfixExpr
-
-  // Lower precedence postfix tie
-  TieExpr
-      = MulExpr "t"         -- post
-      | MulExpr
   
   MulExpr
       = MulExpr ".*" AppendExpr -- dotStar
@@ -113,10 +108,14 @@ const g = ohm.grammar(String.raw`
       | "|" hspaces? "*" hspaces? RandNum                    -- pipeOnlyMul
       | "|" hspaces? "/" hspaces? RandNum                    -- pipeOnlyDiv
       | "|"                                                 -- pipeBare
+      | number hspaces? "*" hspaces? TimeScale              -- withTimeMul
+      | number hspaces? "/" hspaces? TimeScale              -- withTimeDiv
       | PlainNumber                                          -- noTimeScale
       | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
       | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
+      | Special hspaces? "*" hspaces? TimeScale             -- specialWithTimeMul
+      | Special hspaces? "/" hspaces? TimeScale             -- specialWithTimeDiv
       | Special                                              -- special
       | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
       | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
@@ -253,7 +252,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotTie(x.parse(), y.parse());
   },
 
-  TieExpr_post(x, _t) {
+  AppendExpr_tiePostfix(x, _t) {
     return new TieOp(x.parse());
   },
 
@@ -422,6 +421,24 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(0, 1, sym.sourceString);
   },
 
+  Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
+    return new Pip(0, m.parse(), sym.sourceString);
+  },
+
+  Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
+    return new Pip(0, 1 / d.parse(), sym.sourceString);
+  },
+
+  Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), m.parse(), null, start);
+  },
+
+  Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), 1 / d.parse(), null, start);
+  },
+
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
     const start = n.source.startIdx;
     return new Pip(n.parse(), ts.parse(), null, start);
@@ -442,14 +459,46 @@ const s = g.createSemantics().addOperation('parse', {
     return p;
   },
 
-  Pip_pipeBare(_pipe) {
-    const p = new Pip(0, 1, null, _pipe.source.startIdx);
+  Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
+    // treat as override to provided factor; allow RandNum
+    const p = new Pip(0, m.parse(), null, _pipe.source.startIdx);
     p._pipeOnly = true;
-    p._jamPass = 'both'; // preserve both step and timeScale from LHS
+    p._jamPass = 'step';
     return p;
   },
 
-  
+  Pip_pipeOnlyDiv(_pipe, _h1, _slash, _h2, d) {
+    const p = new Pip(0, 1 / d.parse(), null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'step';
+    return p;
+  },
+
+  Pip_pipeBare(_pipe) {
+    const p = new Pip(0, 1, null, _pipe.source.startIdx);
+    p._pipeOnly = true;
+    p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS (defaults to 1)
+    return p;
+  },
+
+  // Classic star/slash timescale (still supported)
+  Pip_withTimeMul(n, _h1, _star, _h2, ts) {
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), ts.parse(), null, start);
+  },
+
+  Pip_withTimeDiv(n, _h1, _slash, _h2, ts) {
+    const start = n.source.startIdx;
+    return new Pip(n.parse(), 1 / ts.parse(), null, start);
+  },
+
+  Pip_specialWithTimeMul(sym, _h1, _star, _h2, ts) {
+    return new Pip(0, ts.parse(), sym.sourceString);
+  },
+
+  Pip_specialWithTimeDiv(sym, _h1, _slash, _h2, ts) {
+    return new Pip(0, 1 / ts.parse(), sym.sourceString);
+  },
 
   // Range pip with pipe scaling (maps to elementwise over expansion)
   Pip_rangeWithTimeMulPipeImplicit(range, _h1, _pipe, _h2, ts) {
@@ -458,7 +507,11 @@ const s = g.createSemantics().addOperation('parse', {
     return new RangePipe(r, { kind: 'mul', factor: tsVal });
   },
 
-  
+  Pip_rangeWithTimeDivPipe(range, _h1, _pipe, _h2, _slash, _h3, d) {
+    const r = range.parse();
+    const rhs = d.parse(); // number or RandNum
+    return new RangePipe(r, { kind: 'div', rhs });
+  },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
     return new Pip(0, ts.parse(), sym.sourceString);
@@ -472,7 +525,22 @@ const s = g.createSemantics().addOperation('parse', {
     }
     return new RandomPip(obj, ts.parse());
   },
-  
+  Pip_curlyWithTimeMulPipe(curly, _h1, _pipe, _h2, _star, _h3, m) {
+    const obj = curly.parse();
+    // Defer random timeScale resolution to eval by storing an op spec
+    if (!(obj instanceof RandomRange || obj instanceof RandomChoice)) {
+      throw new Error('Curly with identifiers cannot be used with timeScale pipe');
+    }
+    return new RandomPip(obj, { kind: 'mul', rhs: m.parse() });
+  },
+  Pip_curlyWithTimeDivPipe(curly, _h1, _pipe, _h2, _slash, _h3, d) {
+    const obj = curly.parse();
+    // Defer random timeScale resolution to eval by storing an op spec
+    if (!(obj instanceof RandomRange || obj instanceof RandomChoice)) {
+      throw new Error('Curly with identifiers cannot be used with timeScale pipe');
+    }
+    return new RandomPip(obj, { kind: 'div', rhs: d.parse() });
+  },
 
 
   TimeScale_frac(n, _slash, d) {
@@ -532,7 +600,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  TieExpr_post(x, _op) { return x.collectTs(); },
+  AppendExpr_tiePostfix(x, _op) { return x.collectTs(); },
   MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -591,7 +659,11 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) { return m.collectTs(); },
   Pip_curlyWithTimeDivPipe(_curly, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
 
-  // Classic inline star/slash removed
+  // Classic star/slash forms
+  Pip_withTimeMul(_n, _h1, _star, _h2, ts) { return ts.collectTs(); },
+  Pip_withTimeDiv(_n, _h1, _slash, _h2, ts) { return ts.collectTs(); },
+  Pip_specialWithTimeMul(_sym, _h1, _star, _h2, ts) { return ts.collectTs(); },
+  Pip_specialWithTimeDiv(_sym, _h1, _slash, _h2, ts) { return ts.collectTs(); },
 
   // RandNum used as timescale (number or curly)
   RandNum(node) { return node.collectTs(); },
@@ -769,7 +841,7 @@ class JamOp {
       const passThrough = (r._pipeOnly === true);
       if (passThrough) {
         if (r._jamPass === 'ts') {
-          for (const a of left.values) out.push(new Pip(r.step, a.timeScale, a.tag));
+          for (const a of left.values) out.push(new Pip(a.step, a.timeScale, a.tag));
         } else if (r._jamPass === 'step') {
           for (const a of left.values) out.push(new Pip(a.step, r.timeScale, a.tag));
         } else {
@@ -801,7 +873,7 @@ class DotJam {
       const r = right.values[i % m];
       if (r._pipeOnly === true) {
         if (r._jamPass === 'ts') {
-          out.push(new Pip(r.step, 1, null));
+          out.push(new Pip(a.step, a.timeScale, a.tag));
         } else if (r._jamPass === 'step') {
           out.push(new Pip(a.step, r.timeScale, a.tag));
         } else {
@@ -1264,15 +1336,20 @@ class RandomPip {
   }
 
   toString() {
-    // Render unresolved random pip using pipe-based timescale
+    // Render as the resolved step with its timeScale; since evaluation resolves it,
+    // this method is used only if someone prints before eval. Fall back to step=0.
     const ts = Math.abs(this.timeScale);
-    if (ts === 1) return '0';
+    if (ts === 1) {
+      return String(0);
+    }
     const inv = 1 / ts;
     const invRounded = Math.round(inv);
     const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
-    if (isInvInt) return `0 | /${invRounded}`;
+    if (isInvInt) {
+      return `0/${invRounded}`;
+    }
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-    return `0 | ${tsStr}`;
+    return `0*${tsStr}`;
   }
 }
 
@@ -1394,17 +1471,26 @@ class Pip {
 
   toString() {
     const tag_str = this.tag ? `${this.tag}` : '';
-    const step_str = this.tag === 'r' ? tag_str : `${this.step}`;
+    let step_str;
+    if (this.tag == 'r') {
+      step_str = tag_str;
+    } else {
+      step_str = `${this.step}`;
+    }
     const ts = Math.abs(this.timeScale);
-    if (ts === 1) return `${step_str}`;
-    // Emit pipe-based timescale only
-    // Show fractional if close to 1/n
+    if (ts === 1) {
+      return `${step_str}`;
+    }
+    // Prefer division form when ts is (approximately) 1/n
     const inv = 1 / ts;
     const invRounded = Math.round(inv);
     const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
-    if (isInvInt) return `${step_str} | /${invRounded}`;
+    if (isInvInt) {
+      return `${step_str}/${invRounded}`;
+    }
+    // Fallback to multiply form
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-    return `${step_str} | ${tsStr}`;
+    return `${step_str}*${tsStr}`;
   }
 
   hasTag(tag) {
@@ -1487,7 +1573,7 @@ class Mot {
         throw new Error('Unsupported mot value: ' + String(value));
       }
     }
-    // Preserve RNG state if this Mot will be evaluated again (e.g., inside repeats)
+    // Preserve RNG state if this motif will be evaluated again (e.g., inside repeats)
     const out = new Mot(resolved);
     out.rng_seed = this.rng_seed;
     out._rng = this._rng;
@@ -1508,8 +1594,8 @@ class SegmentTransform {
   }
 
   eval(env) {
-    const aMot = requireMot(this.expr.eval(env));
-    const values = aMot.values.slice();
+    const motif = requireMot(this.expr.eval(env));
+    const values = motif.values.slice();
     const n = values.length;
     if (n === 0) return new Mot([]);
 
@@ -1521,7 +1607,7 @@ class SegmentTransform {
         k = Math.trunc(idx);
       } else {
         // RandNum (RandomRange | RandomChoice)
-        const rng = aMot._rng || Math.random;
+        const rng = motif._rng || Math.random;
         const num = resolveRandNumToNumber(idx, rng);
         k = Math.trunc(num);
       }
@@ -1786,6 +1872,7 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
 }
 
 
+
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
 golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, options = {}) {
   const prog = parse(source);
@@ -1863,6 +1950,5 @@ golden.crux_interp = function (input) {
   //console.log(value.toString());
   return value;
 }
-
 
 

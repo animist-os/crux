@@ -36,7 +36,8 @@ const g = ohm.grammar(String.raw`
       | AppendExpr
 
   AppendExpr
-      = AppendExpr hspaces? ":" hspaces? number  -- repeatPost
+      = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
+      | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
       | MulExpr
   
     MulExpr
@@ -67,10 +68,11 @@ const g = ohm.grammar(String.raw`
       = PostfixExpr SliceOp  -- slice
       | PriExpr
   
-    PriExpr
+  PriExpr
       = ident                          -- ref
       | "[" MotBody "]"            -- mot
       | "(" Expr ")"                  -- parens
+      | Curly                           -- curlyAsExpr
 
   SliceOp
       = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
@@ -289,6 +291,17 @@ const s = g.createSemantics().addOperation('parse', {
     return new Mul(parsedExpr, zeroMot);
   },
 
+  AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) {
+    const parsedExpr = expr.parse();
+    const randSpec = rn.parse(); // number or RandomRange/RandomChoice
+    // If the randSpec parsed to a plain number, behave like numeric repeat
+    if (typeof randSpec === 'number') {
+      const zeroMot = new Mot(Array(randSpec).fill(new Pip(0, 1)));
+      return new Mul(parsedExpr, zeroMot);
+    }
+    return new RepeatByCount(parsedExpr, randSpec);
+  },
+
   PostfixExpr_slice(x, sl) {
     const base = x.parse();
     const spec = sl.parse();
@@ -377,6 +390,12 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_parens(_openParen, e, _closeParen) {
     return e.parse();
+  },
+
+  PriExpr_curlyAsExpr(c) {
+    // Treat bare Curly as a single-pip Mot chosen randomly at evaluation
+    const rn = c.parse();
+    return new Mot([new RandomPip(rn, 1)]);
   },
 
   SliceOp_both(start, _h1, _us, _h2, end) {
@@ -566,6 +585,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   AppendExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
+  AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
   PostfixExpr_slice(x, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
@@ -688,10 +708,15 @@ class Mul {
     for (let yi of yv.values) {
       const reverse = yi.timeScale < 0;
       const absYi = reverse ? new Pip(yi.step, Math.abs(yi.timeScale), yi.tag) : yi;
-      const source = reverse ? [...xv.values].reverse() : xv.values;
-      for (let xi of source) {
+
+      // Special case: zero-mot element (step=0, timeScale=1, no tag) used by :N sugar.
+      // Re-evaluate the left expression per repetition to allow fresh randomness (when unseeded).
+      const isZeroRepeat = absYi.step === 0 && absYi.timeScale === 1 && !absYi.tag;
+      const leftSourceMot = isZeroRepeat ? requireMot(this.x.eval(env)) : xv;
+
+      const base = reverse ? [...leftSourceMot.values].reverse() : leftSourceMot.values;
+      for (let xi of base) {
         if (absYi.hasTag && absYi.hasTag('D')) {
-          // Insert a rest with timescale derived from right, then the original left value
           values.push(new Pip(xi.step, xi.timeScale * absYi.timeScale, 'r'));
           values.push(xi);
           continue;
@@ -724,6 +749,24 @@ class Expand {
       }
     }
     return new Mot(values);
+  }
+}
+
+// Repeat node that multiplies by a zero-mot whose length is drawn from a RandNum
+class RepeatByCount {
+  constructor(expr, randSpec) {
+    this.expr = expr;       // AST node producing a Mot
+    this.randSpec = randSpec; // number | RandomRange | RandomChoice
+  }
+
+  eval(env) {
+    // Evaluate left to get its Mot (for RNG continuity)
+    const leftMot = requireMot(this.expr.eval(env));
+    const rng = leftMot._rng || Math.random;
+    const count = resolveRandNumToNumber(this.randSpec, rng);
+    const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
+    // Multiply the realized leftMot by zeroMot
+    return new Mul(new Mot(leftMot.values, leftMot.rng_seed), zeroMot).eval(env);
   }
 }
 

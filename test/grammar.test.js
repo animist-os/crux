@@ -74,6 +74,16 @@ test(':N multiplies by a zero-mot of length N', () => {
   assert.equal(left, right);
 });
 
+test(':N accepts RandNum and resolves per repetition without seed', () => {
+  // Random length 2 or 4; replicated twice should be either length 4 or 8
+  const out = evalToString('[3,1] : {2,4} : {2,4}');
+  const ok = out === evalToString('[3,1] * [0,0] * [0,0]') ||
+             out === evalToString('[3,1] * [0,0] * [0,0,0,0]') ||
+             out === evalToString('[3,1] * [0,0,0,0] * [0,0]') ||
+             out === evalToString('[3,1] * [0,0,0,0] * [0,0,0,0]');
+  assert.ok(ok, 'Unexpected :{..} expansion: ' + out);
+});
+
 test('implicit multiply after pipe still parses with whitespace', () => {
   assert.equal(evalToString('[3 | 2]'), '[3*2]');
   assert.equal(evalToString('[3|2]'), '[3*2]');
@@ -319,6 +329,15 @@ test('slice end is randomly chosen from curly list', () => {
 test('rotate operator ~ applies right rotations per right mot', () => {
   assert.equal(evalToString('[0, 1, 2, 3] ~ [-1]'), '[3, 0, 1, 2]');
   assert.equal(evalToString('[0, 1, 2, 3] ~ [1, 2]'), '[1, 2, 3, 0, 2, 3, 0, 1]');
+});
+
+test('bare Curly as PriExpr works in operators', () => {
+  // rotate by 1 or 2
+  const out = evalToString('[0,1,2,3] ~ {1,2}');
+  assert.ok(out === '[1, 2, 3, 0]' || out === '[2, 3, 0, 1]', 'Unexpected rotate: ' + out);
+  // neighbor size 1 or 2 (neighbor uses additive step on size)
+  const out2 = evalToString('[0,3] n {1,2}');
+  assert.ok(out2 === '[0, 1, 0, 3, 4, 3]' || out2 === '[0, 2, 0, 3, 5, 3]', 'Unexpected neighbor: ' + out2);
 });
 
 

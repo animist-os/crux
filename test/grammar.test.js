@@ -291,7 +291,7 @@ test('chained :N multiplies zero-mots and associates left', () => {
   assert.equal(result, expected, 'Chained :N should multiply by zero-mots');
 });
 
-test('chained :N on simple motif replicates then replicates again', () => {
+test('chained :N on simple Mot replicates then replicates again', () => {
   const result = evalToString('[3,1] :2 :3');
   const expected = evalToString('[3,1] * [0,0] * [0,0,0]');
   assert.equal(result, expected);

@@ -2,49 +2,18 @@ We are expressing notes as delta values -- as displacements in BOTH pitch and ti
 
 
 
-NAMING
-
-  change pip to pip     
-  change motif to mot or lexon / glosson
-
 POLYPHONY
 
-voices come from other voices, no grand martrix — crux is about relative relationships / deltas
+voices should derive from other voices, no grand martrix — crux is about relative relationships / deltas
 
 a second voice is a  copy with variations
 
- the issue with diad's actually suggests whole new mot
+the issue with diad's actually suggests a whole new mot
 
 maybe add an anchor option to pip (or mot) that means it dervices its ptche from a named mot
 
 
-
-* ^ ~ n  
-.*  .^  .~ .n
-
-.~ makes no sense and suggests tilde is a mot-level transform, like {}
-
-
-
-
-add a way to remove either timescales or steps so we can use a mot in an operation on one domain only
-
-simpler might be a way to coerce an abs value on all members of a mot.   so [0:1/2] * [0:_] == [0]
-
-
-
-
-[0, -1 & 1 * 3, -2 & 0]
-
-
-two flavors of dot, * and ^ (currently we have implemented *
-
-think about | vs ? to solve dealer’s choice at ffirst vs random
-
-
-
-
-do we need tagging? 
+do we even need tagging? 
 
 
 
@@ -192,7 +161,7 @@ We h ave implemented this curly brace notation but it feels wrong.
 
     ALT
 
-      There's a simpler thing to try first.  It's a bit of a hack, but we define a voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus pip at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the mot uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
+      There's a simpler thing to try first.  It's a bit of a hack, but we define one voice to be the cantus firmus.    Any other spans will lazily evaluate i, ii, iii, iv against the cantus firmus pip at that moment.   we carry the roman nums through all the evalauations, and only make into pitches during render.  And actually I guess the roman nums represent the step that the mot uses as its foundation, which defaults to i, which is precisely how things work now.  All we're doing is allowing those anchor degrees resolve differently over time against a cantus firmus
 
       by default, all pips have a "i", but they can be spcificially overriden by their mot.  how do we handle multiple nested mots with different degrees?  we COULD just add them like ints, this might work...
 

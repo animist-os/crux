@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parse, findAllTimescaleIndices } from '../src/index.js';
+import '../src/index.js'; // Load the module to set up golden global
+
+const { parse, findAllTimescaleIndices } = golden;
 
 function evalToString(input) {
   const prog = parse(input);
@@ -65,11 +67,11 @@ test('range followed by pipe divide with rand or number', () => {
   assert.equal(evalToString('[1 -> 5 | /2]'), '[1/2, 2/2, 3/2, 4/2, 5/2]');
 });
 
-test('curly before pipe with /2 works inside a repeat', () => {
-  const out = evalToString('[{1,2,3} | /2]:8');
-  // 8 repeats of a single pip with /2
-  const m = out.match(/^\[(?:(?:\:?[a-z]*\d\/2|\-?\d\/2)(?:, )?){8}\]$/i);
-  assert.ok(m, 'Output not 8 pips with /2: ' + out);
+test(':N multiplies by a zero-mot of length N', () => {
+  // :4 is sugar for * [0,0,0,0]
+  const left = evalToString('[1] : 4');
+  const right = evalToString('[1] * [0,0,0,0]');
+  assert.equal(left, right);
 });
 
 test('implicit multiply after pipe still parses with whitespace', () => {
@@ -78,9 +80,9 @@ test('implicit multiply after pipe still parses with whitespace', () => {
   assert.equal(evalToString('[3 | 3/2]'), '[3*1.5]');
 });
 
-test('repeat postfix Expr : N (with and without spaces)', () => {
-  assert.equal(evalToString('[1] : 3'), '[1, 1, 1]');
-  assert.equal(evalToString('[1]  :  3'), '[1, 1, 1]');
+test('repeat postfix Expr : N multiplies zero-mot (with and without spaces)', () => {
+  assert.equal(evalToString('[1] : 4'), evalToString('[1] * [0,0,0,0]'));
+  assert.equal(evalToString('[1]  :  4'), evalToString('[1] * [0,0,0,0]'));
 });
 
 test('followed-by concat via comma between Expr', () => {
@@ -242,12 +244,10 @@ test('curly refs choose a mot by name and inline it', () => {
   assert.match(out, /^\[(0, 1|3, 4)\]$/);
 });
 
-test('curly refs inside repeat produce 8 values', () => {
-  const program = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
-  const out = evalToString(program);
-  // One chosen mot of length 2 repeated 4 times -> 8 values
-  const m = out.match(/^\[(?:-?\d+(?:\*\d+(?:\.\d+)?)?(?:\/\d+)?(?:, )?){8}\]$/);
-  assert.ok(m, 'Output not 8 pips: ' + out);
+test('curly refs followed by :N multiplies by zero-mot', () => {
+  const programLeft = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
+  const programRight = 'A = [0, 1]\nB = [3, 4]\n[{A,B}] * [0, 0, 0, 0]';
+  assert.equal(evalToString(programLeft), evalToString(programRight));
 });
 
 // '_' tag removed
@@ -273,6 +273,18 @@ test('findAllTimescaleIndices finds timescale literals across forms', () => {
   for (const tok of expectedTokens) {
     assert.ok(idxs.some(i => src.slice(i).startsWith(tok)), 'Missing timescale token: ' + tok);
   }
+});
+
+test('chained :N multiplies zero-mots and associates left', () => {
+  const result = evalToString('[-1, 0] * [0, -1] :2 :4');
+  const expected = evalToString('[-1, 0] * [0, -1] * [0, 0] * [0, 0, 0, 0]');
+  assert.equal(result, expected, 'Chained :N should multiply by zero-mots');
+});
+
+test('chained :N on simple motif replicates then replicates again', () => {
+  const result = evalToString('[3,1] :2 :3');
+  const expected = evalToString('[3,1] * [0,0] * [0,0,0]');
+  assert.equal(result, expected);
 });
 
 // roman degrees removed

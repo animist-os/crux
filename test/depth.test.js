@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import '../src/index.js'; // Load the module to set up golden global
+
+const {
   computeMotDepthsFromRoot,
   computeHeightFromLeaves,
   findNumericValueIndicesAtDepth,
   findNumericValueIndicesAtDepthOrAbove,
-} from '../src/index.js';
+} = golden;
 
 function motDepths(source, options) {
   return computeMotDepthsFromRoot(source, options).map(({ mot, depth }) => ({ str: mot.toString(), depth }));
@@ -42,12 +44,13 @@ test('concatenation does not increase depth', () => {
   ]);
 });
 
-test('postfix repeat and slice do not affect binary depth', () => {
+test('postfix :N multiplies zero-mot and does not affect binary depth', () => {
   const src = '([0, 1, 2] -2 _) * [3] : 5';
   const ds = motDepths(src);
   assert.deepEqual(ds, [
-    { str: '[0, 1, 2]', depth: 1 },
-    { str: '[3]', depth: 1 },
+    { str: '[0, 1, 2]', depth: 2 },
+    { str: '[3]', depth: 2 },
+    { str: '[0, 0, 0, 0, 0]', depth: 1 },
   ]);
 });
 

@@ -1,6 +1,12 @@
 import * as ohm from 'ohm-js';
 
 
+// putting this here so the code is portable to golden
+const golden = {};
+globalThis.golden = golden;
+
+
+
 
 
 
@@ -21,43 +27,43 @@ const g = ohm.grammar(String.raw`
     ExprStmt
       = Expr
   
-    Expr
+  Expr
       = FollowedByExpr
   
-    FollowedByExpr
-      = FollowedByExpr "," MulExpr   -- fby
-      | FollowedByExpr MulExpr         -- juxt
+  FollowedByExpr
+      = FollowedByExpr "," AppendExpr   -- fby
+      | FollowedByExpr AppendExpr         -- juxt
+      | AppendExpr
+
+  AppendExpr
+      = AppendExpr hspaces? ":" hspaces? number  -- repeatPost
       | MulExpr
   
     MulExpr
-      = MulExpr ".*" RepeatExpr -- dotStar
-      | MulExpr ".^" RepeatExpr -- dotExpand
-      | MulExpr ".n" RepeatExpr  -- dotNeighbor
-      | MulExpr ".->" RepeatExpr -- dotSteps
-      | MulExpr ".m" RepeatExpr  -- dotMirror
-      | MulExpr ".l" RepeatExpr  -- dotLens
-      | MulExpr ".t" RepeatExpr  -- dotTie
-      | MulExpr ".c" RepeatExpr  -- dotConstraint
-      | MulExpr ".f" RepeatExpr  -- dotFilter
-      | MulExpr "->" RepeatExpr  -- steps
-      | MulExpr "n" RepeatExpr   -- neighbor
-      | MulExpr "a" RepeatExpr   -- anticip
-      | MulExpr "m" RepeatExpr   -- mirror
-      | MulExpr "l" RepeatExpr   -- lens
-      | MulExpr "t" RepeatExpr   -- tie
-      | MulExpr "c" RepeatExpr   -- constraint
-      | MulExpr "f" RepeatExpr   -- filter
-      | MulExpr "*" RepeatExpr  -- mul
-      | MulExpr "^" RepeatExpr  -- expand
-      | MulExpr "." RepeatExpr  -- dot
-      | MulExpr "~" RepeatExpr  -- rotate
-      | RepeatExpr
-
-    RepeatExpr
-      = PostfixExpr hspaces? ":" hspaces? number  -- repeatPost
+      = MulExpr ".*" PostfixExpr -- dotStar
+      | MulExpr ".^" PostfixExpr -- dotExpand
+      | MulExpr ".n" PostfixExpr  -- dotNeighbor
+      | MulExpr ".->" PostfixExpr -- dotSteps
+      | MulExpr ".m" PostfixExpr  -- dotMirror
+      | MulExpr ".l" PostfixExpr  -- dotLens
+      | MulExpr ".t" PostfixExpr  -- dotTie
+      | MulExpr ".c" PostfixExpr  -- dotConstraint
+      | MulExpr ".f" PostfixExpr  -- dotFilter
+      | MulExpr "->" PostfixExpr  -- steps
+      | MulExpr "n" PostfixExpr   -- neighbor
+      | MulExpr "a" PostfixExpr   -- anticip
+      | MulExpr "m" PostfixExpr   -- mirror
+      | MulExpr "l" PostfixExpr   -- lens
+      | MulExpr "t" PostfixExpr   -- tie
+      | MulExpr "c" PostfixExpr   -- constraint
+      | MulExpr "f" PostfixExpr   -- filter
+      | MulExpr "*" PostfixExpr  -- mul
+      | MulExpr "^" PostfixExpr  -- expand
+      | MulExpr "." PostfixExpr  -- dot
+      | MulExpr "~" PostfixExpr  -- rotate
       | PostfixExpr
-  
-    PostfixExpr
+
+  PostfixExpr
       = PostfixExpr SliceOp  -- slice
       | PriExpr
   
@@ -269,8 +275,13 @@ const s = g.createSemantics().addOperation('parse', {
     return new RotateOp(x.parse(), y.parse());
   },
 
-  RepeatExpr_repeatPost(expr, _h1, _colon, _h2, n) {
-    return new Repeat(n.parse(), expr.parse());
+  AppendExpr_repeatPost(expr, _h1, _colon, _h2, n) {
+    const parsedExpr = expr.parse();
+    const count = n.parse();
+    
+    // Multiply by a zero-mot of length N
+    const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
+    return new Mul(parsedExpr, zeroMot);
   },
 
   PostfixExpr_slice(x, sl) {
@@ -546,8 +557,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  RepeatExpr_repeatPost(expr, _h1, _colon, _h2, n) { return expr.collectTs(); },
-  RepeatExpr(expr) { return expr.collectTs(); },
+  AppendExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_slice(x, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
@@ -685,27 +695,7 @@ class Mul {
   }
 }
 
-class Repeat {
-  constructor(count, expr) {
-    this.count = count;
-    this.expr = expr;
-  }
-
-  eval(env) {
-    const countValue = this.count;
-    if (!Number.isFinite(countValue) || countValue < 0) {
-      throw new Error('repeat count must be a non-negative finite number');
-    }
-    const values = [];
-    for (let i = 0; i < Math.trunc(countValue); i++) {
-      const motif = requireMot(this.expr.eval(env));
-      for (let v of motif.values) {
-        values.push(v);
-      }
-    }
-    return new Mot(values);
-  }
-}
+// Repeat node removed: :N now appends zero-mots (handled in PostfixExpr_repeatPost)
 
 class Expand {
   constructor(x, y) {
@@ -1664,7 +1654,7 @@ function getFinalRootAstAndEnv(prog) {
 // Collect leaf Mots with their binary-transform depth from the root.
 // - followRefs: when true, inline assignment RHS at Ref sites without adding depth.
 // - excludeConcat: when true, do not count concatenation (FollowedBy) as a transform.
-function collectMotLeavesWithDepth(root, env, { followRefs = true, excludeConcat = true } = {}) {
+golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excludeConcat = true } = {}) {
   const out = [];
   const visitingRef = new Set(); // guard cycles by name@depth
 
@@ -1688,10 +1678,7 @@ function collectMotLeavesWithDepth(root, env, { followRefs = true, excludeConcat
       return;
     }
 
-    if (node instanceof Repeat) {
-      visit(node.expr, depth);
-      return;
-    }
+    // Repeat removed
 
     if (node instanceof Ref) {
       if (!followRefs) return;
@@ -1722,7 +1709,7 @@ function collectMotLeavesWithDepth(root, env, { followRefs = true, excludeConcat
 
 // Height (max distance to any leaf Mot) measured in binary transforms.
 // Concatenation, slice, repeat do not contribute height.
-function computeExprHeight(root, env, { followRefs = true, excludeConcat = true } = {}) {
+golden.computeExprHeight = function(root, env, { followRefs = true, excludeConcat = true } = {}) {
   const memo = new Map();
   const visitingRef = new Set();
 
@@ -1730,7 +1717,7 @@ function computeExprHeight(root, env, { followRefs = true, excludeConcat = true 
     if (!node) return 0;
     if (memo.has(node)) return memo.get(node);
 
-    if (node instanceof SegmentTransform || node instanceof Repeat) {
+    if (node instanceof SegmentTransform) {
       const h = height(node.expr);
       memo.set(node, h);
       return h;
@@ -1787,21 +1774,21 @@ function computeExprHeight(root, env, { followRefs = true, excludeConcat = true 
 
 
 // Convenience: compute Mot depths from the final statement's root.
-function computeMotDepthsFromRoot(source, options = {}) {
+golden.computeMotDepthsFromRoot = function(source, options = {}) {
   const prog = parse(source);
   const { root, env } = getFinalRootAstAndEnv(prog);
-  return collectMotLeavesWithDepth(root, env, options);
+  return golden.collectMotLeavesWithDepth(root, env, options);
 }
 
 // Convenience: compute expression height from the final statement's root.
-function computeHeightFromLeaves(source, options = {}) {
+golden.computeHeightFromLeaves = function(source, options = {}) {
   const prog = parse(source);
   const { root, env } = getFinalRootAstAndEnv(prog);
-  return computeExprHeight(root, env, options);
+  return golden.computeExprHeight(root, env, options);
 }
 
 // Find all source indices where a timescale literal appears in the source program.
-function findAllTimescaleIndices(source) {
+golden.findAllTimescaleIndices = function(source) {
   const withoutComments = stripLineComments(source);
   const matchResult = g.match(withoutComments);
   if (matchResult.failed()) return [];
@@ -1817,10 +1804,10 @@ function findAllTimescaleIndices(source) {
 
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is exactly targetDepth from the root.
 // Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
-function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
+golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = {}) {
   const prog = parse(source);
   const { root, env } = getFinalRootAstAndEnv(prog);
-  const leaves = collectMotLeavesWithDepth(root, env, options);
+  const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
   for (const { mot, depth } of leaves) {
@@ -1871,10 +1858,10 @@ function findNumericValueIndicesAtDepth(source, targetDepth, options = {}) {
 
 
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
-function findNumericValueIndicesAtDepthOrAbove(source, minDepth, options = {}) {
+golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, options = {}) {
   const prog = parse(source);
   const { root, env } = getFinalRootAstAndEnv(prog);
-  const leaves = collectMotLeavesWithDepth(root, env, options);
+  const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
   for (const { mot, depth } of leaves) {
@@ -1959,14 +1946,14 @@ function parse(input) {
   return s(matchResult).parse();
 }
 
-function interp(input) {
-  const prog = parse(input);
-  console.log(prog);
+golden.parse = parse;
 
+golden.crux_interp = function (input) {
+  const prog = parse(input);
   const value = prog.interp();
-  console.log('\n... evaluates to ...\n');
-  console.log(value.toString());
+  //console.log('\n... evaluates to ...\n', value);
+  //console.log(value.toString());
+  return value;
 }
 
-export { parse, interp, rewriteCurlySeeds, collectCurlySeedsFromSource, generateSeed4, formatSeed4, findNumericValueIndicesAtDepth, findNumericValueIndicesAtDepthOrAbove, computeMotDepthsFromRoot, computeHeightFromLeaves, findAllTimescaleIndices };
 

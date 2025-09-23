@@ -165,8 +165,8 @@ test('lens tile rolling window per-position', () => {
   assert.equal(evalToString('[0, 1, 2] .l [2]'), '[0, 1, 1, 2, 2, 0]');
 });
 
-test('tie spread merges equal steps by adding timeScale', () => {
-  assert.equal(evalToString('[0, 0/2, 0/2, 1] t [0]'), '[0*2, 1]');
+test('tie postfix merges equal steps by adding timeScale', () => {
+  assert.equal(evalToString('[0, 0/2, 0/2, 1] t'), '[0*2, 1]');
 });
 
 test('tie tile uses mask to allow merging forward', () => {

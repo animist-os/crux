@@ -39,6 +39,7 @@ const g = ohm.grammar(String.raw`
       = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
       | AppendExpr SliceOp                          -- slice
+      | AppendExpr "t"                              -- tiePostfix
       | PostfixExpr
   
   MulExpr
@@ -54,7 +55,6 @@ const g = ohm.grammar(String.raw`
       
       | MulExpr "m" AppendExpr   -- mirror
       | MulExpr "l" AppendExpr   -- lens
-      | MulExpr "t" AppendExpr   -- tie
       | MulExpr "c" AppendExpr   -- constraint
       | MulExpr "f" AppendExpr   -- filter
       | MulExpr "*" AppendExpr  -- mul
@@ -235,13 +235,12 @@ const s = g.createSemantics().addOperation('parse', {
   MulExpr_dotLens(x, _dotl, y) {
     return new DotLens(x.parse(), y.parse());
   },
-
-  MulExpr_tie(x, _t, y) {
-    return new TieOp(x.parse(), y.parse());
-  },
-
   MulExpr_dotTie(x, _dott, y) {
     return new DotTie(x.parse(), y.parse());
+  },
+
+  AppendExpr_tiePostfix(x, _t) {
+    return new TieOp(x.parse());
   },
 
   MulExpr_constraint(x, _c, y) {
@@ -556,7 +555,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_tie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  AppendExpr_tiePostfix(x, _op) { return x.collectTs(); },
   MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_filter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -1015,9 +1014,8 @@ class DotLens {
 }
 
 class TieOp {
-  constructor(x, y) {
+  constructor(x) {
     this.x = x;
-    this.y = y; // currently unused; placeholder for future thresholds
   }
 
   eval(env) {
@@ -1193,6 +1191,28 @@ function hashSeedTo32Bit(seed) {
   return h >>> 0;
 }
 
+function warmUpRng(rng, steps) {
+  for (let i = 0; i < steps; i++) rng();
+}
+
+function computeWarmupStepsForRandNum(value) {
+  let posSalt = 0;
+  if (value && typeof value === 'object') {
+    // RandomRange has startPos/endPos when numeric endpoints came from source
+    if ('startPos' in value && typeof value.startPos === 'number') posSalt ^= value.startPos | 0;
+    if ('endPos' in value && typeof value.endPos === 'number') posSalt ^= value.endPos | 0;
+    // RandomChoice may carry positions array
+    if (Array.isArray(value.positions)) {
+      for (const p of value.positions) if (typeof p === 'number') posSalt ^= p | 0;
+    }
+  }
+  // Seed is already a 32-bit number (via stringToSeed), but defend just in case
+  const seedNum = (typeof value.seed === 'number') ? value.seed : hashSeedTo32Bit(value.seed ?? 0);
+  // Mix seed with position salt to get a small step count in [1..256]
+  const mixed = (seedNum ^ posSalt) >>> 0;
+  return (mixed & 0xff) + 1;
+}
+
 class Ref {
   constructor(name) {
     this.name = name;
@@ -1301,6 +1321,9 @@ function resolveRandNumToNumber(value, rng) {
   if (typeof value === 'number') return value;
   if (value instanceof RandomRange) {
     const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+    if (value.seed != null) {
+      warmUpRng(localRng, computeWarmupStepsForRandNum(value));
+    }
     const lo = Math.min(value.start, value.end);
     const hi = Math.max(value.start, value.end);
     return Math.floor(localRng() * (hi - lo + 1)) + lo;
@@ -1308,6 +1331,9 @@ function resolveRandNumToNumber(value, rng) {
   if (value instanceof RandomChoice) {
     if (value.options.length === 0) throw new Error('empty random choice');
     const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+    if (value.seed != null) {
+      warmUpRng(localRng, computeWarmupStepsForRandNum(value));
+    }
     const idx = Math.floor(localRng() * value.options.length);
     return value.options[idx];
   }
@@ -1568,7 +1594,7 @@ function stringToSeed(str) {
 
 const BINARY_TRANSFORMS = new Set([
   Mul, Expand, Dot, DotExpand, Steps, DotSteps,
-  Mirror, DotMirror, Lens, DotLens, TieOp, DotTie,
+  Mirror, DotMirror, Lens, DotLens, DotTie,
   ConstraintOp, DotConstraint, FilterOp, DotFilter, RotateOp,
 ]);
 

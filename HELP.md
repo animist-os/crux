@@ -14,7 +14,7 @@
 
 - Mirror: `m` (spread), `.m` (tile) — reflect steps around anchor k.
 - Lens: `l` (spread), `.l` (tile) — sliding window emission.
-- Tie: `t` (spread), `.t` (tile) — merge equal steps by adding timeScales; tile uses mask.
+- Tie: `t` (postfix unary), `.t` (tile) — `t` merges adjacent equal-step pips; `.t` uses mask.
 - Constraint: `c` (spread), `.c` (tile) — keep/omit via mask; timeScales multiply.
 - Filter: `f` (spread), `.f` (tile) — reset components: `T` timeScale->1 (or set via `T/2`), `S` step->0.
 
@@ -45,7 +45,7 @@ Pips:
 | Mirror (tile) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
 | Lens (spread) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
 | Lens (tile) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
-| Tie (spread) `t` | `[0, 0/2, 0/2, 1] t [0]` | `[0*2, 1]` |
+| Tie (postfix) `t` | `[0, 0/2, 0/2, 1] t` | `[0*2, 1]` |
 | Tie (tile) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
 | Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
 | Filter (spread) `f` | `[0*2, 1/4, 2] f [T]` | `[0, 1, 2]` |

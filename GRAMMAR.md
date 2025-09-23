@@ -79,8 +79,9 @@ In decreasing precedence (tighter binds higher):
      - Reflect steps around anchor k: `a -> 2k - a`.
    - `l` lens (spread) / `.l` (tile):
      - Sliding window emission; spread uses window size over whole mot; tile uses per-position window size.
-   - `t` tie (spread) / `.t` (tile):
-     - Merge equal-step pips by adding timeScales; tile uses mask to allow merges.
+   - `t` tie (postfix, unary) / `.t` (tile):
+     - Postfix `t` merges adjacent equal-step pips by adding timeScales.
+     - Tile `.t` uses RHS mask to allow merges forward.
    - `c` constraint (spread) / `.c` (tile):
      - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
    - `f` filter (spread) / `.f` (tile):
@@ -193,6 +194,7 @@ Crux {
               | RepeatExpr
 
   PostfixExpr = PostfixExpr SliceOp  -- slice
+              | PostfixExpr "t"      -- tie
               | PriExpr
 
   PriExpr     = ident                -- ref

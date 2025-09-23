@@ -87,15 +87,6 @@ In decreasing precedence (tighter binds higher):
      - Reset components to neutral defaults using tags in RHS:
        - `T` -> reset timeScale to 1 (or to provided `T/k` or `T*k` value)
        - `S` -> reset step to 0
-   - `n` neighbor (spread):
-     - For each right value `k`, expand each pip `a` to `[a, a+k, a]` and concatenate.
-     - Example: `[0, 3] n [1] -> [0, 1, 0, 3, 4, 3]`
-   - `.n` neighbor (tile):
-     - For each position `i`, expand with `k = right[i%|right|]` by interleaving `[A] + [A+k] + [A]`.
-     - Example: `[0, 3] .n [1] -> [0, 3, 1, 4, 0, 3]`
-   - `a` anticipatory neighbor (spread):
-     - For each right value `k`, expand each `a` to `[a+k, a]` and concatenate.
-     - Example: `[0] a [-1] -> [-1, 0]`
    - `->` steps (spread):
      - For each right value `k`, output the left mot transposed by all integers from 0 to `k` (sign supported), concatenated.
      - Example: `[0, 3] -> [4] -> [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]`
@@ -180,7 +171,7 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 This is a lightly reformatted view of the core grammar implemented in `src/index.js`.
 
 ```text
-Andy {
+Crux {
   Prog        = Stmt*
   Stmt        = AssignStmt | ExprStmt
   AssignStmt  = ident "=" Expr
@@ -193,18 +184,13 @@ Andy {
 
   MulExpr     = MulExpr ".*" RepeatExpr
               | MulExpr ".^" RepeatExpr
-              | MulExpr ".n" RepeatExpr
               | MulExpr ".->" RepeatExpr
               | MulExpr "->" RepeatExpr
-              | MulExpr "n" RepeatExpr
               | MulExpr "*" RepeatExpr
               | MulExpr "^" RepeatExpr
               | MulExpr "." RepeatExpr
               | MulExpr "~" RepeatExpr
               | RepeatExpr
-
-  RepeatExpr  = PostfixExpr ":" number  -- repeatPost
-              | PostfixExpr
 
   PostfixExpr = PostfixExpr SliceOp  -- slice
               | PriExpr

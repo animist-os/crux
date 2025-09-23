@@ -31,40 +31,40 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
   
   FollowedByExpr
-      = FollowedByExpr "," AppendExpr   -- fby
-      | FollowedByExpr AppendExpr         -- juxt
-      | AppendExpr
+      = FollowedByExpr "," MulExpr   -- fby
+      | FollowedByExpr MulExpr         -- juxt
+      | MulExpr
 
   AppendExpr
       = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
-      | MulExpr
-  
-    MulExpr
-      = MulExpr ".*" PostfixExpr -- dotStar
-      | MulExpr ".^" PostfixExpr -- dotExpand
-      | MulExpr ".->" PostfixExpr -- dotSteps
-      | MulExpr ".m" PostfixExpr  -- dotMirror
-      | MulExpr ".l" PostfixExpr  -- dotLens
-      | MulExpr ".t" PostfixExpr  -- dotTie
-      | MulExpr ".c" PostfixExpr  -- dotConstraint
-      | MulExpr ".f" PostfixExpr  -- dotFilter
-      | MulExpr "->" PostfixExpr  -- steps
-      
-      | MulExpr "m" PostfixExpr   -- mirror
-      | MulExpr "l" PostfixExpr   -- lens
-      | MulExpr "t" PostfixExpr   -- tie
-      | MulExpr "c" PostfixExpr   -- constraint
-      | MulExpr "f" PostfixExpr   -- filter
-      | MulExpr "*" PostfixExpr  -- mul
-      | MulExpr "^" PostfixExpr  -- expand
-      | MulExpr "." PostfixExpr  -- dot
-      | MulExpr "~" PostfixExpr  -- rotate
+      | AppendExpr SliceOp                          -- slice
       | PostfixExpr
+  
+  MulExpr
+      = MulExpr ".*" AppendExpr -- dotStar
+      | MulExpr ".^" AppendExpr -- dotExpand
+      | MulExpr ".->" AppendExpr -- dotSteps
+      | MulExpr ".m" AppendExpr  -- dotMirror
+      | MulExpr ".l" AppendExpr  -- dotLens
+      | MulExpr ".t" AppendExpr  -- dotTie
+      | MulExpr ".c" AppendExpr  -- dotConstraint
+      | MulExpr ".f" AppendExpr  -- dotFilter
+      | MulExpr "->" AppendExpr  -- steps
+      
+      | MulExpr "m" AppendExpr   -- mirror
+      | MulExpr "l" AppendExpr   -- lens
+      | MulExpr "t" AppendExpr   -- tie
+      | MulExpr "c" AppendExpr   -- constraint
+      | MulExpr "f" AppendExpr   -- filter
+      | MulExpr "*" AppendExpr  -- mul
+      | MulExpr "^" AppendExpr  -- expand
+      | MulExpr "." AppendExpr  -- dot
+      | MulExpr "~" AppendExpr  -- rotate
+      | AppendExpr
 
   PostfixExpr
-      = PostfixExpr SliceOp  -- slice
-      | PriExpr
+      = PriExpr
   
   PriExpr
       = ident                          -- ref
@@ -290,7 +290,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new RepeatByCount(parsedExpr, randSpec);
   },
 
-  PostfixExpr_slice(x, sl) {
+  AppendExpr_slice(x, sl) {
     const base = x.parse();
     const spec = sl.parse();
     return new SegmentTransform(base, spec.start, spec.end);
@@ -572,7 +572,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   AppendExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  PostfixExpr_slice(x, _sl) { return x.collectTs(); },
+  AppendExpr_slice(x, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_parens(_op, e, _cp) { return e.collectTs(); },

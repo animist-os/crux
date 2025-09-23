@@ -43,7 +43,6 @@ const g = ohm.grammar(String.raw`
     MulExpr
       = MulExpr ".*" PostfixExpr -- dotStar
       | MulExpr ".^" PostfixExpr -- dotExpand
-      | MulExpr ".n" PostfixExpr  -- dotNeighbor
       | MulExpr ".->" PostfixExpr -- dotSteps
       | MulExpr ".m" PostfixExpr  -- dotMirror
       | MulExpr ".l" PostfixExpr  -- dotLens
@@ -51,8 +50,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".c" PostfixExpr  -- dotConstraint
       | MulExpr ".f" PostfixExpr  -- dotFilter
       | MulExpr "->" PostfixExpr  -- steps
-      | MulExpr "n" PostfixExpr   -- neighbor
-      | MulExpr "a" PostfixExpr   -- anticip
+      
       | MulExpr "m" PostfixExpr   -- mirror
       | MulExpr "l" PostfixExpr   -- lens
       | MulExpr "t" PostfixExpr   -- tie
@@ -222,17 +220,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotSteps(x.parse(), y.parse());
   },
 
-  MulExpr_neighbor(x, _n, y) {
-    return new Neighbor(x.parse(), y.parse());
-  },
-
-  MulExpr_dotNeighbor(x, _dotn, y) {
-    return new DotNeighbor(x.parse(), y.parse());
-  },
-
-  MulExpr_anticip(x, _a, y) {
-    return new Anticip(x.parse(), y.parse());
-  },
+  
 
   MulExpr_mirror(x, _m, y) {
     return new Mirror(x.parse(), y.parse());
@@ -565,7 +553,6 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
   MulExpr_dotStar(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotExpand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_dotNeighbor(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotSteps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotMirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotLens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -573,8 +560,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotFilter(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_neighbor(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_anticip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_tie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -716,11 +702,7 @@ class Mul {
 
       const base = reverse ? [...leftSourceMot.values].reverse() : leftSourceMot.values;
       for (let xi of base) {
-        if (absYi.hasTag && absYi.hasTag('D')) {
-          values.push(new Pip(xi.step, xi.timeScale * absYi.timeScale, 'r'));
-          values.push(xi);
-          continue;
-        }
+        
         values.push(xi.mul(absYi));
       }
     }
@@ -794,12 +776,7 @@ class Dot {
           // omit
           continue;
         }
-        // Displace 'D': insert a rest with right timescale, then original left
-        if (right.hasTag && right.hasTag('D')) {
-          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
-          values.push(left);
-          continue;
-        }
+        
         // funky buit sensible for Dot operation with rests on either side?
         if (left.hasTag('r') || right.hasTag('r')) {
           values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
@@ -927,76 +904,7 @@ class DotSteps {
   }
 }
 
-class Neighbor {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    const out = [];
-    // Spread semantics: for each right k, expand every pip a into [a, a+k, a]
-    for (const r of right.values) {
-      const k = Math.trunc(r.step);
-      for (const a of left.values) {
-        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
-        out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
-        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
-      }
-    }
-    return new Mot(out);
-  }
-}
-
-class DotNeighbor {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    const out = [];
-    // Tile semantics (interstitial): [A] + [A + tile(k)] + [A]
-    // First block: original left
-    for (const a of left.values) out.push(a);
-    // Middle block: left transposed by tiled k
-    for (let i = 0; i < left.values.length; i++) {
-      const a = left.values[i];
-      const r = right.values[i % right.values.length];
-      const k = Math.trunc(r.step);
-      out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
-    }
-    // Final block: original left
-    for (const a of left.values) out.push(a);
-    return new Mot(out);
-  }
-}
-
-class Anticip {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    const out = [];
-    // Anticipatory neighbor: for each right k, prepend a+k then original a
-    for (const r of right.values) {
-      const k = Math.trunc(r.step);
-      for (const a of left.values) {
-        out.push(new Pip(a.step + k, a.timeScale * r.timeScale, a.tag));
-        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
-      }
-    }
-    return new Mot(out);
-  }
-}
+// Neighbor, DotNeighbor, and Anticip operators removed
 
 class Mirror {
   constructor(x, y) {
@@ -1685,8 +1593,8 @@ class SegmentTransform {
 // ---- Depth analysis (parse-time; no evaluation) ----
 
 const BINARY_TRANSFORMS = new Set([
-  Mul, Expand, Dot, DotExpand, Steps, DotSteps, Neighbor, DotNeighbor,
-  Anticip, Mirror, DotMirror, Lens, DotLens, TieOp, DotTie,
+  Mul, Expand, Dot, DotExpand, Steps, DotSteps,
+  Mirror, DotMirror, Lens, DotLens, TieOp, DotTie,
   ConstraintOp, DotConstraint, FilterOp, DotFilter, RotateOp,
 ]);
 
@@ -1968,27 +1876,6 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
   }
   return result.flat();
 }
-
-
-
-
-
-
-
-
-
-
-/*
-
-This code will need to be gloablized differently in crux.js
-
-*/
-
-
-
-
-
-
 
 
 function stripLineComments(input) {

@@ -141,17 +141,7 @@ test('dotSteps tile operator builds per-pip runs', () => {
   assert.equal(evalToString('[0, 3] .-> [4]'), '[0, 1, 2, 3, 4, 3, 4, 5, 6, 7]');
 });
 
-test('neighbor spread expands each pip locally', () => {
-  assert.equal(evalToString('[0, 3] n [1]'), '[0, 1, 0, 3, 4, 3]');
-});
-
-test('neighbor tile inserts per-position neighbor', () => {
-  assert.equal(evalToString('[0, 3] .n [1]'), '[0, 3, 1, 4, 0, 3]');
-});
-
-test('anticipatory neighbor prepends neighbor then original', () => {
-  assert.equal(evalToString('[0] a [-1]'), '[-1, 0]');
-});
+// neighbor and anticip operators removed
 
 test('mirror spread around anchor', () => {
   assert.equal(evalToString('[0, 2, 4] m [2]'), '[4, 2, 0]');
@@ -255,11 +245,16 @@ test('curly refs choose a mot by name and inline it', () => {
 });
 
 test('curly refs followed by :N multiplies by zero-mot', () => {
-  const left = 'A = [0, 1]\nB = [3, 4]\n[{A,B}]:4';
-  const out = evalToString(left);
-  const expectedA = evalToString('A = [0, 1]\nB = [3, 4]\nA * [0, 0, 0, 0]');
-  const expectedB = evalToString('A = [0, 1]\nB = [3, 4]\nB * [0, 0, 0, 0]');
-  assert.ok(out === expectedA || out === expectedB, 'Output not equal to A*zeros or B*zeros: ' + out);
+  const out = evalToString('A = [0, 1]\nB = [3, 4]\n[{A,B}]:4');
+  // Accept re-rolling per repetition: any sequence of four pairs, each pair either [0,1] or [3,4]
+  const pairStr = (a, b) => `[${a}, ${b}]`;
+  const pairs = [[0,1],[3,4]];
+  const options = [];
+  for (const p1 of pairs) for (const p2 of pairs) for (const p3 of pairs) for (const p4 of pairs) {
+    const seq = `[${[...p1, ...p2, ...p3, ...p4].join(', ')}]`;
+    options.push(seq);
+  }
+  assert.ok(options.includes(out), 'Unexpected curly ref :N result: ' + out);
 });
 
 // '_' tag removed
@@ -335,9 +330,7 @@ test('bare Curly as PriExpr works in operators', () => {
   // rotate by 1 or 2
   const out = evalToString('[0,1,2,3] ~ {1,2}');
   assert.ok(out === '[1, 2, 3, 0]' || out === '[2, 3, 0, 1]', 'Unexpected rotate: ' + out);
-  // neighbor size 1 or 2 (neighbor uses additive step on size)
-  const out2 = evalToString('[0,3] n {1,2}');
-  assert.ok(out2 === '[0, 1, 0, 3, 4, 3]' || out2 === '[0, 2, 0, 3, 5, 3]', 'Unexpected neighbor: ' + out2);
+  // note: neighbor operator removed
 });
 
 

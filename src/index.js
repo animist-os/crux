@@ -1,7 +1,6 @@
 import * as ohm from 'ohm-js';
 
-
-// putting this here so the code is portable to golden
+// this just makes the code portable to golden
 const golden = {};
 globalThis.golden = golden;
 
@@ -12,7 +11,7 @@ globalThis.golden = golden;
 
 
 const g = ohm.grammar(String.raw`
-  Andy {
+  Crux {
   
     Prog
       = ListOf<Stmt, nls> nls?
@@ -1857,7 +1856,6 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
 }
 
 
-
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
 golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, options = {}) {
   const prog = parse(source);
@@ -1931,8 +1929,6 @@ golden.parse = parse;
 golden.crux_interp = function (input) {
   const prog = parse(input);
   const value = prog.interp();
-  //console.log('\n... evaluates to ...\n', value);
-  //console.log(value.toString());
   return value;
 }
 

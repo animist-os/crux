@@ -24,8 +24,9 @@
 Pips:
 
 * Range: `[0->3] === [0, 1, 2, 3]`
-* Choice: `[0 || 1 || 2] === one of [0] [1] [2]`
-* Tags (character pips): `r` (rest), `x` (omit in tile), `D` (displace tag)
+* Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
+* Random Range: `[{-2 ? 2}] === random integer from -2 to 2`
+* Tags (character pips): `r` (rest), `x` (omit in tile)
 
 ### Binary Mot Operators
 
@@ -134,4 +135,4 @@ Pips:
 
 - If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression.
 
-- In tests/docs, some older examples show `|` for choices; in the current grammar, use `||` for choices, and reserve single `|` for timeScale piping.
+- In the current grammar, use curly syntax `{...}` for random choices, and reserve single `|` for timeScale piping.

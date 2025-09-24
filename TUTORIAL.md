@@ -31,6 +31,16 @@ This document walks you interactively through the Crux grammar.
 [0, 1 | 2, 3 | /2, 4 | 3/2]  // four pips, with different relative durations
 ```
 
+### Pipe forms for timeScale
+
+```text
+[0 | 2]                      // step 0, timeScale 2 (implicit multiply)
+[0 | * 2]                    // step 0, timeScale 2 (explicit multiply)
+[0 | / 4]                    // step 0, timeScale 0.25 (divide)
+[| 2]                        // pipe-only: step 0, timeScale 2
+[| * {2,4}]                  // pipe-only with random timeScale
+```
+
 ## Two mapping semantics
 
 - Spread family: `*`, `^`, `->`, `m`, `l`, `c`, `j`

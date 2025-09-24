@@ -32,10 +32,24 @@ Evaluates to `[0, 1, 2]`.
   - **Range**: `a->b` expands inclusively to integer steps. Examples:
     - `[0->3] -> [0, 1, 2, 3]`
     - `[3->1] -> [3, 2, 1]`
-  - **Choice**: `x || y || z` picks one option at evaluation time. Example: `[0 || 1 || 2] -> [0]` or `[1]` or `[2]`.
+  - **Curly**: `{a, b, c, ...}` picks one option at evaluation time. Example: `[{0, 1, 2}] -> [0]` or `[1]` or `[2]`.
+  - **Random Range**: `{a ? b}` picks a random integer between a and b (inclusive). Example: `[{-2 ? 2}] -> [-2]` to `[2]`.
+  - **Seeded Random**: `{a ? b}@seed` provides deterministic randomness. Example: `[{1 ? 6}@c0de]`.
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
+- **Pipe forms**: Use `|` to specify timeScale after a value:
+  - `value | timescale` (implicit multiply)
+  - `value | * factor` (explicit multiply)
+  - `value | / divisor` (explicit divide)
+  - `| timescale` (pipe-only, resets step to 0)
+  - `| * factor` (pipe-only multiply)
+  - `| / divisor` (pipe-only divide)
+- **Tags**: Single letters create tagged pips:
+  - `r`: rest (silence with duration)
+  - `x`: omit (drops position in tile operations and constraint)
+  - Other letters: pass-through behavior in dot operations
+- **Curly expressions**: Standalone `{...}` expressions are treated as single random-step pips.
  
 
 ### Operators (left to right unless grouped)
@@ -97,7 +111,7 @@ In decreasing precedence (tighter binds higher):
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
      - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
      - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
-     - Example: `[0, 1, 2] . [10, 20] -> [10, 21, 12]`.
+     - Example: `[0, 1, 2, 3] ~ [-1] -> [3, 0, 1, 2]`, `[0, 1, 2, 3] ~ [1, 2] -> [1, 2, 3, 0, 2, 3, 0, 1]`.
 
 4) **Concatenation**:
    - Use `,` or juxtaposition (spaces/tabs, not newline) between expressions to concatenate mots.
@@ -111,10 +125,13 @@ In decreasing precedence (tighter binds higher):
 ### Precedence and associativity
 
 From highest to lowest:
-- Slice (postfix)
-- Repeat `Expr : N`
-- Multiplicative operators: `.*`, `.^`, `.n`, `.->`, `->`, `n`, `*`, `^`, `.`, `~` (left-associative)
+- Slice (postfix): `start _ end`, `start _`, `_ end`
+- Repeat `Expr : N` (postfix)
+- Tie `t` (postfix, unary)
+- Multiplicative operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `->`, `j`, `m`, `l`, `c`, `*`, `^`, `.`, `~` (left-associative)
 - Concatenation: `,` and juxtaposition (left-associative)
+
+Note: Concatenation by adjacency (juxtaposition) works only on the same line, not across newlines.
 
 ### Identifiers
 
@@ -137,8 +154,10 @@ From highest to lowest:
 // Range example
 ([0->2]), [3*2]              -> [0, 1, 2, 3*2]
 
-// Choices (result varies)
-[0 || 1 || 2]                -> one of [0], [1], [2]
+// Random choices (result varies)
+[{0, 1, 2}]                  -> one of [0], [1], [2]
+[{-2 ? 2}]                   -> random integer from -2 to 2
+[{1 ? 6}@c0de]               -> seeded random (deterministic)
 
 // Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
@@ -171,53 +190,94 @@ This is a lightly reformatted view of the core grammar implemented in `src/index
 
 ```text
 Crux {
-  Prog        = Stmt*
+  Prog        = ListOf<Stmt, nls> nls?
   Stmt        = AssignStmt | ExprStmt
   AssignStmt  = ident "=" Expr
   ExprStmt    = Expr
 
   Expr            = FollowedByExpr
-  FollowedByExpr  = FollowedByExpr "," MulExpr
-                 | FollowedByExpr MulExpr
-                 | MulExpr
+  FollowedByExpr  = FollowedByExpr "," TieExpr
+                 | FollowedByExpr TieExpr
+                 | TieExpr
 
-  MulExpr     = MulExpr ".*" RepeatExpr
-              | MulExpr ".^" RepeatExpr
-              | MulExpr ".->" RepeatExpr
-              | MulExpr ".j" RepeatExpr
-              | MulExpr "->" RepeatExpr
-              | MulExpr "j" RepeatExpr
-              | MulExpr "*" RepeatExpr
-              | MulExpr "^" RepeatExpr
-              | MulExpr "." RepeatExpr
-              | MulExpr "~" RepeatExpr
-              | RepeatExpr
+  TieExpr     = TieExpr "t"          -- tiePostfix
+              | MulExpr
 
-  PostfixExpr = PostfixExpr SliceOp  -- slice
-              | PostfixExpr "t"      -- tie
-              | PriExpr
+  MulExpr     = MulExpr ".*" AppendExpr
+              | MulExpr ".^" AppendExpr
+              | MulExpr ".->" AppendExpr
+              | MulExpr ".j" AppendExpr
+              | MulExpr ".m" AppendExpr
+              | MulExpr ".l" AppendExpr
+              | MulExpr ".t" AppendExpr
+              | MulExpr ".c" AppendExpr
+              | MulExpr "->" AppendExpr
+              | MulExpr "j" AppendExpr
+              | MulExpr "m" AppendExpr
+              | MulExpr "l" AppendExpr
+              | MulExpr "c" AppendExpr
+              | MulExpr "*" AppendExpr
+              | MulExpr "^" AppendExpr
+              | MulExpr "." AppendExpr
+              | MulExpr "~" AppendExpr
+              | AppendExpr
+
+  AppendExpr  = AppendExpr ":" RandNum  -- repeatPostRand
+              | AppendExpr ":" number   -- repeatPost
+              | AppendExpr SliceOp      -- slice
+              | PostfixExpr
+
+  PostfixExpr = PriExpr
 
   PriExpr     = ident                -- ref
-              | "[" MotBody "]"  -- mot
-              | "(" Expr ")"      -- parens
+              | "[" MotBody "]"      -- mot
+              | "(" Expr ")"          -- parens
+              | Curly                 -- curlyAsExpr
 
-  SliceOp     = Index "_" Index
-              | Index "_"
-              | "_" Index
+  SliceOp     = SliceIndex "_" SliceIndex  -- both
+              | SliceIndex "_"             -- startOnly
+              | "_" SliceIndex             -- endOnly
+              | "_" SliceIndex             -- endOnlyTight
 
+  SliceIndex  = RandNum  -- rand
+              | Index   -- num
   Index       = sign? digit+
 
-  MotBody   = ListOf<Value, ",">
+  MotBody     = ListOf<Value, ",">
 
-  Value       = Choice
-  Choice      = Choice "||" SingleValue  -- alt
-              | SingleValue            -- single
-  SingleValue = Range | Pip
-  Range       = number "->" number
-  Pip         = Special
-              | number "*" TimeScale
-              | number "/" TimeScale
-              | number
+  Value       = SingleValue
+  SingleValue = Pip | Range | Curly
+  Range       = RandNum "->" RandNum
+  
+  Pip         = number "|" TimeScale              -- withTimeMulPipeImplicit
+              | number "|" "*" RandNum           -- withTimeMulPipe
+              | number "|" "/" RandNum           -- withTimeDivPipe
+              | number "|"                       -- withPipeNoTs
+              | "|" TimeScale                    -- pipeOnlyTs
+              | "|" "*" RandNum                  -- pipeOnlyMul
+              | "|" "/" RandNum                  -- pipeOnlyDiv
+              | "|"                             -- pipeBare
+              | PlainNumber                     -- noTimeScale
+              | Special "|" TimeScale           -- specialWithTimeMulPipeImplicit
+              | Special "|" "*" RandNum         -- specialWithTimeMulPipe
+              | Special "|" "/" RandNum         -- specialWithTimeDivPipe
+              | Special                        -- special
+              | Range "|" TimeScale            -- rangeWithTimeMulPipeImplicit
+              | Range "|" "/" RandNum           -- rangeWithTimeDivPipe
+              | Curly "|" TimeScale            -- curlyWithTimeMulPipeImplicit
+              | Curly "|" "*" RandNum          -- curlyWithTimeMulPipe
+              | Curly "|" "/" RandNum          -- curlyWithTimeDivPipe
+
+  RandNum     = Curly | number
+  Curly       = "{" CurlyBody "}" Seed?
+  CurlyBody   = number "?" number     -- range
+              | ListOf<CurlyEntry, ",">  -- list
+  CurlyEntry  = number  -- num
+              | ident   -- ref
+  Seed        = "@" SeedChars
+  SeedChars   = seedChar+
+  seedChar    = letter | digit | "_"
+
   TimeScale   = number "/" number
               | number
   Special     = specialChar
@@ -225,7 +285,13 @@ Crux {
   ident       = (letter | "_") alnum*
   number      = sign? digit+ ("." digit*)?
               | sign? digit* "." digit+
+  PlainNumber = number ~ (hspaces? "->")
   sign        = "+" | "-"
+  hspace      = " " | "\t"
+  hspaces     = hspace+
+  space       := hspace
+  nl          = "\r\n" | "\n" | "\r"
+  nls         = nl+
 }
 ```
 

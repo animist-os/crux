@@ -1,22 +1,22 @@
 ## Crux quick reference
 
-### Operators (spread vs tile)
+### Operators (fan vs cog)
 - Concatenation: `,` or juxtaposition — concatenate mots.
-- Repeat: `Expr : N` — repeat a mot N times, unpacks to a spread add followed by an identity mot of length N
+- Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
 - Slice: `start _ end`, `start _`, `_ end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
-- Tile add: `.` or `.*` — elementwise add with RHS tiled.
-- Tile mul: `.^` — elementwise multiply with RHS tiled.
+- Tile add: `.` or `.*` — elementwise add with RHS cogd.
+- Tile mul: `.^` — elementwise multiply with RHS cogd.
 - Rotate: `~` — for each k in RHS, rotate LHS by k and append.
-- Jam: `j` (spread), `.j` (tile) — replace steps/timeScales with RHS; `|` entries pass through.
-- Steps (spread): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
-- Steps (tile): `.->` — per-position run for each LHS value up to k (tiled).
+- Jam: `j` (fan), `.j` (cog) — replace steps/timeScales with RHS; `|` entries pass through.
+- Steps (fan): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.
+- Steps (cog): `.->` — per-position run for each LHS value up to k (cogd).
 
-- Mirror: `m` (spread), `.m` (tile) — reflect steps around anchor k.
-- Lens: `l` (spread), `.l` (tile) — sliding window emission.
-- Tie: `t` (postfix unary), `.t` (tile) — `t` merges adjacent equal-step pips; `.t` uses mask.
-- Constraint: `c` (spread), `.c` (tile) — keep/omit via mask; timeScales multiply.
+- Mirror: `m` (fan), `.m` (cog) — reflect steps around anchor k.
+- Lens: `l` (fan), `.l` (cog) — sliding window emission.
+- Tie: `t` (postfix unary), `.t` (cog) — `t` merges adjacent equal-step pips; `.t` uses mask.
+- Constraint: `c` (fan), `.c` (cog) — keep/omit via mask; timeScales multiply.
 // Filter removed (use jam with pipe-only forms instead).
 
 
@@ -26,7 +26,7 @@ Pips:
 * Range: `[0->3] === [0, 1, 2, 3]`
 * Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
 * Random Range: `[{-2 ? 2}] === random integer from -2 to 2`
-* Tags (character pips): `r` (rest), `x` (omit in tile)
+* Tags (character pips): `r` (rest), `x` (omit in cog)
 
 ### Binary Mot Operators
 
@@ -41,17 +41,17 @@ Pips:
 | Tile add `.*` | `[0,1,2] .* [10,20]` | `[10, 21, 12]` |
 | Tile mul `.^` | `[1,2] .^ [2]` | `[2, 4]` |
 | Rotate `~` | `[0,1,2,3] ~ [-1]` | `[3, 0, 1, 2]` |
-| Steps (spread) `->` | `[0, 3] -> [2]` | `[0, 3, 1, 4, 2, 5]` |
-| Steps (tile) `.->` | `[0, 3] .-> [2]` | `[0,1,2,3,4, 3,4,5]` |
-| Mirror (spread) `m` | `[0, 2, 4] m [2]` | `[4, 2, 0]` |
-| Mirror (tile) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
-| Lens (spread) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
-| Lens (tile) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
-| Jam (spread) `j` | `[0,1,2,3] j [0,7]` | `[0,0,0,0, 7,7,7,7]` |
-| Jam (tile) `.j` | `[0,1,2,3] .j [0,7]` | `[0,7,0,7]` |
+| Steps (fan) `->` | `[0, 3] -> [2]` | `[0, 3, 1, 4, 2, 5]` |
+| Steps (cog) `.->` | `[0, 3] .-> [2]` | `[0,1,2,3,4, 3,4,5]` |
+| Mirror (fan) `m` | `[0, 2, 4] m [2]` | `[4, 2, 0]` |
+| Mirror (cog) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
+| Lens (fan) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
+| Lens (cog) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
+| Jam (fan) `j` | `[0,1,2,3] j [0,7]` | `[0,0,0,0, 7,7,7,7]` |
+| Jam (cog) `.j` | `[0,1,2,3] .j [0,7]` | `[0,7,0,7]` |
 | Tie (postfix) `t` | `[0, 0/2, 0/2, 1] t` | `[0*2, 1]` |
-| Tie (tile) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
-| Constraint (spread) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
+| Tie (cog) `.t` | `[0/2, 0/2, 0/2, 1] .t [1]` | `[0*1.5, 1]` |
+| Constraint (fan) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
 // Filter examples removed; use jam with pipe-only entries to pass-through while overriding timeScale.
 | Slice `start _ end` | `[0,1,2,3,4] -3 _ -1` | `[2, 3]` |
 
@@ -131,7 +131,7 @@ Pips:
 ```
 
 
-- Note: You can combine these forms inside larger expressions (concat, spread/tile ops, etc.). RNG is used wherever a `Curly`, `?`, or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
+- Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly`, `?`, or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
 
 - If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression.
 

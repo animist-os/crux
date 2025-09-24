@@ -486,7 +486,7 @@ const s = g.createSemantics().addOperation('parse', {
 
   // Legacy special timescale without pipe removed
 
-  // Range pip with pipe scaling (maps to elementwise over expansion)
+  // Range pip with pipe scaling (maps to cog-wise over expansion)
   Pip_rangeWithTimeMulPipeImplicit(range, _h1, _pipe, _h2, ts) {
     const r = range.parse();
     const tsVal = ts.parse();
@@ -941,7 +941,7 @@ class Steps {
     const left = requireMot(this.x.eval(env));
     const right = requireMot(this.y.eval(env));
     const out = [];
-    // Spread semantics: for each right value r, emit left shifted by t for t in [0..k]
+    // Fan semantics: for each right value r, emit left shifted by t for t in [0..k]
     for (const r of right.values) {
       const k = Math.trunc(r.step);
       const dir = k >= 0 ? 1 : -1;
@@ -967,7 +967,7 @@ class DotSteps {
     const left = requireMot(this.x.eval(env));
     const right = requireMot(this.y.eval(env));
     const out = [];
-    // Tile semantics: at each position i, expand left[i] into a run up to k_i
+    // Cog semantics: at each position i, expand left[i] into a run up to k_i
     for (let i = 0; i < left.values.length; i++) {
       const li = left.values[i];
       const ri = right.values[i % right.values.length];

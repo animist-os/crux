@@ -1,10 +1,10 @@
 ## Crux
 
-This document describes the Crux grammar used to build and transform musical mots as sequences of “pips” (step, timeScale, optional tag). You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "spread" approach or a "tiled" one.  
+This document describes the Crux grammar used to build and transform musical mots as sequences of "pips" (step, timeScale, optional tag). The pips within a mot represent a linear series of conriguous events. You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "fan" approach or a "cog" one.  
 
-Spread (outer):  For each r in R, apply op to all of A, then concatenate.   The lengths multiply
+Fan (outer):  For each r in R, apply op to all of A, then concatenate.   The lengths multiply
 
-Tile (elementwise): Pair positions; RHS tiles as needed.  
+Cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.  Length will be the same as LHS (unless there are nested mots in RHS).
 
 ### Program
 
@@ -47,7 +47,7 @@ Notes:
   - `| / divisor` (pipe-only divide)
 - **Tags**: Single letters create tagged pips:
   - `r`: rest (silence with duration)
-  - `x`: omit (drops position in tile operations and constraint)
+  - `x`: omit (drops position in cog operations and constraint)
   - Other letters: pass-through behavior in dot operations
 - **Curly expressions**: Standalone `{...}` expressions are treated as single random-step pips.
  
@@ -75,35 +75,35 @@ In decreasing precedence (tighter binds higher):
 ```
 
 3) **Combine pairs of mots**:
-   - `*` spread-add (cartesian/outer application):
+   - `*` fan-add (cartesian/outer application):
      - For each value in the right mot, combine it with every value in the left mot; concatenate.
      - Steps add; timeScales multiply.
      - If the right value has a negative timeScale, the left mot is reversed for that right value.
      - Example: `[1, 2, 3] * [0*-1] -> [3, 2, 1]`
-   - `^` spread-mul (expand steps):
+   - `^` fan-mul (expand steps):
      - Same outer pairing as `*`, but steps multiply instead of add.
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
-   - `.` or `.*` tile-add (elementwise/zip with tiling):
-     - Pair each left value with the corresponding value from the right, tiling the right as needed.
+   - `.` or `.*` cog-add (elementwise/zip with cycling):
+     - Pair each left value with the corresponding value from the right, cycling the right as needed.
      - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
-   - `.^` tile-mul (elementwise expand):
-     - Same tiling as `.`, but steps multiply instead of add.
+   - `.^` cog-mul (elementwise expand):
+     - Same cycling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`
-   - `j` jam (spread) / `.j` (tile):
+   - `j` jam (fan) / `.j` (cog):
      - Replace steps/timeScales with RHS values; pipe-only `|` entries pass through left.
-   - `m` mirror (spread) / `.m` (tile):
+   - `m` mirror (fan) / `.m` (cog):
      - Reflect steps around anchor k: `a -> 2k - a`.
-   - `l` lens (spread) / `.l` (tile):
-     - Sliding window emission; spread uses window size over whole mot; tile uses per-position window size.
-   - `t` tie (postfix, unary) / `.t` (tile):
+   - `l` lens (fan) / `.l` (cog):
+     - Sliding window emission; fan uses window size over whole mot; cog uses per-position window size.
+   - `t` tie (postfix, unary) / `.t` (cog):
      - Postfix `t` merges adjacent equal-step pips by adding timeScales.
-     - Tile `.t` uses RHS mask to allow merges forward.
-   - `c` constraint (spread) / `.c` (tile):
+     - Cog `.t` uses RHS mask to allow merges forward.
+   - `c` constraint (fan) / `.c` (cog):
      - Keep/omit by mask (nonzero keeps; tag `x` omits); timeScales multiply.
-   - `->` steps (spread):
+   - `->` steps (fan):
      - For each right value `k`, output the left mot transposed by all integers from 0 to `k` (sign supported), concatenated.
      - Example: `[0, 3] -> [4] -> [0, 3, 1, 4, 2, 5, 3, 6, 4, 7]`
-   - `.->` steps (tile):
+   - `.->` steps (cog):
      - For each position `i`, expand `left[i]` into a run up to `right[i%|right|]`.
      - Example: `[0, 3] .-> [4] -> [0, 1, 2, 3, 4, 3, 4, 5, 6, 7]`
    - `~` rotate:

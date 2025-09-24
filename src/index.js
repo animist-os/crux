@@ -34,14 +34,14 @@ const g = ohm.grammar(String.raw`
       | FollowedByExpr TieExpr         -- juxt
       | TieExpr
 
-  // Make postfix tie 't' LOWER precedence than multiplicative ops by
-  // placing it above MulExpr in the hierarchy.
+  // Tie handled as a postfix at the AppendExpr level so it can be used
+  // directly as an operand to multiplicative ops.
   TieExpr
-      = TieExpr "t"                              -- tiePostfix
-      | MulExpr
+      = MulExpr
 
   AppendExpr
-      = AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
+      = AppendExpr "t"                          -- tiePostfix
+      | AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
       | AppendExpr SliceOp                          -- slice
       | PostfixExpr
@@ -273,9 +273,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotTie(x.parse(), y.parse());
   },
 
-  TieExpr_tiePostfix(x, _t) {
-    return new TieOp(x.parse());
-  },
+  
 
   MulExpr_constraint(x, _c, y) {
     return new ConstraintOp(x.parse(), y.parse());
@@ -302,6 +300,11 @@ const s = g.createSemantics().addOperation('parse', {
     // Multiply by a zero-mot of length N
     const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
     return new Mul(parsedExpr, zeroMot);
+  },
+
+  AppendExpr_tiePostfix(expr, _t) {
+    const x = expr.parse();
+    return new TieOp(x);
   },
 
   AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) {
@@ -669,7 +672,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  TieExpr_tiePostfix(x, _op) { return x.collectTs(); },
+  
   MulExpr_constraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_mul(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },

@@ -74,6 +74,7 @@ const g = ohm.grammar(String.raw`
       = ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" MotBody "]"            -- mot
+      | number                        -- numAsMot
       | "(" Expr ")"                  -- parens
       | Curly                           -- curlyAsExpr
 
@@ -322,6 +323,9 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
+  },
+  PriExpr_numAsMot(n) {
+    return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
   },
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
@@ -868,21 +872,12 @@ class Dot {
       const left = xv.values[xi];
       const right = yv.values[yi];
       if ((left.tag || right.tag)) {
-        // Example branch for 'x': treat as omit-on-right or pass-through
-        if (left.hasTag && left.hasTag('x')) {
-          values.push(left);
-          continue;
-        } else if (right.hasTag && right.hasTag('x')) {
-          // omit
-          continue;
-        }
-        
-        // funky buit sensible for Dot operation with rests on either side?
+        // Rest tag combines durations, carries 'r'
         if (left.hasTag('r') || right.hasTag('r')) {
           values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
-        // Default behavior for unknown tags: pass-through left
+        // Default for other tags: pass-through left
         values.push(left);
         continue;
       }
@@ -968,12 +963,6 @@ class DotExpand {
       const left = xv.values[xi];
       const right = yv.values[yi];
       if ((left.tag || right.tag)) {
-        if (left.hasTag && left.hasTag('x')) {
-          values.push(left);
-          continue;
-        } else if (right.hasTag && right.hasTag('x')) {
-          continue;
-        }
         if (left.hasTag('r') || right.hasTag('r')) {
           values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
@@ -1257,8 +1246,8 @@ class ConstraintOp {
     for (let i = 0; i < left.values.length; i++) {
       const a = left.values[i];
       const r = right.values[i % m];
-      // keep when r.step != 0 and tag not 'x'
-      const omit = (r.hasTag && r.hasTag('x')) || r.step === 0;
+      // keep when r.step != 0
+      const omit = r.step === 0;
       if (!omit) {
         out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
       }
@@ -1664,37 +1653,29 @@ class NestedMot {
   }
 
   eval(env) {
-    // Flatten any embedded Mot or NestedMot before evaluation
-    const flatValues = [];
+    // Single-level subdivision: resolve all inner content first, then apply one 1/N factor
+    const resolvedPieces = [];
     for (const v of this.values) {
-      if (v instanceof Mot) {
+      if (v instanceof NestedMot) {
+        // Do not apply its scaling here; treat as plain content by inlining its inner values
+        const inner = v.eval(env);
+        for (const p of inner.values) resolvedPieces.push(new Pip(p.step, p.timeScale, p.tag));
+      } else if (v instanceof Mot) {
         const mv = v.eval(env);
-        const mlen = mv.values.length;
-        if (mlen === 0) continue;
-        const localFactor = 1 / mlen;
-        for (const p of mv.values) flatValues.push(new Pip(p.step, p.timeScale * localFactor, p.tag));
-      } else if (v instanceof NestedMot) {
-        const nv = v.eval(env);
-        for (const p of nv.values) flatValues.push(p);
+        for (const p of mv.values) resolvedPieces.push(new Pip(p.step, p.timeScale, p.tag));
+      } else if (v instanceof Pip || v instanceof Range || v instanceof RandomPip || v instanceof RangePipe || v instanceof RandomRange || v instanceof RandomChoice) {
+        const mv = new Mot([v]).eval(env);
+        for (const p of mv.values) resolvedPieces.push(p);
       } else {
-        flatValues.push(v);
+        const mv = new Mot([v]).eval(env);
+        for (const p of mv.values) resolvedPieces.push(p);
       }
     }
-
-    // Evaluate the flattened values using Mot semantics (to resolve ranges/curly, etc.)
-    const innerMot = new Mot(flatValues);
-    const resolvedInner = innerMot.eval(env);
-    
-    // Apply timescale subdivision: multiply each pip's timescale by 1/N
-    const N = resolvedInner.values.length;
+    const N = resolvedPieces.length;
     if (N === 0) return new Mot([]);
-    
-    const subdivisionFactor = 1 / N;
-    const subdividedValues = resolvedInner.values.map(pip => 
-      new Pip(pip.step, pip.timeScale * subdivisionFactor, pip.tag)
-    );
-    
-    return new Mot(subdividedValues);
+    const factor = 1 / N;
+    const out = resolvedPieces.map(p => new Pip(p.step, p.timeScale * factor, p.tag));
+    return new Mot(out);
   }
 
   toString() {

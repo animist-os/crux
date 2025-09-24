@@ -47,8 +47,7 @@ Notes:
   - `| / divisor` (pipe-only divide)
 - **Tags**: Single letters create tagged pips:
   - `r`: rest (silence with duration)
-  - `x`: omit (drops position in cog operations and constraint)
-  - Other letters: pass-through behavior in dot operations
+  - Other letters: pass-through behavior in dot operations (no special omit tag)
 - **Curly expressions**: Standalone `{...}` expressions are treated as single random-step pips.
  
 

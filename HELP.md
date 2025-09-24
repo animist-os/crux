@@ -26,7 +26,7 @@ Pips:
 * Range: `[0->3] === [0, 1, 2, 3]`
 * Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
 * Random Range: `[{-2 ? 2}] === random integer from -2 to 2`
-* Tags (character pips): `r` (rest), `x` (omit in cog)
+* Tags (character pips): `r` (rest)
 
 ### Binary Mot Operators
 

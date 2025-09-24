@@ -6,17 +6,17 @@
 
 You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and random choices. You can apply musical transforms on pips and mots. All operations can be applied in either a "fan" approach or a "cog" one.
 
- - fan (outer): For each r in R, apply op to all of A, then concatenate. The lengths multiply
+`fan`: For each r in R, apply op to all of A, then concatenate. The lengths multiply
 
- - cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.
+`cog`: Pair positions; RHS cycles as needed to cover LHS.
 
 
 ### Program
 
  - **Program**: one or more statements. The final statement’s value is the result.
  - **Statement**: either an assignment or an expression.
- - **Assignment**: `Name = Expr`
- - **Reference**: use a previously assigned `Name` in an expression.
+ - **Assignment**: Name = Expr
+ - **Reference**: use a previously assigned Name in an expression.
 
 
 ## Fundamentals
@@ -126,7 +126,7 @@ Used to replace a value.   Can also pass the existing value through unchanged if
 [1 -> 4 | / {2,4}] :4    // range with random per-element divide
 ```
 
-## Tags
+## Rests
 - `r`: rest (silence with duration)
 - `x`: omit (drops the position in cog ops and constraint)
 
@@ -134,10 +134,13 @@ Used to replace a value.   Can also pass the existing value through unchanged if
 [0, r, 1, 2]
 ```
 ```
-[0, 1, x, 3]
+[0, r | /2, 1 | /2, 2]
 ```
+
+When on the right hand side of a binary mot operator, the rest effectively trumps the step value
+
 ```
-[0, 1, x]                 // x is meaningful in cog ops / constraint
+[0 -> 8] . [0, r]  // [0,r,2,r,4,r,6,r,8]
 ```
 
 ## Variables
@@ -300,5 +303,5 @@ Nested mot
 - Tie: postfix `t`, cog `.t [mask]`
 - Random pips: `?`; Curly random: `{a ? b}`, `{a,b,...}` with optional `@seed`
 - Pipe duration: `value | ts`, `| * {..}`, `| / {..}`
-- Tags: `r`, `x`
+- Tags: `r`
 

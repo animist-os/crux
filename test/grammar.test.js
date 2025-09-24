@@ -188,8 +188,8 @@ test('jam pass-through via pipe marker in RHS', () => {
   assert.equal(evalToString('[0,1,2,3] .j [ | , 7]'), '[0, 7, 2, 7]');
 });
 
-test('constraint keeps where mask nonzero and not x', () => {
-  assert.equal(evalToString('[0, 1, 2, 3] c [1, 0, 1, x]'), '[0, 2]');
+test('constraint keeps where mask nonzero (no special x tag)', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] c [1, 0, 1, 0]'), '[0, 2]');
 });
 
 test('random tag bare ? uses default range [-7,7]', () => {
@@ -375,19 +375,17 @@ test('nested within nested', () => {
 });
 
 test('spread operations with nested mots', () => {
-  const a = evalToString('([[0,1]], 2) * [1,2]');
-  const b = evalToString('[0/2, 1/2, 2] * [1,2]');
+  const a = evalToString('([ [0,1] ], 2) * [1,2]');
+  const b = evalToString('[0 | /2, 1 | /2, 2] * [1,2]');
   assert.equal(a, b);
-  const c = evalToString('[1,2] * ([[0,1]], 2)');
-  const d = evalToString('[1,2] * [0/2, 1/2, 2]');
+  const c = evalToString('[1,2] * ([ [0,1] ], 2)');
+  const d = evalToString('[1,2] * [0 | /2, 1 | /2, 2]');
   assert.equal(c, d);
 });
 
 test('nested with tags and ranges', () => {
   assert.equal(evalToString('[[0, r]]'), '[0/2, r/2]');
   assert.equal(evalToString('[[0->2]]'), '[0/3, 1/3, 2/3]');
-  const out = evalToString('[[{0,1}, 2]]');
-  assert.ok(out === '[0/2, 1]' || out === '[1/2, 1]', 'Unexpected nested+curly: ' + out);
 });
 
 

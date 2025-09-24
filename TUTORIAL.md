@@ -1,24 +1,22 @@
 # Crux Tutorial
 
-Crux
+*Crux* is a domain specific language for algorithmic music composition.
 
-Crux is a domain specific language for algorithmic music composition.
-
-"Pips" are musical events (notes) expressed in terms of their relative displacement in pitch from an environmental "tonic" pitch. They carry a relative timeScale (defaults to 1). They are typically assembled into a "Mot" which is a list of pips expressed in non-overlapping sequential order. A "Mot" represents a sequential string of notes that make up a musical "voice" or "part".
+"Pips" are musical events (notes) expressed in terms of their relative displacement in pitch from an environmental "tonic" pitch. They carry a relative timeScale (defaults to 1). They are typically assembled into a "mot" which is a list of pips expressed in non-overlapping sequential order. A "mot" represents a sequential string of notes that make up a musical "voice" or "part".
 
 You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and random choices. You can apply musical transforms on pips and mots. All operations can be applied in either a "fan" approach or a "cog" one.
 
--Spread (outer): For each r in R, apply op to all of A, then concatenate. The lengths multiply
+ - fan (outer): For each r in R, apply op to all of A, then concatenate. The lengths multiply
 
--Clockwork (elementwise): Pair positions; RHS cycles as needed to cover LHS.
+ - cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.
 
 
 ### Program
 
-- **Program**: one or more statements. The final statement’s value is the result.
-- **Statement**: either an assignment or an expression.
-- **Assignment**: `Name = Expr`
-- **Reference**: use a previously assigned `Name` in an expression.
+ - **Program**: one or more statements. The final statement’s value is the result.
+ - **Statement**: either an assignment or an expression.
+ - **Assignment**: `Name = Expr`
+ - **Reference**: use a previously assigned `Name` in an expression.
 
 
 ## Fundamentals
@@ -45,12 +43,12 @@ Note that, like the step values, these timeScales are relative to the unit durat
 
 
 
-## Spread vs Clockwork
+## Binary Mot Operator Types: fan vs cog
 
-- Spread family: `*`, `^`, `->`, `m`, `l`, `c`, `j`
-- Clockwork family: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
+- fan type: `*`, `^`, `->`, `m`, `l`, `c`, `j`
+- cog type: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
 
-### Add (Spread)
+### Add (fan)
 ```text
 [0,1,2] * [1]              // [1, 2, 3]
 ```
@@ -60,22 +58,22 @@ Note that, like the step values, these timeScales are relative to the unit durat
 ```
 [0,1,2] * [1, -2 | -1]     // negative ts on RHS reverses LHS per block
 ```
-### Multiply (Spread)
+### Multiply (fan)
 ```
 [1,2,5] ^ [2]               // [2, 4, 10] -- mul expands the intervals
 ```
 ```
 [1,2,3] ^ [-1]               // [-1,-2,-3] --  negative mul inverts the intervals
 ```
-### Add (Clockwork)
+### Add (cog)
 ```
 [0,1,2] . [5,-5]         // [5, -4, 7]
 ```
-### Multiply (Clockwork)
+### Multiply (cog)
 ```
 [1,2] : 4 .^ [-2,2,3]          // [-2, 4, 3, -4, 2, 6, -2, 4]
 ```
-### Jam (Spread)
+### Jam (fan)
 
 Used to replace a value.   Can also pass the existing value through unchanged if no value is specified on one or both side of the pipe
 
@@ -83,12 +81,12 @@ Used to replace a value.   Can also pass the existing value through unchanged if
 [0,1,2,3] j [7]           // [7, 7, 7, 7]
 ```
 ```
-[0, 1/4, 2] j [| 1]       // reset durations -> [0, 1, 2]
+[0, 1 | /4, 2] j [| 1]       // reset durations -> [0, 1, 2]
 ```
 ```
 [0,1,2,3] j [ | , 7]      // pass-through then 7s
 ```
-### Jam (Clockwork)
+### Jam (cog)
 
 ```
 [0,1,2,3] .j [0,7]        // [0, 7, 0, 7]
@@ -107,13 +105,13 @@ Used to replace a value.   Can also pass the existing value through unchanged if
 [0->3]                    // [0, 1, 2, 3]
 ```
 ```
-[{0, 1, 2}]               // random choice (one of the options)
+[{0, 1, 2}] :4              // random choice (one of the options)
 ```
 ```
-[?]                       // bare random integer in [-7, 7]
+[?] :4                   // bare random integer in [-7, 7]
 ```
 ```
-[{ -2 ? 2 }]               // random integer in [-2, 2] inclusive
+[{ -2 ? 2 }] :4             // random integer in [-2, 2] inclusive
 ```
 ```
 [{1 ? 6}] :16              // random integer changes within repeats
@@ -122,10 +120,10 @@ Used to replace a value.   Can also pass the existing value through unchanged if
 [{1 ? 6}@c0de] :16        // seeded random (stable per seed)
 ```
 ```
-[{0,2,5} | 2]             // random step with fixed timeScale
+[{0,2,5} | 2] :4         // random step with fixed timeScale
 ```
 ```
-[1 -> 4 | / {2,4}]        // range with random per-element divide
+[1 -> 4 | / {2,4}] :4    // range with random per-element divide
 ```
 
 ## Tags
@@ -280,36 +278,24 @@ Rotate
 
 Melodic elaboration
 ```text
-A = [0, 1, 0]
-B = A -> [1]
-B . [0, -12]
+A = [1 -> -1, -2 | / 2, -1 | / 2]
+B = A * [0 | * 2]
+B * A * [3, 6]
 ```
 
-Call and response
-```text
-A = [0, 3]
-A -> [4]
-A .-> [4]
+Nested mot
+```
+[[0,1], 2] * [1,-2,-1,0]
 ```
 
-Windowed motifs
-```text
-A = [0,1,2,3]
-A l [3]
-```
-
-Slice + repeat
-```text
-([0,1,2,3] 1 _) : 2
-```
 
 ## Cheatsheet
 
 - Concatenate: `,` or juxtaposition
 - Repeat: `Expr : N` (N can be random via `{...}`)
 - Slice: `start _ end` | `start _` | `_ end`
-- Spread: `*`, `^`, `->`, `m`, `l`, `c`, `j`
-- Clockwork: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
+- fan: `*`, `^`, `->`, `m`, `l`, `c`, `j`
+- cog: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
 - Rotate: `~`
 - Tie: postfix `t`, cog `.t [mask]`
 - Random pips: `?`; Curly random: `{a ? b}`, `{a,b,...}` with optional `@seed`

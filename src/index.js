@@ -72,9 +72,26 @@ const g = ohm.grammar(String.raw`
   
   PriExpr
       = ident                          -- ref
+      | "[[" NestedBody "]]"       -- nestedMot
       | "[" MotBody "]"            -- mot
       | "(" Expr ")"                  -- parens
       | Curly                           -- curlyAsExpr
+
+  NestedBody
+      = ListOf<NestedElem, ",">       -- nestedAbsolute
+
+  NestedElem
+      = SingleValue                    -- single
+      | MotLiteral                     -- mot
+      | NestedMotLiteral               -- nested
+
+  MotLiteral = "[" MotBody "]"
+  NestedMotLiteral = "[[" NestedBody "]]"
+
+  // Abbreviated nested mot that closes with a single ']' so it can be followed by more values inside the same mot
+  NestedMotAbbrev = "[[" MotBody "]"
+
+  // (no abbrev)
 
   SliceOp
       = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
@@ -96,7 +113,10 @@ const g = ohm.grammar(String.raw`
       = SingleValue
 
     SingleValue
-      = Pip
+      = NestedMotLiteral
+      | NestedMotAbbrev
+      | MotLiteral
+      | Pip
       | Range
       | Curly
 
@@ -306,8 +326,67 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
     const parsed = body.parse();
+    const values = parsed.values.slice();
+    // Detect abbreviated nested groups via double brackets at start/end of the literal
+    const src = this.sourceString;
+    if (src.length >= 2) {
+      const inside = src.slice(1, -1);
+      const trimmed = inside.trim();
+      const nestFirst = trimmed.startsWith('[');
+      const nestLast = trimmed.endsWith(']');
+      if (nestFirst && values.length > 0 && values[0] instanceof Mot) {
+        values[0] = new NestedMot(values[0].values);
+      }
+      if (nestLast && values.length > 0 && values[values.length - 1] instanceof Mot) {
+        values[values.length - 1] = new NestedMot(values[values.length - 1].values);
+      }
+    }
+    return new Mot(values);
+  },
+
+  PriExpr_nestedMot(_openBrackets, body, _closeBrackets) {
+    const parsed = body.parse();
+    return new NestedMot(parsed.values);
+  },
+
+  NestedBody_nestedAbsolute(values) {
+    return { kind: 'nestedAbsolute', values: values.parse() };
+  },
+
+  NestedElem_single(x) {
+    return x.parse();
+  },
+
+  NestedElem_mot(node) {
+    // node is a MotLiteral; reuse Mot parse by delegating through the MotBody
+    const body = node.children[1];
+    const parsed = body.parse();
     return new Mot(parsed.values);
   },
+
+  NestedElem_nested(node) {
+    // node is a NestedMotLiteral; its body is children[1]
+    const body = node.children[1];
+    const parsed = body.parse();
+    return new NestedMot(parsed.values);
+  },
+
+  MotLiteral(_ob, body, _cb) {
+    const parsed = body.parse();
+    return new Mot(parsed.values);
+  },
+
+  NestedMotLiteral(_obb, body, _cbb) {
+    const parsed = body.parse();
+    return new NestedMot(parsed.values);
+  },
+
+  NestedMotAbbrev(_obb, body, _cb) {
+    const parsed = body.parse();
+    return new NestedMot(parsed.values);
+  },
+
+  
 
   MotBody_absolute(values) {
     return { kind: 'absolute', values: values.parse() };
@@ -597,6 +676,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   AppendExpr_slice(x, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
+  PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },
+  NestedBody_nestedAbsolute(values) { return values.collectTs(); },
   PriExpr_parens(_op, e, _cp) { return e.collectTs(); },
   MotBody_absolute(values) { return values.collectTs(); },
   
@@ -1192,7 +1273,7 @@ class DotConstraint extends ConstraintOp { }
 
 
 function requireMot(value) {
-  if (!(value instanceof Mot)) {
+  if (!(value instanceof Mot) && !(value instanceof NestedMot) && !(value instanceof NestedMotExpr)) {
     throw new Error('Mot required!');
   }
   return value;
@@ -1553,6 +1634,14 @@ class Mot {
         const ref = value.refs[idx];
         const chosen = requireMot(ref.eval(env));
         for (const p of chosen.values) resolved.push(p);
+      } else if (value instanceof Mot) {
+        // Inline nested Mot inside a Mot (e.g., [ [0,1], 2 ])
+        const mv = value.eval(env);
+        for (const p of mv.values) resolved.push(p);
+      } else if (value instanceof NestedMot) {
+        // Inline nested mot content
+        const nm = value.eval(env);
+        for (const p of nm.values) resolved.push(p);
       } else {
         throw new Error('Unsupported mot value: ' + String(value));
       }
@@ -1566,6 +1655,76 @@ class Mot {
 
   toString() {
     return '[' + this.values.map(value => value.toString()).join(', ') + ']';
+  }
+}
+
+class NestedMot {
+  constructor(values) {
+    this.values = values;
+  }
+
+  eval(env) {
+    // Flatten any embedded Mot or NestedMot before evaluation
+    const flatValues = [];
+    for (const v of this.values) {
+      if (v instanceof Mot) {
+        const mv = v.eval(env);
+        const mlen = mv.values.length;
+        if (mlen === 0) continue;
+        const localFactor = 1 / mlen;
+        for (const p of mv.values) flatValues.push(new Pip(p.step, p.timeScale * localFactor, p.tag));
+      } else if (v instanceof NestedMot) {
+        const nv = v.eval(env);
+        for (const p of nv.values) flatValues.push(p);
+      } else {
+        flatValues.push(v);
+      }
+    }
+
+    // Evaluate the flattened values using Mot semantics (to resolve ranges/curly, etc.)
+    const innerMot = new Mot(flatValues);
+    const resolvedInner = innerMot.eval(env);
+    
+    // Apply timescale subdivision: multiply each pip's timescale by 1/N
+    const N = resolvedInner.values.length;
+    if (N === 0) return new Mot([]);
+    
+    const subdivisionFactor = 1 / N;
+    const subdividedValues = resolvedInner.values.map(pip => 
+      new Pip(pip.step, pip.timeScale * subdivisionFactor, pip.tag)
+    );
+    
+    return new Mot(subdividedValues);
+  }
+
+  toString() {
+    return '[[' + this.values.map(value => value.toString()).join(', ') + ']]';
+  }
+}
+
+class NestedMotExpr {
+  constructor(expr) {
+    this.expr = expr;
+  }
+
+  eval(env) {
+    // Evaluate the inner expression to get a mot
+    const innerMot = requireMot(this.expr.eval(env));
+    
+    // Apply timescale subdivision: multiply each pip's timescale by 1/N
+    const N = innerMot.values.length;
+    if (N === 0) return new Mot([]);
+    
+    const subdivisionFactor = 1 / N;
+    const subdividedValues = innerMot.values.map(pip => 
+      new Pip(pip.step, pip.timeScale * subdivisionFactor, pip.tag)
+    );
+    
+    return new Mot(subdividedValues);
+  }
+
+  toString() {
+    return '[[' + this.expr.toString() + ']]';
   }
 }
 

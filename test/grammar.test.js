@@ -338,3 +338,56 @@ test('bare Curly as PriExpr works in operators', () => {
 });
 
 
+// ---- Nested mots ----
+
+test('nested mot basic flattening', () => {
+  assert.equal(evalToString('[[0,1]]'), '[0/2, 1/2]');
+  assert.equal(evalToString('[[0,1,2]]'), '[0/3, 1/3, 2/3]');
+  assert.equal(evalToString('[[0,1,2,3]]'), '[0/4, 1/4, 2/4, 3/4]');
+});
+
+test('nested mot with explicit timescales', () => {
+  assert.equal(evalToString('[[0, 1 | 2]]'), '[0/2, 1]');
+  assert.equal(evalToString('[[0 | /4, 1]]'), '[0/8, 1/2]');
+  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0*1.5, 1/4]');
+});
+
+test('nested mot with fractions and pipe-only', () => {
+  // 3/4 * 1/2 = 3/8 => prints as *0.375
+  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0/2, 1*0.375]');
+  assert.equal(evalToString('[[0, | 2]]'), '[0/2, 0]');
+  assert.equal(evalToString('[[| 3, 1]]'), '[0*1.5, 1/2]');
+  assert.equal(evalToString('[[|, | /4]]'), '[0/2, 0/8]');
+});
+
+test('concat and juxtaposition with nested mots', () => {
+  assert.equal(evalToString('[[0,1]], [2]'), '[0/2, 1/2, 2]');
+  assert.equal(evalToString('[2], [[0,1]]'), '[2, 0/2, 1/2]');
+  assert.equal(evalToString('[[0,1]], [2], [[3,4]]'), '[0/2, 1/2, 2, 3/2, 4/2]');
+  // Juxtaposition
+  assert.equal(evalToString('[[0,1]] [2]'), '[0/2, 1/2, 2]');
+  assert.equal(evalToString('[2] [[0,1]]'), '[2, 0/2, 1/2]');
+});
+
+test('nested within nested', () => {
+  assert.equal(evalToString('[[[0,1], 2]]'), '[0/3, 1/3, 2/3]');
+  assert.equal(evalToString('[[[0,1]], 2]'), '[0/2, 1/2, 2]');
+});
+
+test('spread operations with nested mots', () => {
+  const a = evalToString('([[0,1]], 2) * [1,2]');
+  const b = evalToString('[0/2, 1/2, 2] * [1,2]');
+  assert.equal(a, b);
+  const c = evalToString('[1,2] * ([[0,1]], 2)');
+  const d = evalToString('[1,2] * [0/2, 1/2, 2]');
+  assert.equal(c, d);
+});
+
+test('nested with tags and ranges', () => {
+  assert.equal(evalToString('[[0, r]]'), '[0/2, r/2]');
+  assert.equal(evalToString('[[0->2]]'), '[0/3, 1/3, 2/3]');
+  const out = evalToString('[[{0,1}, 2]]');
+  assert.ok(out === '[0/2, 1]' || out === '[1/2, 1]', 'Unexpected nested+curly: ' + out);
+});
+
+

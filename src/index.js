@@ -10,6 +10,8 @@ globalThis.golden = golden;
 
 
 
+
+
 const g = ohm.grammar(String.raw`
   Crux {
   
@@ -638,6 +640,85 @@ const s = g.createSemantics().addOperation('parse', {
   _terminal() {
     return this.sourceString;
   },
+});
+
+// Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
+// We rewrite only the suffix ": N" (or ": <number>") to " * [0, 0, ...]" and leave the left expr as-is.
+const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRewrites', {
+  Prog(stmts, _optNls) {
+    const out = [];
+    for (const s of stmts.children) {
+      const v = s.collectRepeatSuffixRewrites();
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  Stmt(node) { return node.collectRepeatSuffixRewrites(); },
+  AssignStmt(_name, _eq, expr) { return expr.collectRepeatSuffixRewrites(); },
+  ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
+  Expr(e) { return e.collectRepeatSuffixRewrites(); },
+  FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  FollowedByExpr_juxt(x, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr(x) { return x.collectRepeatSuffixRewrites(); },
+  // Explicit handlers for MulExpr variants to ensure traversal
+  MulExpr_dotStar(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotExpand(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotJam(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotSteps(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotMirror(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotLens(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotTie(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotConstraint(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_steps(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_mirror(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_jam(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_lens(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_constraint(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_mul(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_expand(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dot(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_rotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  AppendExpr_slice(x, _sl) { return x.collectRepeatSuffixRewrites(); },
+  // Core targets: numeric :N, and :<RandNum> only when it's a number literal
+  AppendExpr_repeatPost(_expr, h1, _colon, _h2, n) {
+    const raw = String(n.sourceString).trim();
+    let num = Number(raw);
+    if (!Number.isFinite(num)) return [];
+    num = Math.max(0, Math.trunc(num));
+    const zeros = (num <= 0) ? '[]' : ('[' + Array(num).fill('0').join(', ') + ']');
+    const start = h1.source.startIdx;
+    const end = n.source.startIdx + n.sourceString.length;
+    return [{ start, end, text: ' * ' + zeros }];
+  },
+  AppendExpr_repeatPostRand(_expr, h1, _colon, _h2, rn) {
+    const raw = String(rn.sourceString).trim();
+    // Only rewrite when RN is plainly numeric; leave curly/refs as-is
+    if (raw.startsWith('{')) return [];
+    let num = Number(raw);
+    if (!Number.isFinite(num)) return [];
+    num = Math.max(0, Math.trunc(num));
+    const zeros = (num <= 0) ? '[]' : ('[' + Array(num).fill('0').join(', ') + ']');
+    const start = h1.source.startIdx;
+    const end = rn.source.startIdx + rn.sourceString.length;
+    return [{ start, end, text: ' * ' + zeros }];
+  },
+  PriExpr(_node) { return []; },
+  MotBody(_node) { return []; },
+  SingleValue(_x) { return []; },
+  // Default: flatten child results
+  _iter(...children) {
+    const out = [];
+    for (const c of children) {
+      const v = (c && typeof c.collectRepeatSuffixRewrites === 'function') ? c.collectRepeatSuffixRewrites() : [];
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  NonemptyListOf(x, _sep, xs) {
+    return [...x.collectRepeatSuffixRewrites(), ...xs.collectRepeatSuffixRewrites()];
+  },
+  EmptyListOf() { return []; },
+  _terminal() { return []; }
 });
 
 // Collect all source indices of timescale numbers across the entire program.
@@ -2051,6 +2132,37 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
   }
   return result.flat();
 }
+
+
+// Public: seed any unseeded curly randoms with @hhhh
+golden.CruxRewriteCurlySeeds = function(input) {
+  return rewriteCurlySeeds(String(input || ''));
+}
+
+// Public: desugar only the :N textual suffixes to " * [0,0,...]" using CST spans.
+// Preserves all other whitespace and // comments.
+golden.CruxDesugarRepeats = function(input) {
+  const src = String(input || '');
+  // Parse on a comment-stripped shadow to align indices, like parse()
+  const withoutComments = stripLineComments(src);
+  const matchResult = g.match(withoutComments);
+  if (matchResult.failed()) return src;
+  const edits = repeatRewriteSem(matchResult).collectRepeatSuffixRewrites();
+  if (!Array.isArray(edits) || edits.length === 0) return src;
+  // Coalesce non-overlapping edits (they should already be non-overlapping)
+  const sorted = edits.slice().sort((a, b) => a.start - b.start);
+  let out = '';
+  let cur = 0;
+  for (const e of sorted) {
+    const { start, end, text } = e;
+    if (start < cur) continue; // skip overlapping
+    out += src.slice(cur, start) + text;
+    cur = end;
+  }
+  out += src.slice(cur);
+  return out;
+}
+
 
 
 function stripLineComments(input) {

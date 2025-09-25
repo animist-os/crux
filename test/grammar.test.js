@@ -230,6 +230,13 @@ test('assignment and reference', () => {
   assert.equal(evalToString(program), '[0, 1, 2]');
 });
 
+test('operator alias statement and usage', () => {
+  const program = 'splay = *\n[0,1] splay [1,2,3]';
+  const aliased = evalToString(program);
+  const baseline = evalToString('[0,1] * [1,2,3]');
+  assert.equal(aliased, baseline);
+});
+
 test('assignment then later expression with juxtaposition disabled across newline', () => {
   const program = 'A = [0, 1]\nA * A';
   assert.equal(evalToString(program), '[0, 1, 1, 2]');

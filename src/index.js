@@ -20,10 +20,17 @@ const g = ohm.grammar(String.raw`
   
     Stmt
       = AssignStmt
+      | OpAliasStmt
       | ExprStmt
   
     AssignStmt
       = ident "=" Expr
+
+    // Simple operator aliasing sugar, e.g.,
+    //   splay = *
+    // which allows: [0,1] splay [1,2] == [0,1] * [1,2]
+    OpAliasStmt
+      = ident "=" OpSym
   
     ExprStmt
       = Expr
@@ -67,6 +74,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr "^" AppendExpr  -- expand
       | MulExpr "." AppendExpr  -- dot
       | MulExpr "~" AppendExpr  -- rotate
+      | MulExpr ident AppendExpr -- aliasOp
       | AppendExpr
 
   PostfixExpr
@@ -178,6 +186,11 @@ const g = ohm.grammar(String.raw`
       | "?"
   
     ident = (letter | "_") alnum*
+
+    // Set of binary operator symbols that can be aliased
+    OpSym
+      = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c"
+      | "->" | "j" | "m" | "l" | "c" | "*" | "^" | "." | "~"
   
     number
       = sign? digit+ ("." digit*)?
@@ -210,6 +223,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   AssignStmt(name, _equals, expr) {
     return new Assign(name.sourceString, expr.parse());
+  },
+
+  OpAliasStmt(name, _equals, op) {
+    return new OpAliasAssign(name.sourceString, op.parse());
   },
 
   FollowedByExpr_fby(x, _comma, y) {
@@ -293,6 +310,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_rotate(x, _tilde, y) {
     return new RotateOp(x.parse(), y.parse());
+  },
+
+  MulExpr_aliasOp(x, name, y) {
+    return new AliasCall(name.sourceString, x.parse(), y.parse());
   },
 
   AppendExpr_repeatPost(expr, _h1, _colon, _h2, n) {
@@ -640,6 +661,9 @@ const s = g.createSemantics().addOperation('parse', {
   _terminal() {
     return this.sourceString;
   },
+  OpSym(_tok) {
+    return this.sourceString;
+  },
 });
 
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
@@ -654,6 +678,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
     return out;
   },
   Stmt(node) { return node.collectRepeatSuffixRewrites(); },
+  OpAliasStmt(_name, _eq, _op) { return []; },
   AssignStmt(_name, _eq, expr) { return expr.collectRepeatSuffixRewrites(); },
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
@@ -678,6 +703,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_expand(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   AppendExpr_slice(x, _sl) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   AppendExpr_repeatPost(_expr, h1, _colon, _h2, n) {
@@ -733,6 +759,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
     return out;
   },
   Stmt(node) { return node.collectTs(); },
+  OpAliasStmt(_name, _eq, _op) { return []; },
   AssignStmt(_name, _eq, expr) { return expr.collectTs(); },
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
@@ -759,6 +786,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
   AppendExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
   AppendExpr_slice(x, _sl) { return x.collectTs(); },
@@ -869,6 +897,24 @@ class Prog {
       lastValue = stmt.eval(env);
     }
     return lastValue;
+  }
+}
+
+// Internal keying for operator aliases inside the environment map
+function opKey(name) {
+  return 'op:' + name;
+}
+
+class OpAliasAssign {
+  constructor(name, opSymbol) {
+    this.name = name;
+    this.opSymbol = opSymbol; // textual operator symbol, e.g., '*', '.*', '->', etc.
+  }
+
+  eval(env) {
+    env.set(opKey(this.name), this.opSymbol);
+    // Return an empty Mot so statements can still yield a Mot value
+    return new Mot([]);
   }
 }
 
@@ -1111,6 +1157,47 @@ class RotateOp {
       for (const v of rotated) out.push(v);
     }
     return new Mot(out);
+  }
+}
+
+class AliasCall {
+  constructor(opName, x, y) {
+    this.opName = opName;
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    if (!env.has(opKey(this.opName))) {
+      throw new Error('undeclared operator alias: ' + this.opName);
+    }
+    const sym = env.get(opKey(this.opName));
+    const node = instantiateOpNodeBySymbol(sym, this.x, this.y);
+    return node.eval(env);
+  }
+}
+
+function instantiateOpNodeBySymbol(sym, x, y) {
+  switch (sym) {
+    case '*': return new Mul(x, y);
+    case '^': return new Expand(x, y);
+    case '.': return new Dot(x, y);
+    case '.*': return new Dot(x, y);
+    case '.^': return new DotExpand(x, y);
+    case '->': return new Steps(x, y);
+    case '.->': return new DotSteps(x, y);
+    case 'j': return new JamOp(x, y);
+    case '.j': return new DotJam(x, y);
+    case 'm': return new Mirror(x, y);
+    case '.m': return new DotMirror(x, y);
+    case 'l': return new Lens(x, y);
+    case '.l': return new DotLens(x, y);
+    case '.t': return new DotTie(x, y);
+    case 'c': return new ConstraintOp(x, y);
+    case '.c': return new DotConstraint(x, y);
+    case '~': return new RotateOp(x, y);
+    default:
+      throw new Error('unknown operator symbol for alias: ' + sym);
   }
 }
 
@@ -1882,6 +1969,7 @@ const BINARY_TRANSFORMS = new Set([
   Mul, Expand, Dot, DotExpand, Steps, DotSteps,
   Mirror, DotMirror, Lens, DotLens, DotTie, JamOp, DotJam,
   ConstraintOp, DotConstraint, RotateOp,
+  AliasCall,
 ]);
 
 function isBinaryTransformNode(node) {

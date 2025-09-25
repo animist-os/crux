@@ -796,23 +796,52 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   // Pipe implicit timescale after number / special / range / curly
   Pip_withTimeMulPipeImplicit(_n, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
   Pip_withTimeMulPipe(_n, _h1, _pipe, _h2, _star, _h3, m) {
-    // m is RandNum (Curly or number). If Curly, recurse; if number, take its start.
-    try { return m.collectTs(); } catch (_) { return [m.source.startIdx]; }
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
   },
-  Pip_withTimeDivPipe(_n, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+  Pip_withTimeDivPipe(_n, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
 
   Pip_specialWithTimeMulPipeImplicit(_sym, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
   Pip_specialWithTimeMulPipe(_sym, _h1, _pipe, _h2, _star, _h3, m) {
-    try { return m.collectTs(); } catch (_) { return [m.source.startIdx]; }
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
   },
-  Pip_specialWithTimeDivPipe(_sym, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+  Pip_specialWithTimeDivPipe(_sym, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
 
   Pip_rangeWithTimeMulPipeImplicit(_range, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
-  Pip_rangeWithTimeDivPipe(_range, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+  Pip_rangeWithTimeDivPipe(_range, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
 
   Pip_curlyWithTimeMulPipeImplicit(_curly, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
-  Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) { return m.collectTs(); },
-  Pip_curlyWithTimeDivPipe(_curly, _h1, _pipe, _h2, _slash, _h3, d) { return d.collectTs(); },
+  Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) {
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
+  },
+  Pip_curlyWithTimeDivPipe(_curly, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
+
+  // Pipe-only forms
+  Pip_pipeOnlyTs(_pipe, _h1, ts) { return ts.collectTs(); },
+  Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
+  },
+  Pip_pipeOnlyDiv(_pipe, _h1, _slash, _h2, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
+  Pip_withPipeNoTs(_n, _h1, _pipe) { return []; },
+  Pip_pipeBare(_pipe) { return []; },
 
   // Classic star/slash forms
   // Legacy * and / timescale on number removed: no collectTs actions

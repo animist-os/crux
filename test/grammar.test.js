@@ -375,8 +375,21 @@ test('concat and juxtaposition with nested mots', () => {
 });
 
 test('nested within nested', () => {
-  assert.equal(evalToString('[[[0,1], 2]]'), '[0/3, 1/3, 2/3]');
+  // Outer nested divides by number of top-level pieces (here 2),
+  // inner Mot remains a single piece inside the outer nested group.
+  assert.equal(evalToString('[[[0,1], 2]]'), '[0/2, 1/2, 2/2]');
   assert.equal(evalToString('[[[0,1]], 2]'), '[0/2, 1/2, 2]');
+});
+
+test('mot literal inside mot subdivides anywhere, not just edges', () => {
+  assert.equal(evalToString('[0, [1,2]]'), '[0, 1/2, 2/2]');
+  assert.equal(evalToString('[0, [1,2], 3]'), '[0, 1/2, 2/2, 3]');
+});
+
+test('multiple nested subdivision is hierarchical', () => {
+  // [0, [1, [2,3]], 4] -> inner [2,3] divides by 2 (1/2 factor),
+  // then the [1, [...]] group divides by 2 (1/2 factor), yielding total 1/4 for 2 and 3.
+  assert.equal(evalToString('[0, [1,[2, 3]], 4]'), '[0, 1/2, 2/4, 3/4, 4]');
 });
 
 test('spread operations with nested mots', () => {

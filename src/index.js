@@ -367,21 +367,21 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
     const parsed = body.parse();
-    const values = parsed.values.slice();
-    // Detect abbreviated nested groups via double brackets at start/end of the literal
-    const src = this.sourceString;
-    if (src.length >= 2) {
-      const inside = src.slice(1, -1);
-      const trimmed = inside.trim();
-      const nestFirst = trimmed.startsWith('[');
-      const nestLast = trimmed.endsWith(']');
-      if (nestFirst && values.length > 0 && values[0] instanceof Mot) {
-        values[0] = new NestedMot(values[0].values);
+    // Treat any Mot literal appearing inside a Mot as a nested subdivision,
+    // recursively converting deeper Mot literals to NestedMot so that
+    // hierarchical nesting like [0, [1, [2,3]]] yields [0, 1/2, 2/4, 3/4].
+    const wrapNestedDeep = (val) => {
+      if (val instanceof Mot) {
+        const inner = Array.isArray(val.values) ? val.values.map(wrapNestedDeep) : [];
+        return new NestedMot(inner);
       }
-      if (nestLast && values.length > 0 && values[values.length - 1] instanceof Mot) {
-        values[values.length - 1] = new NestedMot(values[values.length - 1].values);
+      if (val instanceof NestedMot) {
+        const inner = Array.isArray(val.values) ? val.values.map(wrapNestedDeep) : [];
+        return new NestedMot(inner);
       }
-    }
+      return val;
+    };
+    const values = parsed.values.map(wrapNestedDeep);
     return new Mot(values);
   },
 
@@ -1959,28 +1959,30 @@ class NestedMot {
   }
 
   eval(env) {
-    // Single-level subdivision: resolve all inner content first, then apply one 1/N factor
-    const resolvedPieces = [];
+    // Hierarchical subdivision: treat each top-level element as one piece.
+    // Evaluate each piece (which may itself contain nested subdivision) and
+    // then apply a single 1/K factor to all pips in each piece, where K is the
+    // number of top-level pieces.
+    const pieces = [];
     for (const v of this.values) {
+      let pieceValues;
       if (v instanceof NestedMot) {
-        // Do not apply its scaling here; treat as plain content by inlining its inner values
-        const inner = v.eval(env);
-        for (const p of inner.values) resolvedPieces.push(new Pip(p.step, p.timeScale, p.tag));
+        pieceValues = v.eval(env).values;
       } else if (v instanceof Mot) {
-        const mv = v.eval(env);
-        for (const p of mv.values) resolvedPieces.push(new Pip(p.step, p.timeScale, p.tag));
-      } else if (v instanceof Pip || v instanceof Range || v instanceof RandomPip || v instanceof RangePipe || v instanceof RandomRange || v instanceof RandomChoice) {
-        const mv = new Mot([v]).eval(env);
-        for (const p of mv.values) resolvedPieces.push(p);
+        pieceValues = v.eval(env).values;
       } else {
-        const mv = new Mot([v]).eval(env);
-        for (const p of mv.values) resolvedPieces.push(p);
+        pieceValues = new Mot([v]).eval(env).values;
       }
+      // Clone pips to avoid mutating nested results downstream
+      pieces.push(pieceValues.map(p => new Pip(p.step, p.timeScale, p.tag)));
     }
-    const N = resolvedPieces.length;
-    if (N === 0) return new Mot([]);
-    const factor = 1 / N;
-    const out = resolvedPieces.map(p => new Pip(p.step, p.timeScale * factor, p.tag));
+    const K = pieces.length;
+    if (K === 0) return new Mot([]);
+    const factor = 1 / K;
+    const out = [];
+    for (const chunk of pieces) {
+      for (const p of chunk) out.push(new Pip(p.step, p.timeScale * factor, p.tag));
+    }
     return new Mot(out);
   }
 

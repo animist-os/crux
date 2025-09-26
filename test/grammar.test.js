@@ -393,4 +393,41 @@ test('nested with tags and ranges', () => {
   assert.equal(evalToString('[[0->2]]'), '[0/3, 1/3, 2/3]');
 });
 
+test('parse basic bang avoid', () => {
+  const out = evalToString('[!{0,6}]');
+  assert.equal(out, '[!{0,6}]');
+});
+
+test('bang avoid with pipe timescale', () => {
+  assert.equal(evalToString('[!{0,6} | 2]'), '[!{0,6}*2]');
+  assert.equal(evalToString('[!{0,6} | /2]'), '[!{0,6}/2]');
+});
+
+test('bang avoid in mul on right', () => {
+  assert.equal(evalToString('[3] * [ !{0,6} ]'), '[!{0,6} + 3]');
+});
+
+test('bang avoid combine both sides', () => {
+  assert.equal(evalToString('[ !{0,6} ] * [ !{3,7} ]'), '[!{0,3,6,7}]');
+});
+
+test('bang avoid in expand', () => {
+  assert.equal(evalToString('[ !{0,6} ] ^ [2]'), '[!{0,6}]');
+});
+
+test('bang avoid parse fails on non-number interval', () => {
+  assert.throws(() => parse('[!{0,a}]'), /digit/);
+});
+
+
+test('identifier inside mot literal fails to parse', () => {
+  const program = [
+    'ef = [2,3]',
+    'inc01 = [2,2,2]',
+    'inc02 = [ef,2]',
+    'inc03 = [r |/2, ef, 2 |/2]',
+  ].join('\n');
+  assert.throws(() => parse(program), /Expected "\]"/);
+});
+
 

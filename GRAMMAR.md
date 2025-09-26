@@ -36,6 +36,10 @@ Evaluates to `[0, 1, 2]`.
   - **Random Range**: `{a ? b}` picks a random integer between a and b (inclusive). Example: `[{-2 ? 2}] -> [-2]` to `[2]`.
   - **Seeded Random**: `{a ? b}@seed` provides deterministic randomness. Example: `[{1 ? 6}@c0de]`.
 
+- **Avoid Constraint**: `!{a, b, c}` defines forbidden intervals for note rendering. Carried symbolically through operations.
+  - Example: `[0, !{0,6}, 2] * 3 === [3, !{0,6} + 3, 5]`
+  - Supports timescale pipes: `!{0,6} | 1/2`, `!{0,6} | *2`
+
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
 - **Pipe forms**: Use `|` to specify timeScale after a value:
@@ -265,6 +269,11 @@ Crux {
               | Curly "|" TimeScale            -- curlyWithTimeMulPipeImplicit
               | Curly "|" "*" RandNum          -- curlyWithTimeMulPipe
               | Curly "|" "/" RandNum          -- curlyWithTimeDivPipe
+              | BangAvoidBase                 -- avoid
+
+  BangAvoidBase = "!" "{" BangBody "}"
+  BangBody = ListOf<number, ",">
+  BangInterval = number
 
   RandNum     = Curly | number
   Curly       = "{" CurlyBody "}" Seed?

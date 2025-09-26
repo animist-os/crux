@@ -420,14 +420,16 @@ test('bang avoid parse fails on non-number interval', () => {
 });
 
 
-test('identifier inside mot literal fails to parse', () => {
+test('identifier inside mot literal subdivides referenced motif', () => {
   const program = [
     'ef = [2,3]',
     'inc01 = [2,2,2]',
     'inc02 = [ef,2]',
     'inc03 = [r |/2, ef, 2 |/2]',
+    'inc02',
   ].join('\n');
-  assert.throws(() => parse(program), /Expected "\]"/);
+  // ef = [2,3] so [ef,2] should subdivide ef: [2/2, 3/2, 2]
+  assert.equal(evalToString(program), '[2/2, 3/2, 2]');
 });
 
 

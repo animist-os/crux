@@ -130,6 +130,7 @@ const g = ohm.grammar(String.raw`
       | Pip
       | Range
       | Curly
+      | ident                                   -- refInMot
 
     Range
       = RandNum "->" RandNum      -- inclusive
@@ -196,7 +197,7 @@ const g = ohm.grammar(String.raw`
       = specialChar
 
     specialChar
-      = letter
+      = "r"
       | "?"
   
     ident = (letter | "_") alnum*
@@ -436,6 +437,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   SingleValue(x) {
     return x.parse();
+  },
+  SingleValue_refInMot(name) {
+    // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
+    return new NestedMotExpr(new Ref(name.sourceString));
   },
   Curly(_o, body, _c, seedOpt) {
     const obj = body.parse();
@@ -1888,6 +1893,10 @@ class Mot {
           else ts = 1;
         }
         resolved.push(new Pip(step, ts));
+      } else if (value instanceof Ref) {
+        // Inline referenced motif values inside a Mot list
+        const mv = requireMot(value.eval(env));
+        for (const p of mv.values) resolved.push(p);
       } else if (value instanceof RangePipe) {
         // Expand range and apply scaling per element
         const expanded = value.range.expandToPips(rng);
@@ -1917,6 +1926,10 @@ class Mot {
       } else if (value instanceof Mot) {
         // Inline nested Mot inside a Mot (e.g., [ [0,1], 2 ])
         const mv = value.eval(env);
+        for (const p of mv.values) resolved.push(p);
+      } else if (value instanceof NestedMotExpr) {
+        // Evaluate nested expression and inline its subdivided values
+        const mv = requireMot(value.eval(env));
         for (const p of mv.values) resolved.push(p);
       } else if (value instanceof NestedMot) {
         // Inline nested mot content

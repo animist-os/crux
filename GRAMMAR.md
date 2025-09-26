@@ -113,8 +113,9 @@ In decreasing precedence (tighter binds higher):
      - Example: `[0, 1, 2, 3] ~ [-1] -> [3, 0, 1, 2]`, `[0, 1, 2, 3] ~ [1, 2] -> [1, 2, 3, 0, 2, 3, 0, 1]`.
 
 4) **Concatenation**:
-   - Use `,` or juxtaposition (spaces/tabs, not newline) between expressions to concatenate mots.
+   - Use `,` between expressions to concatenate mots.
    - Examples: `[0, 1], [2, 3] -> [0, 1, 2, 3]`, `[0, 1] [2, 3] -> [0, 1, 2, 3]`.
+   - Note: Juxtaposition concatenation (space-separated expressions on the same line) is no longer supported; use explicit commas for clarity.
 
 5) **Grouping**: parentheses `(` `)` control evaluation order.
 ```text
@@ -128,7 +129,7 @@ From highest to lowest:
 - Repeat `Expr : N` (postfix)
 - Tie `t` (postfix, unary)
 - Multiplicative operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `->`, `j`, `m`, `l`, `c`, `*`, `^`, `.`, `~` (left-associative)
-- Concatenation: `,` and juxtaposition (left-associative)
+- Concatenation: `,` (left-associative)
 
 Note: Concatenation by adjacency (juxtaposition) works only on the same line, not across newlines.
 
@@ -160,7 +161,6 @@ Note: Concatenation by adjacency (juxtaposition) works only on the same line, no
 
 // Concatenation (comma or juxtaposition)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
-[0, 1] [2, 3]                -> [0, 1, 2, 3]
 
 // Multiplicative family
 [1, 2, 3] * [0*-1]           -> [3, 2, 1]
@@ -196,7 +196,6 @@ Crux {
 
   Expr            = FollowedByExpr
   FollowedByExpr  = FollowedByExpr "," TieExpr
-                 | FollowedByExpr TieExpr
                  | TieExpr
 
   TieExpr     = TieExpr "t"          -- tiePostfix

@@ -40,7 +40,6 @@ const g = ohm.grammar(String.raw`
   
   FollowedByExpr
       = FollowedByExpr "," TieExpr   -- fby
-      | FollowedByExpr TieExpr         -- juxt
       | TieExpr
 
   // Tie handled as a postfix at the AppendExpr level so it can be used
@@ -230,10 +229,6 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   FollowedByExpr_fby(x, _comma, y) {
-    return new FollowedBy(x.parse(), y.parse());
-  },
-
-  FollowedByExpr_juxt(x, y) {
     return new FollowedBy(x.parse(), y.parse());
   },
 
@@ -683,7 +678,6 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
-  FollowedByExpr_juxt(x, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Explicit handlers for MulExpr variants to ensure traversal
   MulExpr_dotStar(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -764,7 +758,6 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  FollowedByExpr_juxt(x, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr(x) { return x.collectTs(); },
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
   MulExpr_dotStar(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },

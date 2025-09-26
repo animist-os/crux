@@ -99,8 +99,8 @@ test('followed-by concat via comma between Expr', () => {
   assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });
 
-test('juxtaposition concat between Expr', () => {
-  assert.equal(evalToString('[0, 1] [2, 3]'), '[0, 1, 2, 3]');
+test('comma concat between Expr', () => {
+  assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });
 
 test('adjacency does not cross newlines', () => {
@@ -371,9 +371,7 @@ test('concat and juxtaposition with nested mots', () => {
   assert.equal(evalToString('[[0,1]], [2]'), '[0/2, 1/2, 2]');
   assert.equal(evalToString('[2], [[0,1]]'), '[2, 0/2, 1/2]');
   assert.equal(evalToString('[[0,1]], [2], [[3,4]]'), '[0/2, 1/2, 2, 3/2, 4/2]');
-  // Juxtaposition
-  assert.equal(evalToString('[[0,1]] [2]'), '[0/2, 1/2, 2]');
-  assert.equal(evalToString('[2] [[0,1]]'), '[2, 0/2, 1/2]');
+  // Juxtaposition removed; only comma concatenation is supported
 });
 
 test('nested within nested', () => {

@@ -42,7 +42,7 @@ console.log(result.toString()); // [0, 1, 2]
 
 ## Sequencing
 
-- Concatenate: `[0, 1], [2]` or `[0, 1] [2]`
+- Concatenate: `[0, 1], [2]`
 - Repeat (postfix): `[1] : 3  // [1, 1, 1]`
 - Slice (postfix underscore):
   - `start _ end` (end exclusive), `start _`, `_ end`

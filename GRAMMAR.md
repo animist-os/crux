@@ -8,7 +8,7 @@ Cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.  Length wi
 
 ### Program
 
-- **Program**: one or more statements. The final statement’s value is the result.
+- **Program**: one or more statements separated by newlines or semicolons. Semicolons act as syntactic sugar for newlines, allowing multiple statements on the same line. The final statement’s value is the result.
 - **Statement**: either an assignment or an expression.
 - **Assignment**: `Name = Expr`
 - **Reference**: use a previously assigned `Name` in an expression.
@@ -19,6 +19,12 @@ A = [0, 1]
 A, [2]
 ```
 Evaluates to `[0, 1, 2]`.
+
+Example with semicolon:
+```text
+A = [0,1]; A * A
+```
+Evaluates to `[0, 1, 1, 2]`.
 
 ### Mots and values
 

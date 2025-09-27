@@ -294,14 +294,22 @@ Nested mot
 
 ## Cheatsheet
 
-- Concatenate: `,` or juxtaposition
-- Repeat: `Expr : N` (N can be random via `{...}`)
+- Concatenate: `,`
+- Repeat: `Expr : N`
 - Slice: `start _ end` | `start _` | `_ end`
-- fan: `*`, `^`, `->`, `m`, `l`, `c`, `j`
-- cog: `.`, `.^`, `.->`, `.m`, `.l`, `.t`, `.c`, `.j`
+- Random pip from list: `{0, 2 | /4, -2}`
+- Random pip from range; `{-7 ? 7}`
+- Rest: `r`
+- Add `*`
+- Mult `^`
+- Fill `->`
 - Rotate: `~`
-- Tie: postfix `t`, cog `.t [mask]`
-- Random pips: `?`; Curly random: `{a ? b}`, `{a,b,...}` with optional `@seed`
-- Pipe duration: `value | ts`, `| * {..}`, `| / {..}`
-- Tags: `r`
+- Lens `l`
+- Jam `j`
+- Constrain `c`
+- Mirror `m`
+- Tie: `t`
+- Subdivide: `[0, [1,2]]`
+- Variable:  `tuna = [-7,-5,2 | /2,1 | /2, 0 | 2]`
+
 

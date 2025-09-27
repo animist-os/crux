@@ -468,4 +468,13 @@ test('curly expressions in timeScale positions', () => {
   assert.match(out2, /^\[0, 1(\*([12])|), 2\]$/);
 });
 
+test('semicolon separates statements like newline', () => {
+  const multiline = `A = [0,1]
+A * A`;
+  const semicolon = 'A = [0,1]; A * A';
+  const expected = '[0, 1, 1, 2]';
+  assert.equal(evalToString(multiline), expected);
+  assert.equal(evalToString(semicolon), expected);
+});
+
 

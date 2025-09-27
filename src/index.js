@@ -1915,7 +1915,7 @@ class Pip {
     }
     // Fallback to multiply form
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-    return `${step_str}*${tsStr}`;
+    return `${step_str} ${tsStr}`;
   }
 
   hasTag(tag) {
@@ -2592,7 +2592,8 @@ function stripLineComments(input) {
 }
 
 function parse(input) {
-  const withoutComments = stripLineComments(input);
+  const processed = input.replace(/\s*;\s*/g, '\n').trim();
+  const withoutComments = stripLineComments(processed);
   const matchResult = g.match(withoutComments);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);

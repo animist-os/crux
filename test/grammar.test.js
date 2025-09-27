@@ -53,6 +53,17 @@ test('curly before pipe with explicit / randnum', () => {
   assert.match(out, /^\[(1\/(2|4)|2\/(2|4))\]$/);
 });
 
+test('curly-of-pips chooses among pip forms', () => {
+  const out = evalToString('[ {2, 1, 0 | /2} ]');
+  assert.ok(out === '[2]' || out === '[1]' || out === '[0/2]', 'Unexpected CurlyPip result: ' + out);
+});
+
+test('curly-of-pips supports outer timescale pipe', () => {
+  const out = evalToString('[ {2, 1, 0 | /2} | 2 ]');
+  // options multiply timescale by 2: 2->2*2, 1->1*2, 0/2->0
+  assert.ok(out === '[2*2]' || out === '[1*2]' || out === '[0]', 'Unexpected CurlyPip pipe result: ' + out);
+});
+
 test('range expands inclusively', () => {
   assert.equal(evalToString('[0->3]'), '[0, 1, 2, 3]');
   assert.equal(evalToString('[3->1]'), '[3, 2, 1]');

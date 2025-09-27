@@ -130,6 +130,7 @@ const g = ohm.grammar(String.raw`
       | Pip
       | Range
       | Curly
+      | CurlyPip
       | ident                                   -- refInMot
 
     Range
@@ -154,6 +155,9 @@ const g = ohm.grammar(String.raw`
       | Curly hspaces? "|" hspaces? TimeScale               -- curlyWithTimeMulPipeImplicit
       | Curly hspaces? "|" hspaces? "*" hspaces? RandNum    -- curlyWithTimeMulPipe
       | Curly hspaces? "|" hspaces? "/" hspaces? RandNum    -- curlyWithTimeDivPipe
+      | CurlyPip hspaces? "|" hspaces? TimeScale            -- curlyPipWithTimeMulPipeImplicit
+      | CurlyPip hspaces? "|" hspaces? "*" hspaces? RandNum -- curlyPipWithTimeMulPipe
+      | CurlyPip hspaces? "|" hspaces? "/" hspaces? RandNum -- curlyPipWithTimeDivPipe
       | BangAvoidBase hspaces? "|" hspaces? TimeScale          -- bangWithTimeMulPipeImplicit
       | BangAvoidBase hspaces? "|" hspaces? "*" hspaces? RandNum  -- bangWithTimeMulPipe
       | BangAvoidBase hspaces? "|" hspaces? "/" hspaces? RandNum  -- bangWithTimeDivPipe
@@ -163,6 +167,10 @@ const g = ohm.grammar(String.raw`
     RandNum
       = Curly
       | number
+  
+  // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)
+  CurlyPip
+      = "{" ListOf<Pip, ","> "}" Seed?
     Curly
       = "{" CurlyBody "}" Seed?
     CurlyBody
@@ -442,6 +450,15 @@ const s = g.createSemantics().addOperation('parse', {
     // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
     return new NestedMotExpr(new Ref(name.sourceString));
   },
+  CurlyPip(_o, list, _c, seedOpt) {
+    const options = list.parse();
+    // options are outputs of Pip_* semantics: Pip | AvoidExpr | RangePipe | RandomPip
+    const obj = new RandomPipChoiceFromPips(options);
+    if (seedOpt && seedOpt.children && seedOpt.children.length > 0) {
+      obj.seed = seedOpt.children[0].parse();
+    }
+    return obj;
+  },
   Curly(_o, body, _c, seedOpt) {
     const obj = body.parse();
     let seed = null;
@@ -451,6 +468,8 @@ const s = g.createSemantics().addOperation('parse', {
     obj.seed = seed;
     return obj;
   },
+
+  // Timescale collection skips at parse layer; this is for AST building only
 
   Seed(_at, chars) {
     return stringToSeed(chars.sourceString);
@@ -650,6 +669,23 @@ const s = g.createSemantics().addOperation('parse', {
       throw new Error('Curly with identifiers cannot be used with timeScale pipe');
     }
     return new RandomPip(obj, { kind: 'div', rhs: d.parse() });
+  },
+
+  // Curly-of-pips with outer timescale forms
+  Pip_curlyPipWithTimeMulPipeImplicit(curlyPip, _h1, _pipe, _h2, ts) {
+    const obj = curlyPip.parse(); // RandomPipChoiceFromPips
+    obj.extraTs = ts.parse();
+    return obj;
+  },
+  Pip_curlyPipWithTimeMulPipe(curlyPip, _h1, _pipe, _h2, _star, _h3, m) {
+    const obj = curlyPip.parse();
+    obj.extraTs = { kind: 'mul', rhs: m.parse() };
+    return obj;
+  },
+  Pip_curlyPipWithTimeDivPipe(curlyPip, _h1, _pipe, _h2, _slash, _h3, d) {
+    const obj = curlyPip.parse();
+    obj.extraTs = { kind: 'div', rhs: d.parse() };
+    return obj;
   },
 
 
@@ -936,6 +972,17 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   Pip_withPipeNoTs(_n, _h1, _pipe) { return []; },
   Pip_pipeBare(_pipe) { return []; },
 
+  // Curly-of-pips with outer timescale forms
+  Pip_curlyPipWithTimeMulPipeImplicit(_curlyPip, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  Pip_curlyPipWithTimeMulPipe(_curlyPip, _h1, _pipe, _h2, _star, _h3, m) {
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
+  },
+  Pip_curlyPipWithTimeDivPipe(_curlyPip, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
+
   // Classic star/slash forms
   // Legacy * and / timescale on number removed: no collectTs actions
   // Legacy special * and / forms removed; no collectTs
@@ -946,6 +993,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   CurlyBody_list(entries) { return entries.collectTs(); },
   CurlyEntry_num(n) { return [n.source.startIdx]; },
   CurlyEntry_ref(_name) { return []; },
+  // Curly-of-pips: collect timescale indices from each contained pip
+  CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
   CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
   number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
 
@@ -1710,6 +1759,20 @@ class RandomPip {
   }
 }
 
+// Choose one of several fully specified pip-like values (already Pip/RangePipe/AvoidExpr/etc.)
+class RandomPipChoiceFromPips {
+  constructor(options) {
+    this.options = options; // array of Pip-like nodes
+    this.seed = null;
+    this.extraTs = null; // optional extra timescale to apply after selection
+  }
+
+  toString() {
+    // Non-evaluated form: print as a generic random pip
+    return '{pip}';
+  }
+}
+
 // A deferred range + pipe scaling that expands during evaluation
 class RangePipe {
   constructor(range, op) {
@@ -1770,7 +1833,7 @@ function collectCurlySeedsFromAst(root) {
     if (typeof node !== 'object') return;
     if (visited.has(node)) return;
     visited.add(node);
-    if (node instanceof RandomRange || node instanceof RandomChoice || node instanceof RandomRefChoice) {
+    if (node instanceof RandomRange || node instanceof RandomChoice || node instanceof RandomRefChoice || node instanceof RandomPipChoiceFromPips) {
       if (node.seed != null) seeds.push(formatSeed4(node.seed));
     }
     if (Array.isArray(node)) {
@@ -1921,6 +1984,31 @@ class Mot {
           else ts = 1;
         }
         resolved.push(new Pip(step, ts));
+      } else if (value instanceof RandomPipChoiceFromPips) {
+        // Choose an option using seed if present
+        const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+        const idx = Math.floor(localRng() * value.options.length);
+        const chosen = value.options[idx];
+        // Evaluate the chosen node in the same pipeline as other values
+        // First, lift chosen into a Mot for reuse of existing logic
+        const chosenMot = new Mot([chosen]);
+        const evaluated = chosenMot.eval(env); // resolves ranges/randoms/etc
+        for (const p of evaluated.values) {
+          // Apply extraTs if present
+          let ts = p.timeScale;
+          const extra = value.extraTs;
+          if (extra != null) {
+            if (typeof extra === 'number') {
+              ts = ts * extra;
+            } else if (extra && typeof extra === 'object') {
+              const rhsRaw = extra.rhs;
+              const rhsVal = typeof rhsRaw === 'number' ? rhsRaw : resolveRandNumToNumber(rhsRaw, rng);
+              if (extra.kind === 'mul') ts = ts * rhsVal;
+              else if (extra.kind === 'div') ts = ts * (1 / rhsVal);
+            }
+          }
+          resolved.push(new Pip(p.step, ts, p.tag));
+        }
       } else if (value instanceof Ref) {
         // Inline referenced motif values inside a Mot list
         const mv = requireMot(value.eval(env));
@@ -1990,7 +2078,10 @@ class NestedMot {
     // Hierarchical subdivision: treat each top-level element as one piece.
     // Evaluate each piece (which may itself contain nested subdivision) and
     // then apply a single 1/K factor to all pips in each piece, where K is the
-    // number of top-level pieces.
+    // number of top-level pieces. Special case: when there is exactly one
+    // top-level element that expands into multiple pips (e.g., a Range or
+    // random choice), use that expansion length as K so that [[0->2]] yields
+    // [0/3, 1/3, 2/3].
     const pieces = [];
     for (const v of this.values) {
       let pieceValues;
@@ -2004,7 +2095,15 @@ class NestedMot {
       // Clone pips to avoid mutating nested results downstream
       pieces.push(pieceValues.map(p => new Pip(p.step, p.timeScale, p.tag)));
     }
-    const K = pieces.length;
+    let K = pieces.length;
+    if (K === 1) {
+      const only = this.values[0];
+      if (!(only instanceof NestedMot) && !(only instanceof Mot)) {
+        // Single non-mot element: if it expanded to multiple pips, scale by that count
+        const expandedLen = Array.isArray(pieces[0]) ? pieces[0].length : 1;
+        if (expandedLen > 0) K = expandedLen;
+      }
+    }
     if (K === 0) return new Mot([]);
     const factor = 1 / K;
     const out = [];

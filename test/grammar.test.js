@@ -445,4 +445,16 @@ test('identifier inside mot literal subdivides referenced motif', () => {
   assert.equal(evalToString(program), '[2/2, 3/2, 2]');
 });
 
+test('curly expressions in timeScale positions', () => {
+  // Test basic curly in timeScale
+  const out1 = evalToString('[0, 1 | {2,4}, 2]');
+  // Should produce something like [0, 1*2, 2] or [0, 1*4, 2]
+  assert.match(out1, /^\[0, 1\*([24]), 2\]$/);
+
+  // Test curly in fractional timeScale
+  const out2 = evalToString('[0, 1 | {2,4}/2, 2]');
+  // Should produce something like [0, 1*(2/2), 2] = [0, 1*1, 2] or [0, 1*(4/2), 2] = [0, 1*2, 2]
+  assert.match(out2, /^\[0, 1(\*([12])|), 2\]$/);
+});
+
 

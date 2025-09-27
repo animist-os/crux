@@ -190,8 +190,8 @@ const g = ohm.grammar(String.raw`
     //   = number hspaces? "?" hspaces? number   -- between
 
     TimeScale
-      = number "/" number   -- frac
-      | number               -- plain
+      = RandNum "/" RandNum  -- frac
+      | RandNum               -- plain
 
     Special
       = specialChar
@@ -654,7 +654,14 @@ const s = g.createSemantics().addOperation('parse', {
 
 
   TimeScale_frac(n, _slash, d) {
-    return n.parse() / d.parse();
+    const num = n.parse();
+    const den = d.parse();
+    // If either is a RandNum, return a special object for later resolution
+    if (num instanceof RandomRange || num instanceof RandomChoice ||
+        den instanceof RandomRange || den instanceof RandomChoice) {
+      return { _frac: true, num: num, den: den };
+    }
+    return num / den;
   },
 
   TimeScale_plain(n) {
@@ -1827,7 +1834,12 @@ class Pip {
     } else {
       step_str = `${this.step}`;
     }
-    const ts = Math.abs(this.timeScale);
+    let ts = this.timeScale;
+    // Handle unresolved fractional timeScales
+    if (ts && typeof ts === 'object' && ts._frac) {
+      return `${step_str}|${ts.num}/${ts.den}`;
+    }
+    ts = Math.abs(ts);
     if (ts === 1) {
       return `${step_str}`;
     }
@@ -1874,7 +1886,23 @@ class Mot {
           resolved.push(new Pip(rnd, value.timeScale));
           continue;
         }
-        resolved.push(value);
+        // Resolve random timeScale if present
+        let ts = value.timeScale;
+        if (ts instanceof RandomRange || ts instanceof RandomChoice) {
+          ts = resolveRandNumToNumber(ts, rng);
+        } else if (ts && typeof ts === 'object' && ts._frac) {
+          // Handle fractional timeScales with random components
+          const num = ts.num instanceof RandomRange || ts.num instanceof RandomChoice
+            ? resolveRandNumToNumber(ts.num, rng) : ts.num;
+          const den = ts.den instanceof RandomRange || ts.den instanceof RandomChoice
+            ? resolveRandNumToNumber(ts.den, rng) : ts.den;
+          ts = num / den;
+        }
+        if (ts !== value.timeScale) {
+          resolved.push(new Pip(value.step, ts, value.tag, value.sourceStart));
+        } else {
+          resolved.push(value);
+        }
       } else if (value instanceof Range) {
         const pips = value.expandToPips(rng);
         for (const p of pips) resolved.push(p);

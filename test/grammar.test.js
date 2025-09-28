@@ -484,6 +484,21 @@ test('fan ops ignore ellipsis (treated as single value)', () => {
   assert.equal(evalToString(program), evalToString(baseline));
 });
 
+test('dot nested subdivision carries timescales from RHS nested pips (implicit 1/2)', () => {
+  const program = '[0,4,2] . [0, [1,0], 0]';
+  assert.equal(evalToString(program), '[0, 5/2, 4/2, 2]');
+});
+
+test('dot nested subdivision carries explicit timescales from RHS nested pips', () => {
+  const program = '[0,4,2] . [0, [1 | 2, 0 | 2], 0]';
+  assert.equal(evalToString(program), '[0, 5, 4, 2]');
+});
+
+test('dot nested subdivision multiplies with LHS timescales', () => {
+  const program = '[0, 4 | 4, 2] . [0, [1,0], 0]';
+  assert.equal(evalToString(program), '[0, 5*2, 4*2, 2]');
+});
+
 test('semicolon separates statements like newline', () => {
   const multiline = `A = [0,1]
 A * A`;

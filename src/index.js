@@ -1183,11 +1183,11 @@ class Dot {
         // Subdivision grouping: NestedMot or NestedMotExpr
         if (entry instanceof NestedMot || entry instanceof NestedMotExpr) {
           const m = requireMot(entry.eval(env));
-          const offsets = [];
+          const pairs = [];
           for (const v of m.values) {
-            if (v instanceof Pip && v.tag == null) offsets.push(v.step);
+            if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
           }
-          return { kind: 'subdiv', offsets };
+          return { kind: 'subdiv', pairs };
         }
         // Pad entry: mark explicitly for later fill logic
         if (entry instanceof PadValue) {
@@ -1269,9 +1269,10 @@ class Dot {
     for (let xi = 0; xi < xv.values.length; xi++) {
       const left = xv.values[xi];
       const mask = rhsMask[xi % m];
-      if (mask && mask.kind === 'subdiv' && Array.isArray(mask.offsets) && mask.offsets.length > 0) {
-        for (const d of mask.offsets) {
-          values.push(new Pip(left.step + d, left.timeScale, left.tag));
+      if (mask && mask.kind === 'subdiv' && Array.isArray(mask.pairs) && mask.pairs.length > 0) {
+        for (const p of mask.pairs) {
+          const combinedTag = left.tag ?? p.tag ?? null;
+          values.push(new Pip(left.step + p.d, left.timeScale * p.ts, combinedTag));
         }
         continue;
       }

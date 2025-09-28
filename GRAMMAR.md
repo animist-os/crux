@@ -59,6 +59,10 @@ Notes:
   - `r`: rest (silence with duration)
   - Other letters: pass-through behavior in dot operations (no special omit tag)
 - **Curly expressions**: Standalone `{...}` expressions are treated as single random-step pips.
+ - **Ellipsis padding in cog ops**:
+   - Inside a mot literal, appending `...` to a value marks it as a pad entry for cog operators. In cog context (e.g., with `.`), padding repeats that RHS value to cover the middle positions without cycling; any trailing RHS entries are right‑aligned to the end of the LHS.
+   - Interior pad is supported: `[0,1,2,3,4,5,6] . [7, 0..., 7] -> [7, 1, 2, 3, 4, 5, 13]`.
+   - Fan operators (`*`, `^`, `->`, etc.) ignore `...` (the value behaves as a single entry): `[0,1,2] * [2, 3...] == [0,1,2] * [2,3]`.
  
 
 ### Operators (left to right unless grouped)
@@ -94,8 +98,11 @@ In decreasing precedence (tighter binds higher):
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
   - `.` or `.*` cog-add (elementwise/zip with cycling):
     - Pair each left value with the corresponding value from the right, cycling the right as needed.
-    - If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group with steps offset by the group’s steps; durations are preserved from the left.
-    - Example: `[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0] -> [0, 4, 5, 4, 2]`.
+    - Nested RHS subdivision: If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group where each emitted pip uses `step = left.step + rhsNested.step` and `timeScale = left.timeScale * rhsNested.timeScale`. Tags combine (`r` carries through).
+      - Example: `[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0] -> [0, 4, 5, 4, 2]`.
+      - Example (implicit 1/2 from two nested elements): `[0,4,2] . [0, [1,0], 0] -> [0, 5/2, 4/2, 2]`.
+      - Example (explicit nested timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
+      - Example (LHS timescale multiplies): `[0, 4 | 4, 2] . [0, [1,0], 0] -> [0, 5*2, 4*2, 2]`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
    - `.^` cog-mul (elementwise expand):
      - Same cycling as `.`, but steps multiply instead of add.

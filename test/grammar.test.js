@@ -473,6 +473,17 @@ test('dot with nested mot on RHS coerces subdivision of left pip', () => {
   assert.equal(evalToString(program), '[0, 4, 5, 4, 2]');
 });
 
+test('dot with interior pad value repeats middle and right-aligns tail', () => {
+  const program = '[0,1,2,3,4,5,6] . [7, 0..., 7]';
+  assert.equal(evalToString(program), '[7, 1, 2, 3, 4, 5, 13]');
+});
+
+test('fan ops ignore ellipsis (treated as single value)', () => {
+  const program = '[0,1,2] * [2, 3...]';
+  const baseline = '[0,1,2] * [2,3]';
+  assert.equal(evalToString(program), evalToString(baseline));
+});
+
 test('semicolon separates statements like newline', () => {
   const multiline = `A = [0,1]
 A * A`;

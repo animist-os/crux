@@ -117,8 +117,12 @@ const g = ohm.grammar(String.raw`
 
     Index = sign? digit+
 
-    MotBody
-      = ListOf<Value, ",">            -- absolute
+  MotBody
+      = ListOf<Entry, ",">            -- absolute
+
+    Entry
+      = Value ellipsis                  -- withPad
+      | Value                           -- plain
   
     Value
       = SingleValue
@@ -216,7 +220,7 @@ const g = ohm.grammar(String.raw`
       | "->" | "j" | "m" | "l" | "c" | "*" | "^" | "." | "~"
   
     number
-      = sign? digit+ ("." digit*)?
+      = sign? digit+ ("." digit+)?
       | sign? digit* "." digit+
 
     // Prevent bare number from capturing the start of a range
@@ -227,6 +231,9 @@ const g = ohm.grammar(String.raw`
   
     hspace = " " | "\t"
     hspaces = hspace+
+
+    // Ellipsis marker for pad semantics inside Mot
+    ellipsis = "..."
 
     // Make newlines significant by not skipping them as whitespace
     // Override Ohm's built-in 'space' rule to only skip spaces/tabs
@@ -442,6 +449,14 @@ const s = g.createSemantics().addOperation('parse', {
   },
   
   
+
+  Entry_withPad(value, _dots) {
+    return new PadValue(value.parse());
+  },
+
+  Entry_plain(value) {
+    return value.parse();
+  },
 
   SingleValue(x) {
     return x.parse();
@@ -1160,7 +1175,7 @@ class Dot {
   eval(env) {
     const xv = requireMot(this.x.eval(env));
 
-    // If RHS is a Mot literal, build a mask that preserves NestedMot groupings
+    // If RHS is a Mot literal, build a mask that preserves NestedMot groupings and pad semantics
     let rhsMask = null;
     if (this.y instanceof Mot) {
       const yAst = this.y;
@@ -1174,6 +1189,10 @@ class Dot {
           }
           return { kind: 'subdiv', offsets };
         }
+        // Pad entry: mark explicitly for later fill logic
+        if (entry instanceof PadValue) {
+          return { kind: 'pad', value: entry.inner };
+        }
         // Otherwise, resolve the single entry to a Pip-like value (first Pip or AvoidExpr)
         const mv = new Mot([entry]).eval(env);
         let chosen = null;
@@ -1183,6 +1202,37 @@ class Dot {
         if (chosen == null) chosen = new Pip(0, 1);
         return { kind: 'simple', value: chosen };
       });
+
+      // If there is any pad in the mask, convert to an expanded RHS mask that does not cycle:
+      // - Keep all elements before the first pad as-is
+      // - Repeat the pad element to cover until the tail can right-align
+      // - Keep trailing elements after the last pad right-aligned to the end of LHS
+      if (rhsMask.some(e => e && e.kind === 'pad')) {
+        const nL = xv.values.length;
+        const nR = rhsMask.length;
+        // find first and last pad
+        let firstPad = -1;
+        let lastPad = -1;
+        for (let i = 0; i < nR; i++) if (rhsMask[i] && rhsMask[i].kind === 'pad') { firstPad = i; break; }
+        for (let i = nR - 1; i >= 0; i--) if (rhsMask[i] && rhsMask[i].kind === 'pad') { lastPad = i; break; }
+        const head = rhsMask.slice(0, firstPad);
+        const tail = rhsMask.slice(lastPad + 1);
+        const padSpec = rhsMask[firstPad];
+        // Resolve padSpec.value to a simple Pip/AvoidExpr once
+        let padValue = (() => {
+          const mv = new Mot([padSpec.value]).eval(env);
+          for (const v of mv.values) { if (v instanceof Pip || v instanceof AvoidExpr) return v; }
+          return new Pip(0, 1);
+        })();
+        const outMask = new Array(nL);
+        // place head as far-left as possible
+        for (let i = 0; i < Math.min(head.length, nL); i++) outMask[i] = head[i];
+        // place tail right-aligned
+        for (let j = 0; j < Math.min(tail.length, nL); j++) outMask[nL - 1 - j] = tail[tail.length - 1 - j];
+        // fill middle with padValue
+        for (let i = 0; i < nL; i++) if (outMask[i] == null) outMask[i] = { kind: 'simple', value: padValue };
+        rhsMask = outMask;
+      }
     }
 
     // When no mask available, use legacy dot behavior
@@ -1844,6 +1894,11 @@ class RangePipe {
     return '[range|ts]';
   }
 }
+class PadValue {
+  constructor(inner) {
+    this.inner = inner; // Value node to repeat as needed
+  }
+}
 
 function resolveRandNumToNumber(value, rng) {
   if (typeof value === 'number') return value;
@@ -2028,6 +2083,11 @@ class Mot {
       } else if (value instanceof Range) {
         const pips = value.expandToPips(rng);
         for (const p of pips) resolved.push(p);
+      } else if (value instanceof PadValue) {
+        // In fan contexts, ignore ellipsis semantics by resolving the inner value as-is
+        const inner = value.inner;
+        const mv = new Mot([inner]).eval(env);
+        for (const p of mv.values) resolved.push(p);
       } else if (value instanceof RandomPip) {
         // Resolve the step from the contained randnum using its seed if present
         const step = resolveRandNumToNumber(value.randnum, rng);

@@ -12,6 +12,57 @@ globalThis.golden = golden;
 
 
 
+golden._crux_uuid_cnt = 1;
+golden.getCruxUUID = function() {
+  return '' + golden._crux_uuid_cnt++;
+}
+
+// Provenance tracking (lightweight DAG)
+golden._prov = {
+  enabled: true,
+  pipParents: new Map(),     // pipId -> Set<pipId>
+  pipToMots: new Map(),      // pipId -> Set<motId>
+};
+
+function _provAddEdge(childPip, parentPip) {
+  if (!golden._prov.enabled) return;
+  if (!childPip || !parentPip) return;
+  const cid = childPip.pipId;
+  const pid = parentPip.pipId;
+  if (cid == null || pid == null) return;
+  let s = golden._prov.pipParents.get(cid);
+  if (!s) { s = new Set(); golden._prov.pipParents.set(cid, s); }
+  s.add(pid);
+}
+
+function _provAddPipToMot(pip, motId) {
+  if (!golden._prov.enabled) return;
+  if (!pip || pip.pipId == null || motId == null) return;
+  let s = golden._prov.pipToMots.get(pip.pipId);
+  if (!s) { s = new Set(); golden._prov.pipToMots.set(pip.pipId, s); }
+  s.add(motId);
+}
+
+golden.FindAncestorPips = function(aPip) {
+  if (!aPip || aPip.pipId == null) return [];
+  const visited = new Set();
+  const out = new Set();
+  const stack = [aPip.pipId];
+  while (stack.length > 0) {
+    const cid = stack.pop();
+    if (visited.has(cid)) continue;
+    visited.add(cid);
+    const parents = golden._prov.pipParents.get(cid);
+    if (!parents) continue;
+    for (const pid of parents) {
+      if (!out.has(pid)) out.add(pid);
+      if (!visited.has(pid)) stack.push(pid);
+    }
+  }
+  return Array.from(out);
+}
+
+
 const g = ohm.grammar(String.raw`
   Crux {
   
@@ -128,7 +179,8 @@ const g = ohm.grammar(String.raw`
       = SingleValue
 
     SingleValue
-      = NestedMotLiteral
+      = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+      | NestedMotLiteral
       | NestedMotAbbrev
       | MotLiteral
       | Pip
@@ -458,8 +510,16 @@ const s = g.createSemantics().addOperation('parse', {
     return value.parse();
   },
 
+
   SingleValue(x) {
     return x.parse();
+  },
+  SingleValue_inlineMulMots(aNode, _h1, _star, _h2, bNode) {
+    // Inline [X] * [Y] inside a Mot as just Y's Mot, to support cases like [0, [1] * [2], 4].
+    // We return the RHS Mot so it behaves as if written directly.
+    const _a = aNode.parse(); // Mot (unused for now)
+    const b = bNode.parse();  // Mot
+    return b;
   },
   SingleValue_refInMot(name) {
     // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
@@ -1272,7 +1332,10 @@ class Dot {
       if (mask && mask.kind === 'subdiv' && Array.isArray(mask.pairs) && mask.pairs.length > 0) {
         for (const p of mask.pairs) {
           const combinedTag = left.tag ?? p.tag ?? null;
-          values.push(new Pip(left.step + p.d, left.timeScale * p.ts, combinedTag));
+          const child = new Pip(left.step + p.d, left.timeScale * p.ts, combinedTag);
+          _provAddEdge(child, left);
+          // Associate child also with the RHS contributor if available in simple form
+          values.push(child);
         }
         continue;
       }
@@ -1280,7 +1343,10 @@ class Dot {
       const right = (mask && mask.kind === 'simple') ? mask.value : new Pip(0, 1);
       if ((left.tag || right.tag)) {
         if (left.hasTag('r') || right.hasTag('r')) {
-          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
+          const child = new Pip(left.step, left.timeScale * right.timeScale, 'r');
+          _provAddEdge(child, left);
+          if (mask && mask.kind === 'simple') _provAddEdge(child, right);
+          values.push(child);
           continue;
         }
         values.push(left);
@@ -1992,16 +2058,24 @@ class Pip {
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
     this.sourceStart = sourceStart; // start character offset in source (when available)
+    this.pipId = golden._prov.enabled ? golden.getCruxUUID() : null;
+    this.motId = null;
   }
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    _provAddEdge(out, this);
+    _provAddEdge(out, that);
+    return out;
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    return new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    _provAddEdge(out, this);
+    _provAddEdge(out, that);
+    return out;
   }
 
   toString() {
@@ -2026,11 +2100,11 @@ class Pip {
     const invRounded = Math.round(inv);
     const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
     if (isInvInt) {
-      return `${step_str}/${invRounded}`;
+      return `${step_str} |/${invRounded}`;
     }
-    // Fallback to multiply form
+    // Fallback to pipe form
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-    return `${step_str} ${tsStr}`;
+    return `${step_str} | ${tsStr}`;
   }
 
   hasTag(tag) {
@@ -2045,6 +2119,10 @@ class Mot {
     // Deterministic RNG seed (number|string|null). If null, use Math.random.
     this.rng_seed = rng_seed;
     this._rng = null; // lazily initialized RNG function when seed provided
+    this.motId = golden._prov.enabled ? golden.getCruxUUID() : null;
+    if (golden._prov.enabled && this.motId != null && Array.isArray(values)) {
+      for (const v of values) if (v instanceof Pip) { v.motId = this.motId; _provAddPipToMot(v, this.motId); }
+    }
   }
 
   eval(env) {
@@ -2077,18 +2155,21 @@ class Mot {
           ts = num / den;
         }
         if (ts !== value.timeScale) {
-          resolved.push(new Pip(value.step, ts, value.tag, value.sourceStart));
+          const np = new Pip(value.step, ts, value.tag, value.sourceStart);
+          _provAddEdge(np, value);
+          np.motId = this.motId; _provAddPipToMot(np, this.motId);
+          resolved.push(np);
         } else {
           resolved.push(value);
         }
       } else if (value instanceof Range) {
         const pips = value.expandToPips(rng);
-        for (const p of pips) resolved.push(p);
+        for (const p of pips) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof PadValue) {
         // In fan contexts, ignore ellipsis semantics by resolving the inner value as-is
         const inner = value.inner;
         const mv = new Mot([inner]).eval(env);
-        for (const p of mv.values) resolved.push(p);
+        for (const p of mv.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof RandomPip) {
         // Resolve the step from the contained randnum using its seed if present
         const step = resolveRandNumToNumber(value.randnum, rng);
@@ -2103,7 +2184,9 @@ class Mot {
           else if (spec.kind === 'div') ts = 1 / rhsVal;
           else ts = 1;
         }
-        resolved.push(new Pip(step, ts));
+        const np = new Pip(step, ts);
+        np.motId = this.motId; _provAddPipToMot(np, this.motId);
+        resolved.push(np);
       } else if (value instanceof RandomPipChoiceFromPips) {
         // Choose an option using seed if present
         const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
@@ -2127,28 +2210,35 @@ class Mot {
               else if (extra.kind === 'div') ts = ts * (1 / rhsVal);
             }
           }
-          resolved.push(new Pip(p.step, ts, p.tag));
+          const np = new Pip(p.step, ts, p.tag);
+          _provAddEdge(np, p);
+          np.motId = this.motId; _provAddPipToMot(np, this.motId);
+          resolved.push(np);
         }
       } else if (value instanceof Ref) {
         // Inline referenced motif values inside a Mot list
         const mv = requireMot(value.eval(env));
-        for (const p of mv.values) resolved.push(p);
+        for (const p of mv.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof RangePipe) {
         // Expand range and apply scaling per element
         const expanded = value.range.expandToPips(rng);
         if (value.op.kind === 'mul') {
-          for (const p of expanded) resolved.push(new Pip(p.step, p.timeScale * value.op.factor));
+          for (const p of expanded) { const np = new Pip(p.step, p.timeScale * value.op.factor); _provAddEdge(np, p); np.motId = this.motId; _provAddPipToMot(np, this.motId); resolved.push(np); }
         } else {
           // div by number or RandNum
           const denom = typeof value.op.rhs === 'number' ? value.op.rhs : resolveRandNumToNumber(value.op.rhs, rng);
-          for (const p of expanded) resolved.push(new Pip(p.step, p.timeScale * (1 / denom)));
+          for (const p of expanded) { const np = new Pip(p.step, p.timeScale * (1 / denom)); _provAddEdge(np, p); np.motId = this.motId; _provAddPipToMot(np, this.motId); resolved.push(np); }
         }
       } else if (value instanceof RandomRange) {
         const num = resolveRandNumToNumber(value, rng);
-        resolved.push(new Pip(num, 1));
+        const np = new Pip(num, 1);
+        np.motId = this.motId; _provAddPipToMot(np, this.motId);
+        resolved.push(np);
       } else if (value instanceof RandomChoice) {
         const num = resolveRandNumToNumber(value, rng);
-        resolved.push(new Pip(num, 1));
+        const np = new Pip(num, 1);
+        np.motId = this.motId; _provAddPipToMot(np, this.motId);
+        resolved.push(np);
       } else if (value instanceof RandomRefChoice) {
         // Choose a referenced mot and inline its values
         if (!Array.isArray(value.refs) || value.refs.length === 0) {
@@ -2158,19 +2248,19 @@ class Mot {
         const idx = Math.floor(localRng() * value.refs.length);
         const ref = value.refs[idx];
         const chosen = requireMot(ref.eval(env));
-        for (const p of chosen.values) resolved.push(p);
+        for (const p of chosen.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof Mot) {
         // Inline nested Mot inside a Mot (e.g., [ [0,1], 2 ])
         const mv = value.eval(env);
-        for (const p of mv.values) resolved.push(p);
+        for (const p of mv.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof NestedMotExpr) {
         // Evaluate nested expression and inline its subdivided values
         const mv = requireMot(value.eval(env));
-        for (const p of mv.values) resolved.push(p);
+        for (const p of mv.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof NestedMot) {
         // Inline nested mot content
         const nm = value.eval(env);
-        for (const p of nm.values) resolved.push(p);
+        for (const p of nm.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
       } else if (value instanceof AvoidExpr) {
         resolved.push(value);
       } else {
@@ -2244,9 +2334,29 @@ class NestedMotExpr {
   }
 
   eval(env) {
-    // Evaluate the inner expression to get a mot
-    const innerMot = requireMot(this.expr.eval(env));
-    
+    // Evaluate the inner expression to get a mot.
+    // Special-case: if the inner expression is a Mul of two single-element mots,
+    // treat it as the RHS mot inside nested context so that constructs like
+    // [0, [1] * [2], 4] behave like [0, [2], 4] when used in higher-level ops.
+    let innerMot;
+    if (this.expr instanceof Mul) {
+      try {
+        const leftMot = requireMot(this.expr.x.eval(env));
+        const rightMot = requireMot(this.expr.y.eval(env));
+        const leftIsSingleton = Array.isArray(leftMot.values) && leftMot.values.length === 1;
+        const rightIsSingleton = Array.isArray(rightMot.values) && rightMot.values.length === 1;
+        if (leftIsSingleton && rightIsSingleton) {
+          innerMot = rightMot;
+        } else {
+          innerMot = requireMot(this.expr.eval(env));
+        }
+      } catch (_e) {
+        innerMot = requireMot(this.expr.eval(env));
+      }
+    } else {
+      innerMot = requireMot(this.expr.eval(env));
+    }
+
     // Apply timescale subdivision: multiply each pip's timescale by 1/N
     const N = innerMot.values.length;
     if (N === 0) return new Mot([]);

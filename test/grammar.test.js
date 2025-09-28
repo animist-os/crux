@@ -17,7 +17,7 @@ test('absolute mot with commas', () => {
 // delta mot removed: semicolons have no meaning now
 
 test('timeScale using * (plain number)', () => {
-  assert.equal(evalToString('[0, 1 | * 2]'), '[0, 1*2]');
+  assert.equal(evalToString('[0, 1 | 2]'), '[0, 1 | 2]');
 });
 
 test('timeScale using / (fraction)', () => {
@@ -26,26 +26,22 @@ test('timeScale using / (fraction)', () => {
 });
 
 test('implicit multiply sugar after pipe for number', () => {
-  assert.equal(evalToString('[3 | 2]'), '[3*2]');
-  assert.equal(evalToString('[3 | 3/2]'), '[3*1.5]');
+  assert.equal(evalToString('[3 | 2]'), '[3 | 2]');
+  assert.equal(evalToString('[3 | 3/2]'), '[3 | 1.5]');
 });
 
 test('implicit multiply sugar after pipe for special', () => {
-  assert.equal(evalToString('[r | 2]'), '[r*2]');
-  assert.equal(evalToString('[r | 4]'), '[r*4]');
+  assert.equal(evalToString('[r | 2]'), '[r | 2]');
+  assert.equal(evalToString('[r | 4]'), '[r | 4]');
 });
 
 test('curly before pipe with implicit multiply', () => {
   const out = evalToString('[ {1,2} | 2 ]');
-  // Expect either [1*2] or [2*2]
-  assert.match(out, /^\[(1\*2|2\*2)\]$/);
+  // Expect either [1 | 2] or [2 | 2]
+  assert.match(out, /^\[(1 \| 2|2 \| 2)\]$/);
 });
 
-test('curly before pipe with explicit * randnum', () => {
-  // Right randnum picks factor 2 or 4, multiply the duration
-  const out = evalToString('[ {1,2} | * {2,4} ]');
-  assert.match(out, /^\[(1\*2|1\*4|2\*2|2\*4)\]$/);
-});
+// (Removed) explicit star randnum after pipe is deprecated; covered by implicit forms above.
 
 test('curly before pipe with explicit / randnum', () => {
   const out = evalToString('[ {1,2} | / {2,4} ]');
@@ -60,8 +56,8 @@ test('curly-of-pips chooses among pip forms', () => {
 
 test('curly-of-pips supports outer timescale pipe', () => {
   const out = evalToString('[ {2, 1, 0 | /2} | 2 ]');
-  // options multiply timescale by 2: 2->2*2, 1->1*2, 0/2->0
-  assert.ok(out === '[2*2]' || out === '[1*2]' || out === '[0]', 'Unexpected CurlyPip pipe result: ' + out);
+  // options multiply timescale by 2: 2->2 | 2, 1->1 | 2, 0/2->0
+  assert.ok(out === '[2 | 2]' || out === '[1 | 2]' || out === '[0]', 'Unexpected CurlyPip pipe result: ' + out);
 });
 
 test('range expands inclusively', () => {
@@ -70,7 +66,7 @@ test('range expands inclusively', () => {
 });
 
 test('range followed by pipe timescale applies to each element', () => {
-  assert.equal(evalToString('[1 -> 4 | 2]'), '[1*2, 2*2, 3*2, 4*2]');
+  assert.equal(evalToString('[1 -> 4 | 2]'), '[1 | 2, 2 | 2, 3 | 2, 4 | 2]');
   assert.equal(evalToString('[0 -> 2 | 1/2]'), '[0/2, 1/2, 2/2]');
 });
 
@@ -96,9 +92,9 @@ test(':N accepts RandNum and resolves per repetition without seed', () => {
 });
 
 test('implicit multiply after pipe still parses with whitespace', () => {
-  assert.equal(evalToString('[3 | 2]'), '[3*2]');
-  assert.equal(evalToString('[3|2]'), '[3*2]');
-  assert.equal(evalToString('[3 | 3/2]'), '[3*1.5]');
+  assert.equal(evalToString('[3 | 2]'), '[3 | 2]');
+  assert.equal(evalToString('[3|2]'), '[3 | 2]');
+  assert.equal(evalToString('[3 | 3/2]'), '[3 | 1.5]');
 });
 
 test('repeat postfix Expr : N multiplies zero-mot (with and without spaces)', () => {
@@ -177,12 +173,12 @@ test('lens tile rolling window per-position', () => {
 });
 
 test('tie postfix merges equal steps by adding timeScale', () => {
-  assert.equal(evalToString('[0, 0 | /2, 0 | /2, 1] t'), '[0*2, 1]');
+  assert.equal(evalToString('[0, 0 | /2, 0 | /2, 1] t'), '[0 | 2, 1]');
 });
 
 test('tie tile uses mask to allow merging forward', () => {
   // mask nonzero allows merge at those boundaries
-  assert.equal(evalToString('[0 | /2, 0 | /2, 0 | /2, 1] .t [1]'), '[0*1.5, 1]');
+  assert.equal(evalToString('[0 | /2, 0 | /2, 0 | /2, 1] .t [1]'), '[0 | 1.5, 1]');
 });
 
 test('jam spread replaces values with RHS, one block per RHS value', () => {
@@ -229,7 +225,7 @@ test('range endpoints support curly choice', () => {
 
 test('jam can reset durations via pass-through with timeScale', () => {
   assert.equal(evalToString('[0 | 2, 1 | /4, 2] j [|]'), '[0, 1, 2]');
-  assert.equal(evalToString('[0, 1 | /3, 2 | *5] j [| /2]'), '[0/2, 1/2, 2/2]');
+  assert.equal(evalToString('[0, 1 | /3, 2 | 5] j [| /2]'), '[0/2, 1/2, 2/2]');
 });
 
 test('parens for grouping (expand then add identity)', () => {
@@ -290,11 +286,11 @@ test('rest special accepts timeScale via pipe with spaces', () => {
 
 // legacy special * form removed; use pipe instead
 test('rest special accepts timeScale via pipe', () => {
-  assert.equal(evalToString('[r | 2]'), '[r*2]');
+  assert.equal(evalToString('[r | 2]'), '[r | 2]');
 });
 
 test('findAllTimescaleIndices finds timescale literals across forms', () => {
-  const src = '[0 | 2, 1 | /4, 2 | 3/2, 3 | * {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
+  const src = '[0 | 2, 1 | /4, 2 | 3/2, 3 | {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
   const idxs = findAllTimescaleIndices(src);
   // Should include the starts of: 2 (in *2), 4 (in /4), 3 and 2 (in 3/2),
   // 2 and 4 in curly after *, 2 and 4 in curly after /, 2 after pipe implicit, and 3 after pipe for special
@@ -367,14 +363,14 @@ test('nested mot basic flattening', () => {
 test('nested mot with explicit timescales', () => {
   assert.equal(evalToString('[[0, 1 | 2]]'), '[0/2, 1]');
   assert.equal(evalToString('[[0 | /4, 1]]'), '[0/8, 1/2]');
-  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0*1.5, 1/4]');
+  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0 | 1.5, 1/4]');
 });
 
 test('nested mot with fractions and pipe-only', () => {
   // 3/4 * 1/2 = 3/8 => prints as *0.375
-  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0/2, 1*0.375]');
+  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0/2, 1 | 0.375]');
   assert.equal(evalToString('[[0, | 2]]'), '[0/2, 0]');
-  assert.equal(evalToString('[[| 3, 1]]'), '[0*1.5, 1/2]');
+  assert.equal(evalToString('[[| 3, 1]]'), '[0 | 1.5, 1/2]');
   assert.equal(evalToString('[[|, | /4]]'), '[0/2, 0/8]');
 });
 
@@ -459,13 +455,13 @@ test('identifier inside mot literal subdivides referenced motif', () => {
 test('curly expressions in timeScale positions', () => {
   // Test basic curly in timeScale
   const out1 = evalToString('[0, 1 | {2,4}, 2]');
-  // Should produce something like [0, 1*2, 2] or [0, 1*4, 2]
-  assert.match(out1, /^\[0, 1\*([24]), 2\]$/);
+  // Should produce something like [0, 1 | 2, 2] or [0, 1 | 4, 2]
+  assert.match(out1, /^\[0, 1 \| ([24]), 2\]$/);
 
   // Test curly in fractional timeScale
   const out2 = evalToString('[0, 1 | {2,4}/2, 2]');
-  // Should produce something like [0, 1*(2/2), 2] = [0, 1*1, 2] or [0, 1*(4/2), 2] = [0, 1*2, 2]
-  assert.match(out2, /^\[0, 1(\*([12])|), 2\]$/);
+  // Should produce something like [0, 1 | 1, 2] or [0, 1 | 2, 2]
+  assert.match(out2, /^\[0, 1( \| ([12])|), 2\]$/);
 });
 
 test('dot with nested mot on RHS coerces subdivision of left pip', () => {
@@ -496,7 +492,7 @@ test('dot nested subdivision carries explicit timescales from RHS nested pips', 
 
 test('dot nested subdivision multiplies with LHS timescales', () => {
   const program = '[0, 4 | 4, 2] . [0, [1,0], 0]';
-  assert.equal(evalToString(program), '[0, 5*2, 4*2, 2]');
+  assert.equal(evalToString(program), '[0, 5 | 2, 4 | 2, 2]');
 });
 
 test('semicolon separates statements like newline', () => {
@@ -506,6 +502,21 @@ A * A`;
   const expected = '[0, 1, 1, 2]';
   assert.equal(evalToString(multiline), expected);
   assert.equal(evalToString(semicolon), expected);
+});
+
+test('nested expression mul inside mot behaves as RHS mot', () => {
+  // [0,1,2] * [0,[1] * [2],4] should equal [0,1,2] * [0,[2],4]
+  const a = evalToString('[0,1,2] * [0, [1] * [2], 4]');
+  const b = evalToString('[0,1,2] * [0, [2], 4]');
+  assert.equal(a, b);
+});
+
+test('requested example equality holds', () => {
+  const a = evalToString('[0,1,2] * [0, [1] * [2], 4]');
+  const b = evalToString('[0,1,2] * [0, [2], 4]');
+  const c = evalToString('[0,1,2,2,3,4,4,5,6]');
+  assert.equal(a, b);
+  assert.equal(b, c);
 });
 
 

@@ -1159,20 +1159,79 @@ class Dot {
 
   eval(env) {
     const xv = requireMot(this.x.eval(env));
-    const yv = requireMot(this.y.eval(env));
-    const values = [];
 
+    // If RHS is a Mot literal, build a mask that preserves NestedMot groupings
+    let rhsMask = null;
+    if (this.y instanceof Mot) {
+      const yAst = this.y;
+      rhsMask = yAst.values.map((entry) => {
+        // Subdivision grouping: NestedMot or NestedMotExpr
+        if (entry instanceof NestedMot || entry instanceof NestedMotExpr) {
+          const m = requireMot(entry.eval(env));
+          const offsets = [];
+          for (const v of m.values) {
+            if (v instanceof Pip && v.tag == null) offsets.push(v.step);
+          }
+          return { kind: 'subdiv', offsets };
+        }
+        // Otherwise, resolve the single entry to a Pip-like value (first Pip or AvoidExpr)
+        const mv = new Mot([entry]).eval(env);
+        let chosen = null;
+        for (const v of mv.values) {
+          if (v instanceof Pip || v instanceof AvoidExpr) { chosen = v; break; }
+        }
+        if (chosen == null) chosen = new Pip(0, 1);
+        return { kind: 'simple', value: chosen };
+      });
+    }
+
+    // When no mask available, use legacy dot behavior
+    if (!rhsMask) {
+      const yv = requireMot(this.y.eval(env));
+      const values = [];
+      for (let xi = 0; xi < xv.values.length; xi++) {
+        const left = xv.values[xi];
+        const right = yv.values[xi % yv.values.length];
+        if ((left.tag || right.tag)) {
+          if (left.hasTag('r') || right.hasTag('r')) {
+            values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
+            continue;
+          }
+          values.push(left);
+          continue;
+        }
+        let result;
+        if (left instanceof AvoidExpr) {
+          result = left.mul(right);
+        } else if (right instanceof AvoidExpr) {
+          result = right.mul(left);
+        } else {
+          result = left.mul(right);
+        }
+        values.push(result);
+      }
+      return new Mot(values);
+    }
+
+    // With mask: apply subdivision coercion where specified; otherwise behave like dot per-position
+    const m = rhsMask.length;
+    const values = [];
     for (let xi = 0; xi < xv.values.length; xi++) {
-      let yi = xi % yv.values.length;
       const left = xv.values[xi];
-      const right = yv.values[yi];
+      const mask = rhsMask[xi % m];
+      if (mask && mask.kind === 'subdiv' && Array.isArray(mask.offsets) && mask.offsets.length > 0) {
+        for (const d of mask.offsets) {
+          values.push(new Pip(left.step + d, left.timeScale, left.tag));
+        }
+        continue;
+      }
+      // Simple per-position pairing (preserve legacy tag and AvoidExpr handling)
+      const right = (mask && mask.kind === 'simple') ? mask.value : new Pip(0, 1);
       if ((left.tag || right.tag)) {
-        // Rest tag combines durations, carries 'r'
         if (left.hasTag('r') || right.hasTag('r')) {
           values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
           continue;
         }
-        // Default for other tags: pass-through left
         values.push(left);
         continue;
       }

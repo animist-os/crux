@@ -468,6 +468,11 @@ test('curly expressions in timeScale positions', () => {
   assert.match(out2, /^\[0, 1(\*([12])|), 2\]$/);
 });
 
+test('dot with nested mot on RHS coerces subdivision of left pip', () => {
+  const program = '[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0]';
+  assert.equal(evalToString(program), '[0, 4, 5, 4, 2]');
+});
+
 test('semicolon separates statements like newline', () => {
   const multiline = `A = [0,1]
 A * A`;

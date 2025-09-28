@@ -92,9 +92,11 @@ In decreasing precedence (tighter binds higher):
    - `^` fan-mul (expand steps):
      - Same outer pairing as `*`, but steps multiply instead of add.
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
-   - `.` or `.*` cog-add (elementwise/zip with cycling):
-     - Pair each left value with the corresponding value from the right, cycling the right as needed.
-     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
+  - `.` or `.*` cog-add (elementwise/zip with cycling):
+    - Pair each left value with the corresponding value from the right, cycling the right as needed.
+    - If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group with steps offset by the group’s steps; durations are preserved from the left.
+    - Example: `[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0] -> [0, 4, 5, 4, 2]`.
+    - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
    - `.^` cog-mul (elementwise expand):
      - Same cycling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`

@@ -187,6 +187,8 @@ const g = ohm.grammar(String.raw`
       | Range
       | Curly
       | CurlyPip
+      | ident hspaces? "*" hspaces? MotLiteral      -- inlineMulRefMot
+      | "(" Expr ")"                                -- exprInMot
       | ident                                   -- refInMot
 
     Range
@@ -521,9 +523,28 @@ const s = g.createSemantics().addOperation('parse', {
     const b = bNode.parse();  // Mot
     return b;
   },
+  SingleValue_inlineMulRefMot(name, _h1, _star, _h2, motNode) {
+    // Convert `ident * [mot]` inside a Mot into a NestedMotExpr of the Mul
+    const ref = new Ref(name.sourceString);
+    const rhs = motNode.parse(); // Mot
+    return new NestedMotExpr(new Mul(ref, rhs));
+  },
+  // Add missing default for inlineMulRefMot to satisfy parse op
+  SingleValue_inlineMulRefMot(name, _h1, _star, _h2, motNode) {
+    const ref = new Ref(name.sourceString);
+    const rhs = motNode.parse();
+    return new NestedMotExpr(new Mul(ref, rhs));
+  },
   SingleValue_refInMot(name) {
     // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
     return new NestedMotExpr(new Ref(name.sourceString));
+  },
+  SingleValue_exprInMot(_op, expr, _cp) {
+    return new NestedMotExpr(expr.parse());
+  },
+  SingleValue_exprInMot(_op, expr, _cp) {
+    // Parenthesized expression inside Mot; subdivide its evaluated Mot
+    return new NestedMotExpr(expr.parse());
   },
   CurlyPip(_o, list, _c, seedOpt) {
     const options = list.parse();

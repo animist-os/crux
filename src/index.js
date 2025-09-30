@@ -140,7 +140,6 @@ const g = ohm.grammar(String.raw`
       | number                        -- numAsMot
       | "(" Expr ")"                  -- parens
       | Curly                           -- curlyAsExpr
-      | BangAvoidBase                   -- bangAsExpr
 
   NestedBody
       = ListOf<NestedElem, ",">       -- nestedAbsolute
@@ -219,11 +218,6 @@ const g = ohm.grammar(String.raw`
       | CurlyPip hspaces? "|" hspaces? TimeScale            -- curlyPipWithTimeMulPipeImplicit
       | CurlyPip hspaces? "|" hspaces? "*" hspaces? RandNum -- curlyPipWithTimeMulPipe
       | CurlyPip hspaces? "|" hspaces? "/" hspaces? RandNum -- curlyPipWithTimeDivPipe
-      | BangAvoidBase hspaces? "|" hspaces? TimeScale          -- bangWithTimeMulPipeImplicit
-      | BangAvoidBase hspaces? "|" hspaces? "*" hspaces? RandNum  -- bangWithTimeMulPipe
-      | BangAvoidBase hspaces? "|" hspaces? "/" hspaces? RandNum  -- bangWithTimeDivPipe
-      | BangAvoidBase hspaces? "|"                             -- bangWithPipeNoTs
-      | BangAvoidBase                                          -- bangNoTimeScale
 
     RandNum
       = Curly
@@ -240,15 +234,6 @@ const g = ohm.grammar(String.raw`
     CurlyEntry
       = number  -- num
       | ident   -- ref
-
-    BangAvoidBase
-      = "!" "{" BangBody "}"
-
-    BangBody
-      = ListOf<BangInterval, ",">
-
-    BangInterval
-      = number
 
     Seed = "@" SeedChars
     SeedChars = seedChar+
@@ -573,7 +558,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
   CurlyPip(_o, list, _c, seedOpt) {
     const options = list.parse();
-    // options are outputs of Pip_* semantics: Pip | AvoidExpr | RangePipe | RandomPip
+    // options are outputs of Pip_* semantics: Pip | RangePipe | RandomPip
     const obj = new RandomPipChoiceFromPips(options);
     if (seedOpt && seedOpt.children && seedOpt.children.length > 0) {
       obj.seed = seedOpt.children[0].parse();
@@ -844,50 +829,6 @@ const s = g.createSemantics().addOperation('parse', {
     return this.sourceString;
   },
 
-  Pip_bangNoTimeScale(bang) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const start = bang.source.startIdx;
-    return new AvoidExpr(intervals, 1, 0, start);
-  },
-
-  Pip_bangWithTimeMulPipeImplicit(bang, _h1, _pipe, _h2, ts) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const tsVal = ts.parse();
-    const start = bang.source.startIdx;
-    return new AvoidExpr(intervals, tsVal, 0, start);
-  },
-
-  Pip_bangWithTimeMulPipe(bang, _h1, _pipe, _h2, _star, _h3, m) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const tsVal = m.parse();
-    const start = bang.source.startIdx;
-    return new AvoidExpr(intervals, tsVal, 0, start);
-  },
-
-  Pip_bangWithTimeDivPipe(bang, _h1, _pipe, _h2, _slash, _h3, d) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const tsVal = 1 / d.parse();
-    const start = bang.source.startIdx;
-    return new AvoidExpr(intervals, tsVal, 0, start);
-  },
-
-  Pip_bangWithPipeNoTs(bang, _h1, _pipe) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const start = bang.source.startIdx;
-    return new AvoidExpr(intervals, 1, 0, start);
-  },
-
-  PriExpr_bangAsExpr(bang) {
-    const body = bang.child(2);
-    const intervals = body.parse();
-    const start = bang.source.startIdx;
-    return new Mot([new AvoidExpr(intervals, 1, 0, start)]);
-  },
 });
 
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
@@ -1122,8 +1063,6 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
   CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
   number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
-
-  // If BangInterval was [n.source.startIdx] or similar, remove that too. The goal is to have no actions for base Bang* in collectTs.
 });
 
 class Prog {
@@ -1207,15 +1146,7 @@ class Mul {
 
       const base = reverse ? [...leftSourceMot.values].reverse() : leftSourceMot.values;
       for (let xi of base) {
-        let result;
-        if (xi instanceof AvoidExpr) {
-          result = xi.mul(absYi);
-        } else if (absYi instanceof AvoidExpr) {
-          result = absYi.mul(xi);
-        } else {
-          result = xi.mul(absYi);
-        }
-        values.push(result);
+        values.push(xi.mul(absYi));
       }
     }
     return new Mot(values);
@@ -1243,15 +1174,7 @@ class Expand {
 
       const source = reverse ? [...xv.values].reverse() : xv.values;
       for (let xi of source) {
-        let result;
-        if (xi instanceof AvoidExpr) {
-          result = xi.expand(absYi);
-        } else if (absYi instanceof AvoidExpr) {
-          result = absYi.expand(xi);
-        } else {
-          result = xi.expand(absYi);
-        }
-        values.push(result);
+        values.push(xi.expand(absYi));
       }
     }
     return new Mot(values);
@@ -1303,11 +1226,11 @@ class Dot {
         if (entry instanceof PadValue) {
           return { kind: 'pad', value: entry.inner };
         }
-        // Otherwise, resolve the single entry to a Pip-like value (first Pip or AvoidExpr)
+        // Otherwise, resolve the single entry to a Pip
         const mv = new Mot([entry]).eval(env);
         let chosen = null;
         for (const v of mv.values) {
-          if (v instanceof Pip || v instanceof AvoidExpr) { chosen = v; break; }
+          if (v instanceof Pip) { chosen = v; break; }
         }
         if (chosen == null) chosen = new Pip(0, 1);
         return { kind: 'simple', value: chosen };
@@ -1328,10 +1251,10 @@ class Dot {
         const head = rhsMask.slice(0, firstPad);
         const tail = rhsMask.slice(lastPad + 1);
         const padSpec = rhsMask[firstPad];
-        // Resolve padSpec.value to a simple Pip/AvoidExpr once
+        // Resolve padSpec.value to a simple Pip once
         let padValue = (() => {
           const mv = new Mot([padSpec.value]).eval(env);
-          for (const v of mv.values) { if (v instanceof Pip || v instanceof AvoidExpr) return v; }
+          for (const v of mv.values) { if (v instanceof Pip) return v; }
           return new Pip(0, 1);
         })();
         const outMask = new Array(nL);
@@ -1360,15 +1283,7 @@ class Dot {
           values.push(left);
           continue;
         }
-        let result;
-        if (left instanceof AvoidExpr) {
-          result = left.mul(right);
-        } else if (right instanceof AvoidExpr) {
-          result = right.mul(left);
-        } else {
-          result = left.mul(right);
-        }
-        values.push(result);
+        values.push(left.mul(right));
       }
       return new Mot(values);
     }
@@ -1389,7 +1304,7 @@ class Dot {
         }
         continue;
       }
-      // Simple per-position pairing (preserve legacy tag and AvoidExpr handling)
+      // Simple per-position pairing (preserve legacy tag handling)
       const right = (mask && mask.kind === 'simple') ? mask.value : new Pip(0, 1);
       if ((left.tag || right.tag)) {
         if (left.hasTag('r') || right.hasTag('r')) {
@@ -1402,15 +1317,7 @@ class Dot {
         values.push(left);
         continue;
       }
-      let result;
-      if (left instanceof AvoidExpr) {
-        result = left.mul(right);
-      } else if (right instanceof AvoidExpr) {
-        result = right.mul(left);
-      } else {
-        result = left.mul(right);
-      }
-      values.push(result);
+      values.push(left.mul(right));
     }
     return new Mot(values);
   }
@@ -1499,15 +1406,7 @@ class DotExpand {
         values.push(left);
         continue;
       }
-      let result;
-      if (left instanceof AvoidExpr) {
-        result = left.expand(right);
-      } else if (right instanceof AvoidExpr) {
-        result = right.expand(left);
-      } else {
-        result = left.expand(right);
-      }
-      values.push(result);
+      values.push(left.expand(right));
     }
     return new Mot(values);
   }
@@ -2212,7 +2111,7 @@ class RandomPip {
   }
 }
 
-// Choose one of several fully specified pip-like values (already Pip/RangePipe/AvoidExpr/etc.)
+// Choose one of several fully specified pip-like values (already Pip/RangePipe/etc.)
 class RandomPipChoiceFromPips {
   constructor(options) {
     this.options = options; // array of Pip-like nodes
@@ -2538,8 +2437,6 @@ class Mot {
         // Inline nested mot content
         const nm = value.eval(env);
         for (const p of nm.values) { p.motId = this.motId; _provAddPipToMot(p, this.motId); resolved.push(p); }
-      } else if (value instanceof AvoidExpr) {
-        resolved.push(value);
       } else {
         throw new Error('Unsupported mot value: ' + String(value));
       }
@@ -2686,76 +2583,6 @@ class SegmentTransform {
     return new Mot(values.slice(s, e));
   }
 }
-
-
-// Update AvoidExpr class, add static combine and adjust methods
-
-class AvoidExpr {
-  constructor(intervals, timeScale = 1, offset = 0, sourceStart = null) {
-    this.intervals = intervals || [];
-    this.timeScale = timeScale;
-    this.offset = offset;
-    this.sourceStart = sourceStart;
-  }
-
-  static combine(a, b) {
-    const unionIntervals = [...new Set([...a.intervals, ...b.intervals])].sort((x, y) => x - y);
-    return new AvoidExpr(unionIntervals, a.timeScale * b.timeScale, a.offset + b.offset, a.sourceStart || b.sourceStart);
-  }
-
-  add(deltaStep, deltaTs = 1, reverseIntervals = false) {
-    let newIntervals = this.intervals;
-    if (reverseIntervals) {
-      newIntervals = [...this.intervals].reverse();
-    }
-    return new AvoidExpr(newIntervals, this.timeScale * deltaTs, this.offset + deltaStep, this.sourceStart);
-  }
-
-  mul(that) {
-    if (that instanceof AvoidExpr) {
-      return AvoidExpr.combine(this, that);
-    } else if (that instanceof Pip) {
-      return this.add(that.step, that.timeScale);
-    } else {
-      throw new Error('AvoidExpr.mul expects AvoidExpr or Pip');
-    }
-  }
-
-  expand(that) {
-    if (that instanceof AvoidExpr) {
-      return AvoidExpr.combine(this, that);
-    } else if (that instanceof Pip) {
-      return new AvoidExpr(this.intervals, this.timeScale * that.timeScale, this.offset * that.step, this.sourceStart);
-    } else {
-      throw new Error('AvoidExpr.expand expects AvoidExpr or Pip');
-    }
-  }
-
-  toString() {
-    let s = `!{${this.intervals.join(',')}}`;
-    if (this.offset !== 0) {
-      s += ` + ${this.offset}`;
-    }
-    if (this.timeScale !== 1) {
-      const ts = Math.abs(this.timeScale);
-      const inv = 1 / ts;
-      const invRounded = Math.round(inv);
-      if (Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0) {
-        s += `/${invRounded}`;
-      } else {
-        const tsStr = Number.isInteger(ts) ? String(ts) : ts.toFixed(6).replace(/\.0+$/, '');
-        s += `*${tsStr}`;
-      }
-    }
-    return s;
-  }
-
-  hasTag(tag) {
-    return false;
-  }
-}
-
-
 
 
 // utilities

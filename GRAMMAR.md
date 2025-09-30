@@ -96,7 +96,7 @@ In decreasing precedence (tighter binds higher):
    - `^` fan-mul (expand steps):
      - Same outer pairing as `*`, but steps multiply instead of add.
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
-  - `.` or `.*` cog-add (elementwise/zip with cycling):
+  - `.` or `.*` cog-add (elementwise add with cycling):
     - Pair each left value with the corresponding value from the right, cycling the right as needed.
     - Nested RHS subdivision: If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group where each emitted pip uses `step = left.step + rhsNested.step` and `timeScale = left.timeScale * rhsNested.timeScale`. Tags combine (`r` carries through).
       - Example: `[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0] -> [0, 4, 5, 4, 2]`.
@@ -104,6 +104,10 @@ In decreasing precedence (tighter binds higher):
       - Example (explicit nested timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
       - Example (LHS timescale multiplies): `[0, 4 | 4, 2] . [0, [1,0], 0] -> [0, 5*2, 4*2, 2]`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
+  - '.,' cog-concatenate (element-wise zip with no cycling)
+      - interleaves two mots
+      - if one is shorter than the other, the remainder is simply concatenated
+      - Example `[0,1,2] ., [9,8,7] -> [0,9,1,8,2,7]
    - `.^` cog-mul (elementwise expand):
      - Same cycling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`

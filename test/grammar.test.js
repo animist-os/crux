@@ -519,4 +519,16 @@ test('requested example equality holds', () => {
   assert.equal(b, c);
 });
 
+test('dotZip operator interleaves LHS and RHS per pip', () => {
+  assert.equal(evalToString('[0,1,2,3] ., [10,9,8,7]'), '[0, 10, 1, 9, 2, 8, 3, 7]');
+});
+
+test('dotZip operator with shorter RHS', () => {
+  assert.equal(evalToString('[0,1,2,3] ., [10,9]'), '[0, 10, 1, 9, 2, 3]');
+});
+
+test('dotZip operator with shorter LHS', () => {
+  assert.equal(evalToString('[0,1] ., [10,9,8,7]'), '[0, 10, 1, 9, 8, 7]');
+});
+
 

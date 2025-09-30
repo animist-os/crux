@@ -114,8 +114,9 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".l" AppendExpr  -- dotLens
       | MulExpr ".t" AppendExpr  -- dotTie
       | MulExpr ".c" AppendExpr  -- dotConstraint
+      | MulExpr ".," AppendExpr  -- dotZip
       | MulExpr "->" AppendExpr  -- steps
-      
+
       | MulExpr "j" AppendExpr   -- jam
       | MulExpr "m" AppendExpr   -- mirror
       | MulExpr "l" AppendExpr   -- lens
@@ -270,7 +271,7 @@ const g = ohm.grammar(String.raw`
 
     // Set of binary operator symbols that can be aliased
     OpSym
-      = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c"
+      = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".,"
       | "->" | "j" | "m" | "l" | "c" | "*" | "^" | "." | "~"
   
     number
@@ -382,7 +383,11 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotConstraint(x.parse(), y.parse());
   },
 
-  
+  MulExpr_dotZip(x, _dotcomma, y) {
+    return new DotZip(x.parse(), y.parse());
+  },
+
+
 
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
@@ -892,6 +897,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotLens(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotTie(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_dotZip(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_mirror(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -972,8 +978,9 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotLens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotTie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_dotZip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  
+
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_lens(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -1545,6 +1552,7 @@ function instantiateOpNodeBySymbol(sym, x, y) {
     case 'c': return new ConstraintOp(x, y);
     case '.c': return new DotConstraint(x, y);
     case '~': return new RotateOp(x, y);
+    case '.,': return new DotZip(x, y);
     default:
       throw new Error('unknown operator symbol for alias: ' + sym);
   }
@@ -1716,6 +1724,31 @@ class DotLens {
         out.push(new Pip(b.step, b.timeScale * r.timeScale, b.tag));
       }
     }
+    return new Mot(out);
+  }
+}
+
+class DotZip {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+    const maxLen = Math.max(left.values.length, right.values.length);
+
+    for (let i = 0; i < maxLen; i++) {
+      if (i < left.values.length) {
+        out.push(left.values[i]);
+      }
+      if (i < right.values.length) {
+        out.push(right.values[i]);
+      }
+    }
+
     return new Mot(out);
   }
 }

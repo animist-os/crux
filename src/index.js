@@ -115,12 +115,17 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".t" AppendExpr  -- dotTie
       | MulExpr ".c" AppendExpr  -- dotConstraint
       | MulExpr ".," AppendExpr  -- dotZip
+      | MulExpr ".g" AppendExpr  -- dotGlass
+      | MulExpr ".r" AppendExpr  -- dotReich
       | MulExpr "->" AppendExpr  -- steps
 
       | MulExpr "j" AppendExpr   -- jam
       | MulExpr "m" AppendExpr   -- mirror
       | MulExpr "l" AppendExpr   -- lens
       | MulExpr "c" AppendExpr   -- constraint
+      | MulExpr "g" AppendExpr   -- glass
+      | MulExpr "r" AppendExpr   -- reich
+      | MulExpr "p" AppendExpr   -- paert
       | MulExpr "*" AppendExpr  -- mul
       | MulExpr "^" AppendExpr  -- expand
       | MulExpr "." AppendExpr  -- dot
@@ -271,8 +276,8 @@ const g = ohm.grammar(String.raw`
 
     // Set of binary operator symbols that can be aliased
     OpSym
-      = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".,"
-      | "->" | "j" | "m" | "l" | "c" | "*" | "^" | "." | "~"
+      = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
+      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~"
   
     number
       = sign? digit+ ("." digit+)?
@@ -387,7 +392,25 @@ const s = g.createSemantics().addOperation('parse', {
     return new DotZip(x.parse(), y.parse());
   },
 
+  MulExpr_glass(x, _g, y) {
+    return new GlassOp(x.parse(), y.parse());
+  },
 
+  MulExpr_dotGlass(x, _dotg, y) {
+    return new DotGlass(x.parse(), y.parse());
+  },
+
+  MulExpr_reich(x, _r, y) {
+    return new ReichOp(x.parse(), y.parse());
+  },
+
+  MulExpr_dotReich(x, _dotr, y) {
+    return new DotReich(x.parse(), y.parse());
+  },
+
+  MulExpr_paert(x, _p, y) {
+    return new PaertOp(x.parse(), y.parse());
+  },
 
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
@@ -1747,6 +1770,207 @@ class DotZip {
       if (i < right.values.length) {
         out.push(right.values[i]);
       }
+    }
+
+    return new Mot(out);
+  }
+}
+
+// GlassOp: Interleave two Mots with different rhythmic subdivisions
+// Inspired by Glass's minimalist style (triplets vs duplets)
+// LHS gets triplet subdivision (1/3), RHS gets duplet subdivision (1/2)
+class GlassOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+
+    // Interleave the two sets with different rhythmic patterns
+    // left gets triplets (1/3), right gets duplets (1/2)
+    for (const a of left.values) {
+      out.push(new Pip(a.step, a.timeScale / 3, a.tag));
+    }
+    for (const r of right.values) {
+      out.push(new Pip(r.step, r.timeScale / 2, r.tag));
+    }
+
+    return new Mot(out);
+  }
+}
+
+// DotGlass: Cog-style Glass operation
+// Applies glass subdivision pattern element-wise
+class DotGlass {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+
+    // Alternate between left (triplet) and right (duplet) subdivision
+    const maxLen = Math.max(left.values.length, right.values.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < left.values.length) {
+        const a = left.values[i];
+        out.push(new Pip(a.step, a.timeScale / 3, a.tag));
+      }
+      if (i < right.values.length) {
+        const r = right.values[i % right.values.length];
+        out.push(new Pip(r.step, r.timeScale / 2, r.tag));
+      }
+    }
+
+    return new Mot(out);
+  }
+}
+
+// ReichOp: Create phasing patterns between two Mots
+// Inspired by Reich's phasing technique - repeats both mots cyclically
+class ReichOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+
+    // Cycle through both sets with 1/4 note subdivision
+    // This creates a phasing pattern when the cycle lengths differ
+    for (const a of left.values) {
+      out.push(new Pip(a.step, a.timeScale / 4, a.tag));
+    }
+    for (const r of right.values) {
+      out.push(new Pip(r.step, r.timeScale / 4, r.tag));
+    }
+
+    return new Mot(out);
+  }
+}
+
+// DotReich: Cog-style Reich operation with varied durations
+// Applies phasing pattern with alternating durations (1/2, 1/4)
+class DotReich {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [];
+
+    // Alternate durations: 1/2, 1/4 for left; 1, 1/2 for right
+    const leftDurs = [2, 4];
+    const rightDurs = [1, 2];
+
+    for (let i = 0; i < left.values.length; i++) {
+      const a = left.values[i];
+      const dur = leftDurs[i % leftDurs.length];
+      out.push(new Pip(a.step, a.timeScale / dur, a.tag));
+    }
+
+    for (let i = 0; i < right.values.length; i++) {
+      const r = right.values[i];
+      const dur = rightDurs[i % rightDurs.length];
+      out.push(new Pip(r.step, r.timeScale / dur, r.tag));
+    }
+
+    return new Mot(out);
+  }
+}
+
+// PaertOp: Tintinnabulation operator with octave equivalence and unison avoidance
+// Snaps LHS steps to the nearest RHS step values (mod 7 for octave identity)
+// RHS values represent triad tones - the T-voice avoids unisons/octaves with M-voice
+// When the nearest triad tone would create a unison, moves to next-nearest (preferring downward)
+// Example: [0,1,2,3] p [0,2,4] => [4,0,2,2] (0→4 down, 1→0, 2→2, 3→2)
+// Example: [7,8,9,10] p [0,2,4] => [11,7,9,9] (octave equivalence maintained)
+class PaertOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const input = requireMot(this.x.eval(env));
+    const scaleDegrees = requireMot(this.y.eval(env));
+    const out = [];
+
+    // Extract scale degrees and normalize to [0,7) range
+    const scale = scaleDegrees.values.map(p => {
+      const s = Math.round(p.step);
+      return ((s % 7) + 7) % 7; // normalize to [0,7)
+    });
+
+    if (scale.length === 0) {
+      // No scale degrees provided, return input unchanged
+      return input;
+    }
+
+    // Sort scale degrees for efficient nearest-neighbor search
+    const sortedScale = [...new Set(scale)].sort((a, b) => a - b);
+
+    for (const pip of input.values) {
+      const inputStep = pip.step;
+      const octave = Math.floor(inputStep / 7);
+      const pitchClass = ((inputStep % 7) + 7) % 7;
+
+      // Find nearest scale degree to pitchClass, avoiding unisons
+      let nearestDegree = null;
+      let minDist = Infinity;
+
+      // First pass: find nearest that is NOT a unison
+      for (const degree of sortedScale) {
+        if (degree === pitchClass) continue; // skip unisons
+        const dist = Math.abs(pitchClass - degree);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestDegree = degree;
+        }
+      }
+
+      // If no non-unison degree found (e.g., scale has only one degree), try other octaves
+      if (nearestDegree === null) {
+        // Look for nearest degree in adjacent octaves, preferring downward
+        const candidates = [];
+        for (const degree of sortedScale) {
+          // Try octave below
+          candidates.push({ degree, octaveOffset: -1, dist: Math.abs(pitchClass - (degree + 7)) });
+          // Try octave above
+          candidates.push({ degree, octaveOffset: 1, dist: Math.abs(pitchClass - (degree - 7)) });
+        }
+        candidates.sort((a, b) => {
+          if (a.dist !== b.dist) return a.dist - b.dist;
+          return a.octaveOffset - b.octaveOffset; // prefer downward (-1 before 1)
+        });
+        if (candidates.length > 0) {
+          nearestDegree = candidates[0].degree;
+          // Apply octave offset for reconstruction
+          const quantizedStep = (octave + candidates[0].octaveOffset) * 7 + nearestDegree;
+          out.push(new Pip(quantizedStep, pip.timeScale, pip.tag));
+          continue;
+        }
+        // Fallback: use original pitch if no alternatives found
+        out.push(new Pip(inputStep, pip.timeScale, pip.tag));
+        continue;
+      }
+
+      // Reconstruct quantized step with same octave
+      const quantizedStep = octave * 7 + nearestDegree;
+      out.push(new Pip(quantizedStep, pip.timeScale, pip.tag));
     }
 
     return new Mot(out);

@@ -88,23 +88,20 @@ const g = ohm.grammar(String.raw`
   
   Expr
       = FollowedByExpr
-  
+
   FollowedByExpr
-      = FollowedByExpr "," TieExpr   -- fby
-      | TieExpr
-
-  // Tie handled as a postfix at the AppendExpr level so it can be used
-  // directly as an operand to multiplicative ops.
-  TieExpr
-      = MulExpr
-
-  AppendExpr
-      = AppendExpr "t"                          -- tiePostfix
-      | AppendExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
-      | AppendExpr hspaces? ":" hspaces? number   -- repeatPost
-      | AppendExpr SliceOp                          -- slice
+      = FollowedByExpr "," PostfixExpr   -- fby
       | PostfixExpr
-  
+
+  // Postfix operators (tie, repeat, slice) at lower precedence than binary operators
+  // These apply to "everything to the left" by default
+  PostfixExpr
+      = PostfixExpr "t"                          -- tiePostfix
+      | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
+      | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
+      | PostfixExpr SliceOp                          -- slice
+      | MulExpr
+
   MulExpr
       = MulExpr ".*" AppendExpr -- dotStar
       | MulExpr ".^" AppendExpr -- dotExpand
@@ -133,7 +130,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ident AppendExpr -- aliasOp
       | AppendExpr
 
-  PostfixExpr
+  AppendExpr
       = PriExpr
   
   PriExpr
@@ -323,6 +320,37 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
+  PostfixExpr_tiePostfix(expr, _t) {
+    const x = expr.parse();
+    return new TieOp(x);
+  },
+
+  PostfixExpr_repeatPost(expr, _h1, _colon, _h2, n) {
+    const parsedExpr = expr.parse();
+    const count = n.parse();
+
+    // Multiply by a zero-mot of length N
+    const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
+    return new Mul(parsedExpr, zeroMot);
+  },
+
+  PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) {
+    const parsedExpr = expr.parse();
+    const randSpec = rn.parse(); // number or RandomRange/RandomChoice
+    // If the randSpec parsed to a plain number, behave like numeric repeat
+    if (typeof randSpec === 'number') {
+      const zeroMot = new Mot(Array(randSpec).fill(new Pip(0, 1)));
+      return new Mul(parsedExpr, zeroMot);
+    }
+    return new RepeatByCount(parsedExpr, randSpec);
+  },
+
+  PostfixExpr_slice(x, sl) {
+    const base = x.parse();
+    const spec = sl.parse();
+    return new SegmentTransform(base, spec.start, spec.end);
+  },
+
   // plus variant removed from grammar; keep here if needed for backward compatibility
 
   MulExpr_mul(x, _times, y) {
@@ -422,37 +450,6 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_aliasOp(x, name, y) {
     return new AliasCall(name.sourceString, x.parse(), y.parse());
-  },
-
-  AppendExpr_repeatPost(expr, _h1, _colon, _h2, n) {
-    const parsedExpr = expr.parse();
-    const count = n.parse();
-    
-    // Multiply by a zero-mot of length N
-    const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
-    return new Mul(parsedExpr, zeroMot);
-  },
-
-  AppendExpr_tiePostfix(expr, _t) {
-    const x = expr.parse();
-    return new TieOp(x);
-  },
-
-  AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) {
-    const parsedExpr = expr.parse();
-    const randSpec = rn.parse(); // number or RandomRange/RandomChoice
-    // If the randSpec parsed to a plain number, behave like numeric repeat
-    if (typeof randSpec === 'number') {
-      const zeroMot = new Mot(Array(randSpec).fill(new Pip(0, 1)));
-      return new Mul(parsedExpr, zeroMot);
-    }
-    return new RepeatByCount(parsedExpr, randSpec);
-  },
-
-  AppendExpr_slice(x, sl) {
-    const base = x.parse();
-    const spec = sl.parse();
-    return new SegmentTransform(base, spec.start, spec.end);
   },
 
   PriExpr_ref(name) {
@@ -910,6 +907,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  PostfixExpr(x) { return x.collectRepeatSuffixRewrites(); },
   MulExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Explicit handlers for MulExpr variants to ensure traversal
   MulExpr_dotStar(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -931,9 +929,9 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dot(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
-  AppendExpr_slice(x, _sl) { return x.collectRepeatSuffixRewrites(); },
+  PostfixExpr_slice(x, _sl) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
-  AppendExpr_repeatPost(_expr, h1, _colon, _h2, n) {
+  PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
     const raw = String(n.sourceString).trim();
     let num = Number(raw);
     if (!Number.isFinite(num)) return [];
@@ -943,7 +941,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
     const end = n.source.startIdx + n.sourceString.length;
     return [{ start, end, text: ' * ' + zeros }];
   },
-  AppendExpr_repeatPostRand(_expr, h1, _colon, _h2, rn) {
+  PostfixExpr_repeatPostRand(_expr, h1, _colon, _h2, rn) {
     const raw = String(rn.sourceString).trim();
     // Only rewrite when RN is plainly numeric; leave curly/refs as-is
     if (raw.startsWith('{')) return [];
@@ -991,6 +989,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  PostfixExpr(x) { return x.collectTs(); },
   MulExpr(x) { return x.collectTs(); },
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
   MulExpr_dotStar(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -1014,9 +1013,9 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  AppendExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
-  AppendExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  AppendExpr_slice(x, _sl) { return x.collectTs(); },
+  PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
+  PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
+  PostfixExpr_slice(x, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },

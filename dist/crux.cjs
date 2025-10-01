@@ -1,4 +1,14 @@
-import * as ohm from 'ohm-js';
+// Crux - Musical Motif DSL
+// Bundled Distribution
+// Generated: 2025-10-01T05:10:09.705Z
+//
+// NOTE: This bundle requires ohm-js as a peer dependency
+
+// Load ohm-js (CommonJS)
+var ohm = (typeof require !== 'undefined') ? require('ohm-js') : (globalThis.ohm || (typeof window !== 'undefined' && window.ohm));
+if (!ohm) {
+  throw new Error('ohm-js is required. Install with: npm install ohm-js');
+}
 
 // this just makes the code portable to golden
 const golden = {};
@@ -2975,3 +2985,12 @@ golden.crux_interp = function (input) {
 
 
 
+
+
+// === Exports ===
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = golden;
+  module.exports.default = golden;
+}
+if (typeof globalThis !== 'undefined') globalThis.golden = golden;
+if (typeof window !== 'undefined') window.golden = golden;

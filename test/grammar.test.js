@@ -344,6 +344,12 @@ test('rotate operator ~ applies right rotations per right mot', () => {
   assert.equal(evalToString('[0, 1, 2, 3] ~ [1, 2]'), '[1, 2, 3, 0, 2, 3, 0, 1]');
 });
 
+test('dotRotate operator .~ rotates per position (cog version)', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1]'), '[1]');
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2]'), '[1, 3]');
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2, 0]'), '[1, 3, 2]');
+});
+
 test('bare Curly as PriExpr works in operators', () => {
   // rotate by 1 or 2
   const out = evalToString('[0,1,2,3] ~ {1,2}');

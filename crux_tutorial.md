@@ -520,16 +520,6 @@ Arvo Pärt's tintinnabuli technique. LHS = melodic voice (M-voice), RHS = root n
 [0,1,2,3,4] p [-7]        // Melodic line with triad voice based on root at -7
 ```
 
-## Pärt (cog)
-Element-wise tintinnabuli - each LHS element gets its triadic voice from corresponding RHS root
-
-```text
-[0,2,4,5] .p [0,-7]       // Different root for each position (RHS cycles)
-```
-```
-[1,2,3,4,5,6] .p [0,-7,0] // Cycling through different triadic roots
-```
-
 
 <br>
 <br>

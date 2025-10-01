@@ -1,11 +1,13 @@
 {
-  "name": "andy",
+  "name": "crux",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./src/index.js",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build": "node build.js",
+    "build:test": "npm run build && node --test"
   },
   "dependencies": {
     "ohm-js": "^17.2.1"

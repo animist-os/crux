@@ -1,4 +1,14 @@
-import * as ohm from 'ohm-js';
+// Crux - Musical Motif DSL
+// Bundled Distribution
+// Generated: 2025-10-01T02:20:22.318Z
+//
+// NOTE: This bundle requires ohm-js as a peer dependency
+
+// Load ohm-js (CommonJS)
+var ohm = (typeof require !== 'undefined') ? require('ohm-js') : (globalThis.ohm || (typeof window !== 'undefined' && window.ohm));
+if (!ohm) {
+  throw new Error('ohm-js is required. Install with: npm install ohm-js');
+}
 
 // this just makes the code portable to golden
 const golden = {};
@@ -127,7 +137,6 @@ const g = ohm.grammar(String.raw`
       | MulExpr "^" AppendExpr  -- expand
       | MulExpr "." AppendExpr  -- dot
       | MulExpr "~" AppendExpr  -- rotate
-      | MulExpr ".~" AppendExpr  -- dotRotate
       | MulExpr ident AppendExpr -- aliasOp
       | AppendExpr
 
@@ -427,9 +436,6 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_rotate(x, _tilde, y) {
     return new RotateOp(x.parse(), y.parse());
-  },
-  MulExpr_dotRotate(x, _dottilde, y) {
-    return new DotRotate(x.parse(), y.parse());
   },
 
   MulExpr_aliasOp(x, name, y) {
@@ -852,7 +858,6 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_expand(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
-  MulExpr_dotRotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_glass(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotGlass(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_reich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -942,7 +947,6 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_expand(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dot(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  MulExpr_dotRotate(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_glass(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotGlass(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_reich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -1421,32 +1425,6 @@ class RotateOp {
       let rot = ((-k % n) + n) % n; // convert to equivalent rotate-right amount
       const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
       for (const v of rotated) out.push(v);
-    }
-    return new Mot(out);
-  }
-}
-
-class DotRotate {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = requireMot(this.x.eval(env));
-    const right = requireMot(this.y.eval(env));
-    const out = [];
-    for (let i = 0; i < right.values.length; i++) {
-      const r = right.values[i];
-      const k = Math.trunc(r.step);
-      if (left.values.length === 0) {
-        continue;
-      }
-      const n = left.values.length;
-      // Rotate left by k
-      let rot = ((-k % n) + n) % n;
-      const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
-      out.push(rotated[i % rotated.length]);
     }
     return new Mot(out);
   }
@@ -2619,7 +2597,7 @@ function stringToSeed(str) {
 const BINARY_TRANSFORMS = new Set([
   Mul, Expand, Dot, DotExpand, Steps, DotSteps,
   Mirror, DotMirror, Lens, DotLens, DotTie, JamOp, DotJam,
-  ConstraintOp, DotConstraint, RotateOp, DotRotate, DotZip,
+  ConstraintOp, DotConstraint, RotateOp, DotZip,
   GlassOp, DotGlass, ReichOp, DotReich, PaertOp,
   AliasCall,
 ]);
@@ -2975,3 +2953,12 @@ golden.crux_interp = function (input) {
 
 
 
+
+
+// === Exports ===
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = golden;
+  module.exports.default = golden;
+}
+if (typeof globalThis !== 'undefined') globalThis.golden = golden;
+if (typeof window !== 'undefined') window.golden = golden;

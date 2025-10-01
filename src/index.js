@@ -99,7 +99,7 @@ const g = ohm.grammar(String.raw`
       = PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
-      | PostfixExpr SliceOp                          -- slice
+      | PostfixExpr hspaces? SliceOp                 -- slice
       | MulExpr
 
   MulExpr
@@ -254,7 +254,8 @@ const g = ohm.grammar(String.raw`
       = "r"
       | "?"
   
-    ident = (letter | "_") alnum*
+    ident = (letter | "_") alnum+  -- withChars
+          | letter                     -- single
 
     // Set of binary operator symbols that can be aliased
     OpSym
@@ -330,7 +331,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new RepeatByCount(parsedExpr, randSpec);
   },
 
-  PostfixExpr_slice(x, sl) {
+  PostfixExpr_slice(x, _hspaces, sl) {
     const base = x.parse();
     const spec = sl.parse();
     return new SegmentTransform(base, spec.start, spec.end);
@@ -870,7 +871,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dot(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_rotate(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
-  PostfixExpr_slice(x, _sl) { return x.collectRepeatSuffixRewrites(); },
+  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
     const raw = String(n.sourceString).trim();
@@ -956,7 +957,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  PostfixExpr_slice(x, _sl) { return x.collectTs(); },
+  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },
@@ -2265,7 +2266,7 @@ class Pip {
     let ts = this.timeScale;
     // Handle unresolved fractional timeScales
     if (ts && typeof ts === 'object' && ts._frac) {
-      return `${step_str}|${ts.num}/${ts.den}`;
+      return `${step_str} | ${ts.num}/${ts.den}`;
     }
     ts = Math.abs(ts);
     if (ts === 1) {
@@ -2276,7 +2277,7 @@ class Pip {
     const invRounded = Math.round(inv);
     const isInvInt = Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0;
     if (isInvInt) {
-      return `${step_str} |/${invRounded}`;
+      return `${step_str} | /${invRounded}`;
     }
     // Fallback to pipe form
     const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
@@ -2657,7 +2658,16 @@ golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excl
       return;
     }
 
-    // Repeat removed
+    if (node instanceof RepeatByCount) {
+      // RepeatByCount is transparent - doesn't affect depth
+      // Visit the expression at the current depth
+      visit(node.expr, depth);
+      // The zero-mot is a child of the implicit Mul, so at depth+1
+      const count = typeof node.randSpec === 'number' ? node.randSpec : 5;
+      const zeroMot = new Mot(Array(Math.max(0, Math.trunc(count))).fill(new Pip(0, 1)));
+      out.push({ mot: zeroMot, depth: depth + 1 });
+      return;
+    }
 
     if (node instanceof Ref) {
       if (!followRefs) return;
@@ -2697,6 +2707,12 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
     if (memo.has(node)) return memo.get(node);
 
     if (node instanceof SegmentTransform) {
+      const h = height(node.expr);
+      memo.set(node, h);
+      return h;
+    }
+
+    if (node instanceof RepeatByCount) {
       const h = height(node.expr);
       memo.set(node, h);
       return h;

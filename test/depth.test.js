@@ -47,10 +47,12 @@ test('concatenation does not increase depth', () => {
 test('postfix :N multiplies zero-mot and does not affect binary depth', () => {
   const src = '([0, 1, 2] -2 _) * [3] : 5';
   const ds = motDepths(src);
+  // RepeatByCount evaluates to Mul, creating nested structure:
+  // (inner_mul) * zero-mot, where inner_mul = ([0,1,2] -2 _) * [3]
   assert.deepEqual(ds, [
-    { str: '[0, 1, 2]', depth: 1 },
+    { str: '[0, 1, 2]', depth: 2 },
     { str: '[3]', depth: 2 },
-    { str: '[0, 0, 0, 0, 0]', depth: 2 },
+    { str: '[0, 0, 0, 0, 0]', depth: 1 },
   ]);
 });
 

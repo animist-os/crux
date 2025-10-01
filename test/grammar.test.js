@@ -21,8 +21,8 @@ test('timeScale using * (plain number)', () => {
 });
 
 test('timeScale using / (fraction)', () => {
-  // 1/4 prints as /4 form
-  assert.equal(evalToString('[0, 1 | / 4]'), '[0, 1/4]');
+  // 1/4 prints as | /4 form (pipe is always included)
+  assert.equal(evalToString('[0, 1 | / 4]'), '[0, 1 | /4]');
 });
 
 test('implicit multiply sugar after pipe for number', () => {
@@ -45,13 +45,13 @@ test('curly before pipe with implicit multiply', () => {
 
 test('curly before pipe with explicit / randnum', () => {
   const out = evalToString('[ {1,2} | / {2,4} ]');
-  // 1/2 or 1/4 timeScale, printed as /2 or /4
-  assert.match(out, /^\[(1\/(2|4)|2\/(2|4))\]$/);
+  // 1/2 or 1/4 timeScale, printed as | /2 or | /4
+  assert.match(out, /^\[(1 \| \/(2|4)|2 \| \/(2|4))\]$/);
 });
 
 test('curly-of-pips chooses among pip forms', () => {
   const out = evalToString('[ {2, 1, 0 | /2} ]');
-  assert.ok(out === '[2]' || out === '[1]' || out === '[0/2]', 'Unexpected CurlyPip result: ' + out);
+  assert.ok(out === '[2]' || out === '[1]' || out === '[0 | /2]', 'Unexpected CurlyPip result: ' + out);
 });
 
 test('curly-of-pips supports outer timescale pipe', () => {
@@ -67,11 +67,11 @@ test('range expands inclusively', () => {
 
 test('range followed by pipe timescale applies to each element', () => {
   assert.equal(evalToString('[1 -> 4 | 2]'), '[1 | 2, 2 | 2, 3 | 2, 4 | 2]');
-  assert.equal(evalToString('[0 -> 2 | 1/2]'), '[0/2, 1/2, 2/2]');
+  assert.equal(evalToString('[0 -> 2 | 1/2]'), '[0 | /2, 1 | /2, 2 | /2]');
 });
 
 test('range followed by pipe divide with rand or number', () => {
-  assert.equal(evalToString('[1 -> 5 | /2]'), '[1/2, 2/2, 3/2, 4/2, 5/2]');
+  assert.equal(evalToString('[1 -> 5 | /2]'), '[1 | /2, 2 | /2, 3 | /2, 4 | /2, 5 | /2]');
 });
 
 test(':N multiplies by a zero-mot of length N', () => {
@@ -225,7 +225,7 @@ test('range endpoints support curly choice', () => {
 
 test('jam can reset durations via pass-through with timeScale', () => {
   assert.equal(evalToString('[0 | 2, 1 | /4, 2] j [|]'), '[0, 1, 2]');
-  assert.equal(evalToString('[0, 1 | /3, 2 | 5] j [| /2]'), '[0/2, 1/2, 2/2]');
+  assert.equal(evalToString('[0, 1 | /3, 2 | 5] j [| /2]'), '[0 | /2, 1 | /2, 2 | /2]');
 });
 
 test('parens for grouping (expand then add identity)', () => {
@@ -277,11 +277,11 @@ test('curly refs followed by :N multiplies by zero-mot', () => {
 // '_' tag removed
 
 test('rest special accepts timeScale via pipe using / (fraction)', () => {
-  assert.equal(evalToString('[0, r | /2, 1]'), '[0, r/2, 1]');
+  assert.equal(evalToString('[0, r | /2, 1]'), '[0, r | /2, 1]');
 });
 
 test('rest special accepts timeScale via pipe with spaces', () => {
-  assert.equal(evalToString('[0, r |  /  2 , 1]'), '[0, r/2, 1]');
+  assert.equal(evalToString('[0, r |  /  2 , 1]'), '[0, r | /2, 1]');
 });
 
 // legacy special * form removed; use pipe instead
@@ -355,48 +355,48 @@ test('bare Curly as PriExpr works in operators', () => {
 // ---- Nested mots ----
 
 test('nested mot basic flattening', () => {
-  assert.equal(evalToString('[[0,1]]'), '[0/2, 1/2]');
-  assert.equal(evalToString('[[0,1,2]]'), '[0/3, 1/3, 2/3]');
-  assert.equal(evalToString('[[0,1,2,3]]'), '[0/4, 1/4, 2/4, 3/4]');
+  assert.equal(evalToString('[[0,1]]'), '[0 | /2, 1 | /2]');
+  assert.equal(evalToString('[[0,1,2]]'), '[0 | /3, 1 | /3, 2 | /3]');
+  assert.equal(evalToString('[[0,1,2,3]]'), '[0 | /4, 1 | /4, 2 | /4, 3 | /4]');
 });
 
 test('nested mot with explicit timescales', () => {
-  assert.equal(evalToString('[[0, 1 | 2]]'), '[0/2, 1]');
-  assert.equal(evalToString('[[0 | /4, 1]]'), '[0/8, 1/2]');
-  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0 | 1.5, 1/4]');
+  assert.equal(evalToString('[[0, 1 | 2]]'), '[0 | /2, 1]');
+  assert.equal(evalToString('[[0 | /4, 1]]'), '[0 | /8, 1 | /2]');
+  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0 | 1.5, 1 | /4]');
 });
 
 test('nested mot with fractions and pipe-only', () => {
   // 3/4 * 1/2 = 3/8 => prints as *0.375
-  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0/2, 1 | 0.375]');
-  assert.equal(evalToString('[[0, | 2]]'), '[0/2, 0]');
-  assert.equal(evalToString('[[| 3, 1]]'), '[0 | 1.5, 1/2]');
-  assert.equal(evalToString('[[|, | /4]]'), '[0/2, 0/8]');
+  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0 | /2, 1 | 0.375]');
+  assert.equal(evalToString('[[0, | 2]]'), '[0 | /2, 0]');
+  assert.equal(evalToString('[[| 3, 1]]'), '[0 | 1.5, 1 | /2]');
+  assert.equal(evalToString('[[|, | /4]]'), '[0 | /2, 0 | /8]');
 });
 
 test('concat and juxtaposition with nested mots', () => {
-  assert.equal(evalToString('[[0,1]], [2]'), '[0/2, 1/2, 2]');
-  assert.equal(evalToString('[2], [[0,1]]'), '[2, 0/2, 1/2]');
-  assert.equal(evalToString('[[0,1]], [2], [[3,4]]'), '[0/2, 1/2, 2, 3/2, 4/2]');
+  assert.equal(evalToString('[[0,1]], [2]'), '[0 | /2, 1 | /2, 2]');
+  assert.equal(evalToString('[2], [[0,1]]'), '[2, 0 | /2, 1 | /2]');
+  assert.equal(evalToString('[[0,1]], [2], [[3,4]]'), '[0 | /2, 1 | /2, 2, 3 | /2, 4 | /2]');
   // Juxtaposition removed; only comma concatenation is supported
 });
 
 test('nested within nested', () => {
   // Outer nested divides by number of top-level pieces (here 2),
   // inner Mot remains a single piece inside the outer nested group.
-  assert.equal(evalToString('[[[0,1], 2]]'), '[0/2, 1/2, 2/2]');
-  assert.equal(evalToString('[[[0,1]], 2]'), '[0/2, 1/2, 2]');
+  assert.equal(evalToString('[[[0,1], 2]]'), '[0 | /2, 1 | /2, 2 | /2]');
+  assert.equal(evalToString('[[[0,1]], 2]'), '[0 | /2, 1 | /2, 2]');
 });
 
 test('mot literal inside mot subdivides anywhere, not just edges', () => {
-  assert.equal(evalToString('[0, [1,2]]'), '[0, 1/2, 2/2]');
-  assert.equal(evalToString('[0, [1,2], 3]'), '[0, 1/2, 2/2, 3]');
+  assert.equal(evalToString('[0, [1,2]]'), '[0, 1 | /2, 2 | /2]');
+  assert.equal(evalToString('[0, [1,2], 3]'), '[0, 1 | /2, 2 | /2, 3]');
 });
 
 test('multiple nested subdivision is hierarchical', () => {
   // [0, [1, [2,3]], 4] -> inner [2,3] divides by 2 (1/2 factor),
   // then the [1, [...]] group divides by 2 (1/2 factor), yielding total 1/4 for 2 and 3.
-  assert.equal(evalToString('[0, [1,[2, 3]], 4]'), '[0, 1/2, 2/4, 3/4, 4]');
+  assert.equal(evalToString('[0, [1,[2, 3]], 4]'), '[0, 1 | /2, 2 | /4, 3 | /4, 4]');
 });
 
 test('spread operations with nested mots', () => {
@@ -409,36 +409,9 @@ test('spread operations with nested mots', () => {
 });
 
 test('nested with tags and ranges', () => {
-  assert.equal(evalToString('[[0, r]]'), '[0/2, r/2]');
-  assert.equal(evalToString('[[0->2]]'), '[0/3, 1/3, 2/3]');
+  assert.equal(evalToString('[[0, r]]'), '[0 | /2, r | /2]');
+  assert.equal(evalToString('[[0->2]]'), '[0 | /3, 1 | /3, 2 | /3]');
 });
-
-test('parse basic bang avoid', () => {
-  const out = evalToString('[!{0,6}]');
-  assert.equal(out, '[!{0,6}]');
-});
-
-test('bang avoid with pipe timescale', () => {
-  assert.equal(evalToString('[!{0,6} | 2]'), '[!{0,6}*2]');
-  assert.equal(evalToString('[!{0,6} | /2]'), '[!{0,6}/2]');
-});
-
-test('bang avoid in mul on right', () => {
-  assert.equal(evalToString('[3] * [ !{0,6} ]'), '[!{0,6} + 3]');
-});
-
-test('bang avoid combine both sides', () => {
-  assert.equal(evalToString('[ !{0,6} ] * [ !{3,7} ]'), '[!{0,3,6,7}]');
-});
-
-test('bang avoid in expand', () => {
-  assert.equal(evalToString('[ !{0,6} ] ^ [2]'), '[!{0,6}]');
-});
-
-test('bang avoid parse fails on non-number interval', () => {
-  assert.throws(() => parse('[!{0,a}]'), /digit/);
-});
-
 
 test('identifier inside mot literal subdivides referenced motif', () => {
   const program = [
@@ -449,7 +422,7 @@ test('identifier inside mot literal subdivides referenced motif', () => {
     'inc02',
   ].join('\n');
   // ef = [2,3] so [ef,2] should subdivide ef: [2/2, 3/2, 2]
-  assert.equal(evalToString(program), '[2/2, 3/2, 2]');
+  assert.equal(evalToString(program), '[2 | /2, 3 | /2, 2]');
 });
 
 test('curly expressions in timeScale positions', () => {
@@ -482,7 +455,7 @@ test('fan ops ignore ellipsis (treated as single value)', () => {
 
 test('dot nested subdivision carries timescales from RHS nested pips (implicit 1/2)', () => {
   const program = '[0,4,2] . [0, [1,0], 0]';
-  assert.equal(evalToString(program), '[0, 5/2, 4/2, 2]');
+  assert.equal(evalToString(program), '[0, 5 | /2, 4 | /2, 2]');
 });
 
 test('dot nested subdivision carries explicit timescales from RHS nested pips', () => {

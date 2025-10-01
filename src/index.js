@@ -11,8 +11,6 @@ globalThis.golden = golden;
 
 
 
-
-
 golden._crux_uuid_cnt = 1;
 golden.getCruxUUID = function() {
   return '' + golden._crux_uuid_cnt++;
@@ -42,6 +40,27 @@ function _provAddPipToMot(pip, motId) {
   let s = golden._prov.pipToMots.get(pip.pipId);
   if (!s) { s = new Set(); golden._prov.pipToMots.set(pip.pipId, s); }
   s.add(motId);
+}
+
+/**
+ * Factory function to create a new Pip with automatic provenance tracking.
+ * Automatically adds edges to all parent pips passed in the sources array.
+ *
+ * @param {number} step - The step value
+ * @param {number} timeScale - The timeScale value
+ * @param {string|null} tag - Optional tag
+ * @param {Array<Pip>} sources - Array of source pips (for provenance)
+ * @returns {Pip} - The newly created pip with provenance edges
+ */
+function createPipFrom(step, timeScale, tag, ...sources) {
+  const pip = new Pip(step, timeScale, tag);
+  // Automatically add provenance edges to all sources
+  for (const source of sources) {
+    if (source instanceof Pip) {
+      _provAddEdge(pip, source);
+    }
+  }
+  return pip;
 }
 
 golden.FindAncestorPips = function(aPip) {
@@ -435,15 +454,15 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_special(sym) {
-    return new Pip(0, 1, sym.sourceString);
+    return new Pip(0, 1, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(0, m.parse(), sym.sourceString);
+    return new Pip(0, m.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
-    return new Pip(0, 1 / d.parse(), sym.sourceString);
+    return new Pip(0, 1 / d.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
@@ -512,7 +531,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString);
+    return new Pip(0, ts.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   // Curly pip with pipe scaling
@@ -909,7 +928,7 @@ class Mul {
       const reverse = yi.timeScale < 0;
       let absYi = yi;
       if (reverse) {
-        absYi = new Pip(yi.step, Math.abs(yi.timeScale), yi.tag);
+        absYi = createPipFrom(yi.step, Math.abs(yi.timeScale), yi.tag, yi);
       }
 
       const isZeroRepeat = absYi.step === 0 && absYi.timeScale === 1 && !absYi.tag;
@@ -938,7 +957,7 @@ class Expand {
       const reverse = yi.timeScale < 0;
       let absYi = yi;
       if (reverse) {
-        absYi = new Pip(yi.step, Math.abs(yi.timeScale), yi.tag);
+        absYi = createPipFrom(yi.step, Math.abs(yi.timeScale), yi.tag, yi);
       }
 
       const source = reverse ? [...xv.values].reverse() : xv.values;
@@ -1106,15 +1125,21 @@ class JamOp {
       const passThrough = (r._pipeOnly === true);
       if (passThrough) {
         if (r._jamPass === 'ts') {
-          for (const a of left.values) out.push(new Pip(a.step, a.timeScale, a.tag));
+          for (const a of left.values) {
+            out.push(createPipFrom(a.step, a.timeScale, a.tag, a));
+          }
         } else if (r._jamPass === 'step') {
-          for (const a of left.values) out.push(new Pip(a.step, r.timeScale, a.tag));
+          for (const a of left.values) {
+            out.push(createPipFrom(a.step, r.timeScale, a.tag, a, r));
+          }
         } else {
-          for (const a of left.values) out.push(new Pip(a.step, a.timeScale, a.tag));
+          for (const a of left.values) {
+            out.push(createPipFrom(a.step, a.timeScale, a.tag, a));
+          }
         }
       } else {
-        for (const _ of left.values) {
-          out.push(new Pip(r.step, r.timeScale, r.tag));
+        for (const a of left.values) {
+          out.push(createPipFrom(r.step, r.timeScale, r.tag, r, a));
         }
       }
     }
@@ -1138,14 +1163,14 @@ class DotJam {
       const r = right.values[i % m];
       if (r._pipeOnly === true) {
         if (r._jamPass === 'ts') {
-          out.push(new Pip(a.step, a.timeScale, a.tag));
+          out.push(createPipFrom(a.step, a.timeScale, a.tag, a));
         } else if (r._jamPass === 'step') {
-          out.push(new Pip(a.step, r.timeScale, a.tag));
+          out.push(createPipFrom(a.step, r.timeScale, a.tag, a, r));
         } else {
-          out.push(new Pip(a.step, a.timeScale, a.tag));
+          out.push(createPipFrom(a.step, a.timeScale, a.tag, a));
         }
       } else {
-        out.push(new Pip(r.step, r.timeScale, r.tag));
+        out.push(createPipFrom(r.step, r.timeScale, r.tag, r, a));
       }
     }
     return new Mot(out);
@@ -1169,7 +1194,7 @@ class DotExpand {
       const right = yv.values[yi];
       if ((left.tag || right.tag)) {
         if (left.hasTag('r') || right.hasTag('r')) {
-          values.push(new Pip(left.step, left.timeScale * right.timeScale, 'r'));
+          values.push(createPipFrom(left.step, left.timeScale * right.timeScale, 'r', left, right));
           continue;
         }
         values.push(left);
@@ -1297,7 +1322,7 @@ class Steps {
       for (let t = 0; t <= count; t++) {
         const delta = dir * t;
         for (const v of left.values) {
-          out.push(new Pip(v.step + delta, v.timeScale * r.timeScale, v.tag));
+          out.push(createPipFrom(v.step + delta, v.timeScale * r.timeScale, v.tag, v, r));
         }
       }
     }
@@ -1324,7 +1349,7 @@ class DotSteps {
       const count = Math.abs(k);
       for (let t = 0; t <= count; t++) {
         const delta = dir * t;
-        out.push(new Pip(li.step + delta, li.timeScale * ri.timeScale, li.tag));
+        out.push(createPipFrom(li.step + delta, li.timeScale * ri.timeScale, li.tag, li, ri));
       }
     }
     return new Mot(out);
@@ -2029,6 +2054,11 @@ class Pip {
     this.sourceStart = sourceStart; // start character offset in source (when available)
     this.pipId = golden._prov.enabled ? golden.getCruxUUID() : null;
     this.motId = null;
+
+    // Register with ProvenanceIndex if available
+    if (golden.ProvenanceIndex && this.sourceStart != null && this.pipId != null) {
+      golden.ProvenanceIndex.registerPipSource(this, this.sourceStart);
+    }
   }
 
   mul(that) {
@@ -2751,6 +2781,7 @@ golden.crux_interp = function (input) {
   const value = prog.interp();
   return value;
 }
+
 
 
 

@@ -64,6 +64,7 @@ export const g = ohm.grammar(String.raw`
       | MulExpr "^" AppendExpr  -- expand
       | MulExpr "." AppendExpr  -- dot
       | MulExpr "~" AppendExpr  -- rotate
+      | MulExpr ".~" AppendExpr  -- dotRotate
       | MulExpr ident AppendExpr -- aliasOp
       | AppendExpr
 

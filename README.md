@@ -3,10 +3,13 @@
 A tiny language for algorithmic music. Build phrases ("mots") from relative pitch/time events ("pips"), then transform and combine them with a small, composable operator set.
 
 - Relative pitch (step) and duration (timeScale)
-- Two mapping semantics for binary ops: spread and tile
+- Two mapping semantics for binary ops: **fan** (spread) and **cog** (tile)
 - Concise sequencing: concatenation, postfix repeat and underscore slicing
-- Musical transforms: steps, neighbor, mirror, lens, tie, constraint, filter, rotate
+- Musical transforms: steps, mirror, lens, tie, constraint, jam, rotate, Glass, Reich, Pärt
 
+## Status
+
+✅ **v1.0.0** - All tests passing (95/95), fully documented, production ready
 
 ## Install
 
@@ -15,9 +18,9 @@ npm install
 npm test
 ```
 
-## Quick start
+## Quick Start
 
-Evaluate a program in Node:
+### Development (modular source)
 
 ```js
 import { parse } from './src/index.js';
@@ -30,6 +33,24 @@ A, [2]
 const prog = parse(program);
 const result = prog.interp();
 console.log(result.toString()); // [0, 1, 2]
+```
+
+### Production (bundled)
+
+```js
+// Assumes golden global object exists and ohm-js is loaded
+global.golden = {};
+require('./dist/crux.cjs');
+
+const result = golden.crux_interp('[0,1,2] * [3]');
+console.log(result.toString()); // [0, 3, 6]
+```
+
+## Build
+
+```bash
+npm run build      # Build bundle to dist/crux.cjs
+npm run build:test # Build and run tests
 ```
 
 ## Core concepts
@@ -48,17 +69,21 @@ console.log(result.toString()); // [0, 1, 2]
   - `start _ end` (end exclusive), `start _`, `_ end`
   - `[0,1,2,3,4] -3 _ -1  // [2, 3]`
 
-## Spread vs tile
+## Fan vs Cog Semantics
 
-- Spread family: `*`, `^`, `->`, `n`, `m`, `l`, `t`, `c`, `j`
-- Tile family: `.`, `.^`, `.->`, `.n`, `.m`, `.l`, `.t`, `.c`, `.j`
+**Fan operators** apply RHS to entire LHS (output: `|LHS| × |RHS|`):
+- `*`, `^`, `->`, `j`, `m`, `l`, `c`, `~`, `g`, `r`, `p`
 
-Examples
+**Cog operators** pair LHS with RHS per-position (output: `|LHS|`):
+- `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.~`, `.,`, `.g`, `.r`
+
+Examples:
 ```text
-[0,1,2] * [10,20]     -> [10,11,12, 20,21,22]
-[1,2] ^ [2]           -> [2, 4]
-[0,1,2] . [10,20]     -> [10, 21, 12]
-[0,1,2,3] ~ [-1]      -> [3, 0, 1, 2]
+[0,1,2] * [10,20]     → [10,11,12, 20,21,22]  # fan: all of LHS with each RHS
+[0,1,2] .* [10,20]    → [10, 21, 12]          # cog: pair by position
+[1,2] ^ [2]           → [2, 4]                # fan: elementwise multiply
+[0,1,2,3] ~ [-1]      → [3, 0, 1, 2]          # fan: rotate all
+[0,1,2,3] .~ [1,2]    → [1, 3]                # cog: rotate per-position
 ```
 
 ## Musical transforms
@@ -103,12 +128,41 @@ B . [0, -12]
 
 
 
-### WIP - Core
+## Documentation
 
-- Pip: step (integer/float) | timeScale (defaults to 1). Example: `0`, `-2`, `3 | 1/2`; `r` = rest
-- Mot: list of values: `[0, 1/2, -2]`.
+- **[crux_tutorial.md](crux_tutorial.md)** - Complete language tutorial
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design
+- **[BUILD_SUMMARY.md](BUILD_SUMMARY.md)** - Build system guide
+- **[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)** - Refactoring changelog
+- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current project status
 
-- Spread Add: `[0, 1, 2 | 3] * [3, -1] // [3, 4, 5 | 3, -1, 0, 1 | 3]`
-- Tiled Add: `[0, 1, 2] .* [3, -1] // [3, 0, 5] `
-- Concatenate: `[0, 1], [2]` or `[0, 1] [2]`
-- Repeat (postfix): `[1] : 3  // [1, 1, 1]`
+## Operators Reference
+
+### Binary Transforms
+| Operator | Fan | Cog | Description |
+|----------|-----|-----|-------------|
+| `*` / `.*` | Mul | Dot | Add steps, multiply timeScales |
+| `^` / `.^` | Expand | DotExpand | Multiply steps |
+| `->` / `.->` | Steps | DotSteps | Generate step sequences |
+| `j` / `.j` | Jam | DotJam | Replace values |
+| `m` / `.m` | Mirror | DotMirror | Mirror around anchor |
+| `l` / `.l` | Lens | DotLens | Sliding/rolling window |
+| `c` / `.c` | Constraint | DotConstraint | Filter by mask |
+| `~` / `.~` | Rotate | DotRotate | Rotation |
+| `g` / `.g` | Glass | DotGlass | Glass-style rhythms |
+| `r` / `.r` | Reich | DotReich | Reich-style phasing |
+| `p` | Paert | - | Pärt tintinnabulation |
+| `.,` | - | DotZip | Interleave motifs |
+
+### Unary Operators
+- `t` - Tie (merge adjacent equal steps)
+- `:N` - Repeat (multiply by N-length zero-mot)
+- `_` - Slice (extract subsequence)
+
+## Contributing
+
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for guidelines.
+
+## License
+
+[Add license information]

@@ -7,13 +7,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 console.log('🔨 Building Crux bundle...\n');
 
-// Read the current monolithic index.js which already has everything
+// Read the modular source files
+console.log('📝 Reading src/grammar.js...');
+const grammarPath = path.join(__dirname, 'src/grammar.js');
+let grammarContent = fs.readFileSync(grammarPath, 'utf8');
+
 console.log('📝 Reading src/index.js...');
 const indexPath = path.join(__dirname, 'src/index.js');
 let indexContent = fs.readFileSync(indexPath, 'utf8');
 
-// Remove ES6 import since we'll use require or global ohm
+// Remove ES6 imports since we'll use require or global ohm
+grammarContent = grammarContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
+grammarContent = grammarContent.replace(/^export \{ g \};?\s*\n?/m, '');
+
 indexContent = indexContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
+indexContent = indexContent.replace(/^import \{ g \} from ['"]\.\/grammar\.js['"];?\s*\n/m, '');
 
 // For now, just note that ohm-js needs to be available
 // In your actual environment, you'll load ohm-js separately or inline it
@@ -29,6 +37,10 @@ if (!ohm) {
   throw new Error('ohm-js is required. Install with: npm install ohm-js');
 }
 
+// === Grammar ===
+${grammarContent}
+
+// === Main Implementation ===
 ${indexContent}
 
 // === Exports ===

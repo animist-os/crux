@@ -136,7 +136,7 @@ Mots can be nested. By default, nested mots preserve unit duration (each pip mai
 [[0,0,0],5 | /2, 3 | /2]
 ```
 
-To subdivide a nested mot (multiply each pip's timescale by 1/length), use the `/` postfix operator:
+To subdivide the time a nested mot's time, so that the nested mot occupies a single unit duration of the parental mot, use the `/` postfix operator:
 ```
 [[0,1,2]]/
 // Produces: [0 | /3, 1 | /3, 2 | /3]
@@ -244,7 +244,7 @@ The behavior with fan operators is more intuitive:
 [0,-1,1,0] * [0,[7, 6], 2]
 ```
 
-Nested mots now preserve unit duration by default. If you want subdivision (timescale reduction), use the `/` postfix operator:
+Nested mots now preserve unit duration by default (this is a recent change, if it makes you unhappy, you know who to call). If you want subdivision (timescale reduction), use the `/` postfix operator:
 ```
 [0,-1,1,0] * [0,[7, 6]/, -1]
 ```

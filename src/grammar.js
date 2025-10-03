@@ -33,7 +33,8 @@ export const g = ohm.grammar(String.raw`
   // Postfix operators (tie, repeat, slice) at lower precedence than binary operators
   // These apply to "everything to the left" by default
   PostfixExpr
-      = PostfixExpr "t"                          -- tiePostfix
+      = PostfixExpr "z"                          -- zipColumns
+      | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
       | PostfixExpr hspaces? SliceOp                 -- slice

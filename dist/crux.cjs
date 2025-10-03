@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-01T21:36:53.057Z
+// Generated: 2025-10-03T00:30:36.256Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -44,7 +44,8 @@ export const g = ohm.grammar(String.raw`
   // Postfix operators (tie, repeat, slice) at lower precedence than binary operators
   // These apply to "everything to the left" by default
   PostfixExpr
-      = PostfixExpr "t"                          -- tiePostfix
+      = PostfixExpr "z"                          -- zipColumns
+      | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
       | PostfixExpr hspaces? SliceOp                 -- slice
@@ -338,6 +339,11 @@ const s = g.createSemantics().addOperation('parse', {
   PostfixExpr_tiePostfix(expr, _t) {
     const x = expr.parse();
     return new TieOp(x);
+  },
+
+  PostfixExpr_zipColumns(expr, _z) {
+    const x = expr.parse();
+    return new ZipColumns(x);
   },
 
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, n) {
@@ -891,6 +897,8 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotReich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  PostfixExpr_zipColumns(x, _z) { return x.collectRepeatSuffixRewrites(); },
+  PostfixExpr_tiePostfix(x, _t) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
@@ -981,6 +989,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotReich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  PostfixExpr_zipColumns(x, _z) { return x.collectTs(); },
+  PostfixExpr_tiePostfix(x, _t) { return x.collectTs(); },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
   PostfixExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
@@ -1231,7 +1241,16 @@ class Dot {
 
     // If RHS is a Mot literal, build a mask that preserves NestedMot groupings and pad semantics
     let rhsMask = null;
-    if (this.y instanceof Mot) {
+
+    // Handle bare NestedMot on RHS (e.g., [[0,0]])
+    if (this.y instanceof NestedMot || this.y instanceof NestedMotExpr) {
+      const m = requireMot(this.y.eval(env));
+      const pairs = [];
+      for (const v of m.values) {
+        if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
+      }
+      rhsMask = [{ kind: 'subdiv', pairs }];
+    } else if (this.y instanceof Mot) {
       const yAst = this.y;
       rhsMask = yAst.values.map((entry) => {
         // Subdivision grouping: NestedMot or NestedMotExpr
@@ -1725,6 +1744,48 @@ class DotZip {
       }
       if (i < right.values.length) {
         out.push(right.values[i]);
+      }
+    }
+
+    return new Mot(out);
+  }
+}
+
+// ZipColumns: Takes a comma-concatenation and interleaves the parts in round-robin fashion
+// Example: ([A], [B], [C])z where A=[0,0,0], B=[1,1,1], C=[2,2,2] -> [0,1,2,0,1,2,0,1,2]
+class ZipColumns {
+  constructor(x) {
+    this.x = x;
+  }
+
+  // Collect all parts from FollowedBy chain into an array
+  collectParts(expr, env) {
+    if (expr instanceof FollowedBy) {
+      return [...this.collectParts(expr.x, env), ...this.collectParts(expr.y, env)];
+    } else {
+      // It's a single mot
+      const mot = requireMot(expr.eval(env));
+      return [mot.values];
+    }
+  }
+
+  eval(env) {
+    // Collect all comma-separated parts
+    const parts = this.collectParts(this.x, env);
+
+    if (parts.length === 0) return new Mot([]);
+    if (parts.length === 1) return new Mot(parts[0]);
+
+    // Find the maximum length
+    const maxLen = Math.max(...parts.map(p => p.length));
+
+    // Interleave in round-robin fashion
+    const out = [];
+    for (let i = 0; i < maxLen; i++) {
+      for (let j = 0; j < parts.length; j++) {
+        if (i < parts[j].length) {
+          out.push(parts[j][i]);
+        }
       }
     }
 

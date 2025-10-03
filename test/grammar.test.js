@@ -474,6 +474,18 @@ test('dot nested subdivision multiplies with LHS timescales', () => {
   assert.equal(evalToString(program), '[0, 5 | 2, 4 | 2, 2]');
 });
 
+test('dot with bare nested mot tiles subdivision across all LHS elements', () => {
+  // Single nested mot should subdivide each LHS element
+  assert.equal(evalToString('[0,1,2] . [[0,0]]'), '[0 | /2, 0 | /2, 1 | /2, 1 | /2, 2 | /2, 2 | /2]');
+});
+
+test('dot nested mot equivalence: single vs multiple copies', () => {
+  // [[0,0]] and [[0,0], [0,0], [0,0]] should behave identically (tiling a single pattern)
+  const single = evalToString('[0,1,2] . [[0,0]]');
+  const triple = evalToString('[0,1,2] . [[0,0], [0,0], [0,0]]');
+  assert.equal(single, triple);
+});
+
 test('semicolon separates statements like newline', () => {
   const multiline = `A = [0,1]
 A * A`;
@@ -508,6 +520,40 @@ test('dotZip operator with shorter RHS', () => {
 
 test('dotZip operator with shorter LHS', () => {
   assert.equal(evalToString('[0,1] ., [10,9,8,7]'), '[0, 10, 1, 9, 8, 7]');
+});
+
+test('dotZip operator 3-way interleave - current behavior', () => {
+  const A = '[0,0,0]';
+  const B = '[1,1,1]';
+  const C = '[2,2,2]';
+  const result = evalToString(`${A} ., ${B} ., ${C}`);
+  // Current: (A ., B) produces [0,1,0,1,0,1], then that ., C
+  // This is the actual behavior - documenting it
+  assert.equal(result, '[0, 2, 1, 2, 0, 2, 1, 0, 1]');
+});
+
+test('3-way zip using z operator with assignments', () => {
+  const program = `
+    A = [0,0,0]
+    B = [1,1,1]
+    C = [2,2,2]
+    (A, B, C)z
+  `;
+  const result = evalToString(program);
+  const expected = '[0, 1, 2, 0, 1, 2, 0, 1, 2]';
+  assert.equal(result, expected);
+});
+
+test('z operator with inline mots', () => {
+  const result = evalToString('([0,0,0], [1,1,1], [2,2,2])z');
+  const expected = '[0, 1, 2, 0, 1, 2, 0, 1, 2]';
+  assert.equal(result, expected);
+});
+
+test('z operator with unequal lengths', () => {
+  const result = evalToString('([0,0], [1,1,1], [2])z');
+  const expected = '[0, 1, 2, 0, 1, 1]';
+  assert.equal(result, expected);
 });
 
 

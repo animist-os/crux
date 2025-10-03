@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-03T05:26:22.290Z
+// Generated: 2025-10-03T05:55:52.542Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -96,7 +96,9 @@ export const g = ohm.grammar(String.raw`
       = ListOf<NestedElem, ",">       -- nestedAbsolute
 
   NestedElem
-      = SingleValue                    -- single
+      = MotLiteral "/"                 -- motSubdivide
+      | NestedMotLiteral "/"           -- nestedSubdivide
+      | SingleValue                    -- single
       | MotLiteral                     -- mot
       | NestedMotLiteral               -- nested
 
@@ -131,6 +133,8 @@ export const g = ohm.grammar(String.raw`
 
     SingleValue
       = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+      | MotLiteral "/"                                -- motSubdivide
+      | NestedMotLiteral "/"                          -- nestedSubdivide
       | NestedMotLiteral
       | NestedMotAbbrev
       | MotLiteral
@@ -516,6 +520,21 @@ const s = g.createSemantics().addOperation('parse', {
     return { kind: 'nestedAbsolute', values: values.parse() };
   },
 
+  NestedElem_motSubdivide(node, _slash) {
+    // node is a MotLiteral followed by /
+    const body = node.children[1];
+    const parsed = body.parse();
+    const mot = new Mot(parsed.values);
+    return subdivide(mot);
+  },
+
+  NestedElem_nestedSubdivide(node, _slash) {
+    // node is a NestedMotLiteral followed by /
+    const body = node.children[1];
+    const parsed = body.parse();
+    return subdivide(parsed);
+  },
+
   NestedElem_single(x) {
     return x.parse();
   },
@@ -568,6 +587,19 @@ const s = g.createSemantics().addOperation('parse', {
 
   SingleValue(x) {
     return x.parse();
+  },
+  SingleValue_motSubdivide(node, _slash) {
+    // node is a MotLiteral followed by /
+    const body = node.children[1];
+    const parsed = body.parse();
+    const mot = new Mot(parsed.values);
+    return subdivide(mot);
+  },
+  SingleValue_nestedSubdivide(node, _slash) {
+    // node is a NestedMotLiteral followed by /
+    const body = node.children[1];
+    const parsed = body.parse();
+    return subdivide(parsed);
   },
   SingleValue_inlineMulMots(aNode, _h1, _star, _h2, bNode) {
     // Inline [X] * [Y] inside a Mot as just Y's Mot, to support cases like [0, [1] * [2], 4].
@@ -2018,6 +2050,35 @@ class Subdivide {
     const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag));
     return new Mot(out);
   }
+}
+
+// Helper function to subdivide a Mot or NestedMot directly
+function subdivide(motOrNested) {
+  if (motOrNested instanceof Mot) {
+    const N = motOrNested.values.length;
+    if (N === 0) return new Mot([]);
+    const factor = 1 / N;
+    const out = motOrNested.values.map(pip => {
+      if (pip instanceof Pip) {
+        return new Pip(pip.step, pip.timeScale * factor, pip.tag);
+      }
+      return pip;
+    });
+    return new Mot(out);
+  }
+  if (motOrNested instanceof NestedMot) {
+    const N = motOrNested.values.length;
+    if (N === 0) return new NestedMot([]);
+    const factor = 1 / N;
+    const out = motOrNested.values.map(v => {
+      if (v instanceof Pip) {
+        return new Pip(v.step, v.timeScale * factor, v.tag);
+      }
+      return v;
+    });
+    return new NestedMot(out);
+  }
+  return motOrNested;
 }
 
 class TieOp {

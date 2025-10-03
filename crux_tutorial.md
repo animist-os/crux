@@ -617,6 +617,7 @@ mozA = mozNugA ., mozNugA2 . [0, [0,0]] // ., is zip to interleave 2 mots into 1
 ```
 
 Bach Cello Prelude
+```
 S = [9] * [0,1,0] . [[0,0],[0,0,0,0],[0,0]]
 T = [4 -> 7] . [[0,0], [0,0], [0,0,0,0]]
 B = [0]:10
@@ -624,6 +625,7 @@ B = [0]:10
 woven = (B, T, S, T, S, T) z
 
 woven . [0, 0, [0,-1,0], 0, 0, 0] 
+
 ```
 
 <br>

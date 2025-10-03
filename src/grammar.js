@@ -85,7 +85,9 @@ export const g = ohm.grammar(String.raw`
       = ListOf<NestedElem, ",">       -- nestedAbsolute
 
   NestedElem
-      = SingleValue                    -- single
+      = MotLiteral "/"                 -- motSubdivide
+      | NestedMotLiteral "/"           -- nestedSubdivide
+      | SingleValue                    -- single
       | MotLiteral                     -- mot
       | NestedMotLiteral               -- nested
 
@@ -120,6 +122,8 @@ export const g = ohm.grammar(String.raw`
 
     SingleValue
       = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+      | MotLiteral "/"                                -- motSubdivide
+      | NestedMotLiteral "/"                          -- nestedSubdivide
       | NestedMotLiteral
       | NestedMotAbbrev
       | MotLiteral

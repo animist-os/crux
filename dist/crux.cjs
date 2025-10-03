@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-03T00:30:36.256Z
+// Generated: 2025-10-03T05:26:22.290Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -44,7 +44,8 @@ export const g = ohm.grammar(String.raw`
   // Postfix operators (tie, repeat, slice) at lower precedence than binary operators
   // These apply to "everything to the left" by default
   PostfixExpr
-      = PostfixExpr "z"                          -- zipColumns
+      = PostfixExpr "/"                          -- subdivide
+      | PostfixExpr "z"                          -- zipColumns
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
@@ -336,6 +337,11 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
+  PostfixExpr_subdivide(expr, _slash) {
+    const x = expr.parse();
+    return new Subdivide(x);
+  },
+
   PostfixExpr_tiePostfix(expr, _t) {
     const x = expr.parse();
     return new TieOp(x);
@@ -522,7 +528,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   NestedElem_nested(node) {
-    // node is a NestedMotLiteral; its body is children[1]
+    // node is a NestedMotLiteral
     const body = node.children[1];
     const parsed = body.parse();
     return new NestedMot(parsed.values);
@@ -897,6 +903,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotReich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
@@ -989,6 +996,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotReich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  PostfixExpr_subdivide(x, _slash) { return x.collectTs(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectTs(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectTs(); },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
@@ -1994,6 +2002,24 @@ class PaertOp {
   }
 }
 
+// Subdivide postfix operator: divides all timescales by the length of the mot
+// Example: [0,1,2]/ → [0|/3, 1|/3, 2|/3]
+// Example: [[2,2]]/ → [2|/2, 2|/2]
+class Subdivide {
+  constructor(x) {
+    this.x = x;
+  }
+
+  eval(env) {
+    const mot = requireMot(this.x.eval(env));
+    const N = mot.values.length;
+    if (N === 0) return new Mot([]);
+    const factor = 1 / N;
+    const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag));
+    return new Mot(out);
+  }
+}
+
 class TieOp {
   constructor(x) {
     this.x = x;
@@ -2576,13 +2602,10 @@ class NestedMot {
   }
 
   eval(env) {
-    // Hierarchical subdivision: treat each top-level element as one piece.
-    // Evaluate each piece (which may itself contain nested subdivision) and
-    // then apply a single 1/K factor to all pips in each piece, where K is the
-    // number of top-level pieces. Special case: when there is exactly one
-    // top-level element that expands into multiple pips (e.g., a Range or
-    // random choice), use that expansion length as K so that [[0->2]] yields
-    // [0/3, 1/3, 2/3].
+    // Nested mots now default to NO scaling (keep original timescales).
+    // Use the / postfix operator to get subdivision behavior.
+    //
+    // Simply flatten all pieces without any timescale adjustment.
     const pieces = [];
     for (const v of this.values) {
       let pieceValues;
@@ -2596,20 +2619,13 @@ class NestedMot {
       // Clone pips to avoid mutating nested results downstream
       pieces.push(pieceValues.map(p => new Pip(p.step, p.timeScale, p.tag)));
     }
-    let K = pieces.length;
-    if (K === 1) {
-      const only = this.values[0];
-      if (!(only instanceof NestedMot) && !(only instanceof Mot)) {
-        // Single non-mot element: if it expanded to multiple pips, scale by that count
-        const expandedLen = Array.isArray(pieces[0]) ? pieces[0].length : 1;
-        if (expandedLen > 0) K = expandedLen;
-      }
-    }
-    if (K === 0) return new Mot([]);
-    const factor = 1 / K;
+
+    if (pieces.length === 0) return new Mot([]);
+
+    // Just flatten - no timescale adjustment
     const out = [];
     for (const chunk of pieces) {
-      for (const p of chunk) out.push(new Pip(p.step, p.timeScale * factor, p.tag));
+      for (const p of chunk) out.push(p);
     }
     return new Mot(out);
   }
@@ -2626,6 +2642,9 @@ class NestedMotExpr {
 
   eval(env) {
     // Evaluate the inner expression to get a mot.
+    // NEW BEHAVIOR: Just return the mot as-is, preserving timescales.
+    // Use the / postfix operator if subdivision is needed.
+    //
     // Special-case: if the inner expression is a Mul of two single-element mots,
     // treat it as the RHS mot inside nested context so that constructs like
     // [0, [1] * [2], 4] behave like [0, [2], 4] when used in higher-level ops.
@@ -2648,16 +2667,14 @@ class NestedMotExpr {
       innerMot = requireMot(this.expr.eval(env));
     }
 
-    // Apply timescale subdivision: multiply each pip's timescale by 1/N
-    const N = innerMot.values.length;
-    if (N === 0) return new Mot([]);
-    
-    const subdivisionFactor = 1 / N;
-    const subdividedValues = innerMot.values.map(pip => 
-      new Pip(pip.step, pip.timeScale * subdivisionFactor, pip.tag)
+    // Just return the mot as-is - no automatic subdivision
+    if (innerMot.values.length === 0) return new Mot([]);
+
+    const preservedValues = innerMot.values.map(pip =>
+      new Pip(pip.step, pip.timeScale, pip.tag)
     );
-    
-    return new Mot(subdividedValues);
+
+    return new Mot(preservedValues);
   }
 
   toString() {

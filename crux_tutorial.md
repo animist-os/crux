@@ -125,7 +125,7 @@ While this produces the same music surface, it unpacks to a different structure 
 <br>
 
 ## Nesting
-Mots can be nested, which a way to produce subdivision.
+Mots can be nested. By default, nested mots preserve unit duration (each pip maintains its timescale).
 ```
 [0,[1,2],3]
 ```
@@ -134,6 +134,12 @@ Mots can be nested, which a way to produce subdivision.
 ```
 ```
 [[0,0,0],5 | /2, 3 | /2]
+```
+
+To subdivide a nested mot (multiply each pip's timescale by 1/length), use the `/` postfix operator:
+```
+[[0,1,2]]/
+// Produces: [0 | /3, 1 | /3, 2 | /3]
 ```
 
 
@@ -231,32 +237,70 @@ Negative multiply value inverts the intervals
 
 ## Nested RHS subdivision
 
-In cog operators (mainly useful with the "." operator) if the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that corresponding position, and then applies the same 1:1 cog operation is its unnested brethren.
+In cog operators (mainly useful with the "." operator) if the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that corresponding position, and then applies the same 1:1 cog operation as its unnested brethren.
 
 The behavior with fan operators is more intuitive:
 ```
 [0,-1,1,0] * [0,[7, 6], 2]
 ```
 
-Note that if we want to compensate for the timescale reduction cause by subdiving a Pip, we add compensatory timeScales like this:
+Nested mots now preserve unit duration by default. If you want subdivision (timescale reduction), use the `/` postfix operator:
 ```
-[0,-1,1,0] * [0,[7 |2,6 |2], -1]
+[0,-1,1,0] * [0,[7, 6]/, -1]
 ```
-```
-[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0]
-```
-Example (implicit 1/2 from two nested elements):
+
+With the dot operator, nested mots preserve their timescales:
 ```
 [0,4,2] . [0, [1,0], 0]
+// Produces: [0, 5, 4, 2]
 ```
-Example (explicit nested timescales):
+
+To subdivide the nested mot, use `/`:
+```
+[0,4,2] . [0, [1,0]/, 0]
+// Produces: [0, 4 | /2, 5 | /2, 4 | /2, 4 | /2, 2]
+```
+
+Or use explicit timescales to preserve duration without subdivision:
 ```
 [0,4,2] . [0, [1 | 2, 0 | 2], 0]
 ```
-Example (LHS timescale multiplies):
+
+
+<br>
+<br>
+
+## Postfix Operators
+
+### Subdivide `/`
+
+The `/` postfix operator divides each pip's timescale by the mot length. It works on any expression:
+
 ```
-[0, 4 | 4, 2] . [0, [1,0], 0]
+[[0,1,2]]/
+// Produces: [0 | /3, 1 | /3, 2 | /3]
 ```
+
+```
+[4->7]/
+// Produces: [4 | /4, 5 | /4, 6 | /4, 7 | /4]
+```
+
+This is useful when you want to fit a mot into a single time unit while preserving relative durations.
+
+### Zip Columns `z`
+
+The `z` postfix operator performs round-robin interleaving on comma-separated expressions:
+
+```
+A = [0,0,0]
+B = [1,1,1]
+C = [2,2,2]
+(A, B, C)z
+// Produces: [0, 1, 2, 0, 1, 2, 0, 1, 2]
+```
+
+This is useful for creating interleaved patterns from multiple independent mots.
 
 
 <br>
@@ -573,12 +617,13 @@ mozA = mozNugA ., mozNugA2 . [0, [0,0]] // ., is zip to interleave 2 mots into 1
 ```
 
 Bach Cello Prelude
-```
-S = [9,9,10,10,10,10,9,9,9,7,2]
-T = [4,4,5,5,6,6,6,6,7,7,7,7,5,6,7,7]
-B = [0,0,0,0,0,0,0,0,0,5]
+S = [9] * [0,1,0] . [[0,0],[0,0,0,0],[0,0]]
+T = [4 -> 7] . [[0,0], [0,0], [0,0,0,0]]
+B = [0]:10
 
-B ., S ., T
+woven = (B, T, S, T, S, T) z
+
+woven . [0, 0, [0,-1,0], 0, 0, 0] 
 ```
 
 <br>
@@ -586,17 +631,19 @@ B ., S ., T
 
 
 
-# Advanced Topics
+# Experiments
 
 ## Schenkerian Elaboration Patterns
 
-Nested mots on the RHS (right-hand-side) of the "cog" family of operators have the effect of coeercing their corresponding left-hand pips into subdivisions so they can be operated on 1:1.   For example:
+Nested mots on the RHS (right-hand-side) of the "cog" family of operators have the effect of coercing their corresponding left-hand pips into subdivisions so they can be operated on 1:1. For example:
 
 ```
 [0,4,-1,2] . [0, [1,0], 3, 4]
 ```
 
-This makes the nested mots act like Schenkerian elaborators.  They take a single pip on the left side, and break it into 2 or more sub pips, each with its own displacement values for step and timescale.    Note that if you want to expand the duration to compensate for the subdivision, you can just multiple all the nested mot's timescales by its length, like this:
+This makes nested mots act like Schenkerian elaborators. They take a single pip on the left side and break it into 2 or more sub pips, each with its own displacement values for step and timescale.
+
+Since nested mots now preserve unit duration by default, if you want the nested mot to preserve the total duration of the left pip, use explicit timescales:
 
 ```
 [0,4,-1,2] . [0, [1 | 2,0 | 2], 3, 4]
@@ -609,9 +656,8 @@ We can use ellipses to pad the RHS with identity pips to prevent the clockwork "
 ```
 
 Each of these 5 expressions evaluates to the same musical surface, "Ah, vous dirai-je Maman".
-Note, however, that each applies a different operator or series of operators to a different inital mot.
+Note, however, that each applies a different operator or series of operators to a different initial mot.
 This means that each expression will produce a different variation when you wiggle its pips.
-Note that since nesting a mot shortens the timescales of the nested pips, we compensate by multiplying timeScale by the number of pips.
 
 ```
 nay = [0,1,0] * [|3]  // schenker neighbor or injection
@@ -655,7 +701,8 @@ twinkle5 = ([0, 5 -> 0] . [0, aln,0...])
 - Glass: `g` (`.g` is cog Glass)
 - Reich: `r` (`.r` is cog Reich)
 - Pärt: `p` (`.p` is cog Pärt)
-- Subdivide: `[0, [1,2]]`
+- Subdivide: `[[1,2]]/` (postfix `/` divides timescales by mot length)
+- Zip/Interleave: `(A, B, C)z` (round-robin interleave)
 - Variable:  `tuna = [-7,-5,2 | /2,1 | /2, 0 | 2]`
 - All timescales to 1: `j [|1]`
 - Decimate: `c [1,0]`

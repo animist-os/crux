@@ -360,74 +360,81 @@ test('bare Curly as PriExpr works in operators', () => {
 
 // ---- Nested mots ----
 
-test('nested mot basic flattening', () => {
-  assert.equal(evalToString('[[0,1]]'), '[0 | /2, 1 | /2]');
-  assert.equal(evalToString('[[0,1,2]]'), '[0 | /3, 1 | /3, 2 | /3]');
-  assert.equal(evalToString('[[0,1,2,3]]'), '[0 | /4, 1 | /4, 2 | /4, 3 | /4]');
+test('nested mot basic flattening (now preserves unit duration)', () => {
+  // New behavior: nested mots preserve unit duration by default
+  assert.equal(evalToString('[[0,1]]'), '[0, 1]');
+  assert.equal(evalToString('[[0,1,2]]'), '[0, 1, 2]');
+  assert.equal(evalToString('[[0,1,2,3]]'), '[0, 1, 2, 3]');
 });
 
-test('nested mot with explicit timescales', () => {
-  assert.equal(evalToString('[[0, 1 | 2]]'), '[0 | /2, 1]');
-  assert.equal(evalToString('[[0 | /4, 1]]'), '[0 | /8, 1 | /2]');
-  assert.equal(evalToString('[[0 | 3, 1 | /2]]'), '[0 | 1.5, 1 | /4]');
+test('nested mot with / postfix subdivides', () => {
+  // Use / postfix to get traditional subdivision behavior
+  assert.equal(evalToString('[[0,1]]/'), '[0 | /2, 1 | /2]');
+  assert.equal(evalToString('[[0,1,2]]/'), '[0 | /3, 1 | /3, 2 | /3]');
+  assert.equal(evalToString('[[0,1,2,3]]/'), '[0 | /4, 1 | /4, 2 | /4, 3 | /4]');
 });
 
-test('nested mot with fractions and pipe-only', () => {
+test('nested mot with explicit timescales and / postfix', () => {
+  assert.equal(evalToString('[[0, 1 | 2]]/'), '[0 | /2, 1]');
+  assert.equal(evalToString('[[0 | /4, 1]]/'), '[0 | /8, 1 | /2]');
+  assert.equal(evalToString('[[0 | 3, 1 | /2]]/'), '[0 | 1.5, 1 | /4]');
+});
+
+test('nested mot with fractions and pipe-only (with / postfix)', () => {
   // 3/4 * 1/2 = 3/8 => prints as *0.375
-  assert.equal(evalToString('[[0, 1 | 3/4]]'), '[0 | /2, 1 | 0.375]');
-  assert.equal(evalToString('[[0, | 2]]'), '[0 | /2, 0]');
-  assert.equal(evalToString('[[| 3, 1]]'), '[0 | 1.5, 1 | /2]');
-  assert.equal(evalToString('[[|, | /4]]'), '[0 | /2, 0 | /8]');
+  assert.equal(evalToString('[[0, 1 | 3/4]]/'), '[0 | /2, 1 | 0.375]');
+  assert.equal(evalToString('[[0, | 2]]/'), '[0 | /2, 0]');
+  assert.equal(evalToString('[[| 3, 1]]/'), '[0 | 1.5, 1 | /2]');
+  assert.equal(evalToString('[[|, | /4]]/'), '[0 | /2, 0 | /8]');
 });
 
-test('concat and juxtaposition with nested mots', () => {
-  assert.equal(evalToString('[[0,1]], [2]'), '[0 | /2, 1 | /2, 2]');
-  assert.equal(evalToString('[2], [[0,1]]'), '[2, 0 | /2, 1 | /2]');
-  assert.equal(evalToString('[[0,1]], [2], [[3,4]]'), '[0 | /2, 1 | /2, 2, 3 | /2, 4 | /2]');
+test('concat and juxtaposition with nested mots (with / postfix)', () => {
+  assert.equal(evalToString('[[0,1]]/, [2]'), '[0 | /2, 1 | /2, 2]');
+  assert.equal(evalToString('[2], [[0,1]]/'), '[2, 0 | /2, 1 | /2]');
+  assert.equal(evalToString('[[0,1]]/, [2], [[3,4]]/'), '[0 | /2, 1 | /2, 2, 3 | /2, 4 | /2]');
   // Juxtaposition removed; only comma concatenation is supported
 });
 
-test('nested within nested', () => {
-  // Outer nested divides by number of top-level pieces (here 2),
-  // inner Mot remains a single piece inside the outer nested group.
-  assert.equal(evalToString('[[[0,1], 2]]'), '[0 | /2, 1 | /2, 2 | /2]');
-  assert.equal(evalToString('[[[0,1]], 2]'), '[0 | /2, 1 | /2, 2]');
+test('nested within nested now preserves unit duration', () => {
+  // New behavior: nested mots don't subdivide automatically
+  assert.equal(evalToString('[[[0,1], 2]]'), '[0, 1, 2]');
+  assert.equal(evalToString('[[[0,1]], 2]'), '[0, 1, 2]');
 });
 
-test('mot literal inside mot subdivides anywhere, not just edges', () => {
-  assert.equal(evalToString('[0, [1,2]]'), '[0, 1 | /2, 2 | /2]');
-  assert.equal(evalToString('[0, [1,2], 3]'), '[0, 1 | /2, 2 | /2, 3]');
+test('mot literal inside mot with explicit subdivision using |/2', () => {
+  // To get subdivision, use explicit timescales
+  assert.equal(evalToString('[0, [1 | /2, 2 | /2]]'), '[0, 1 | /2, 2 | /2]');
+  assert.equal(evalToString('[0, [1 | /2, 2 | /2], 3]'), '[0, 1 | /2, 2 | /2, 3]');
 });
 
-test('multiple nested subdivision is hierarchical', () => {
-  // [0, [1, [2,3]], 4] -> inner [2,3] divides by 2 (1/2 factor),
-  // then the [1, [...]] group divides by 2 (1/2 factor), yielding total 1/4 for 2 and 3.
-  assert.equal(evalToString('[0, [1,[2, 3]], 4]'), '[0, 1 | /2, 2 | /4, 3 | /4, 4]');
+test('multiple nested subdivision with explicit timescales', () => {
+  // Nested mots now just flatten - timescales are preserved as-is
+  assert.equal(evalToString('[0, [1 | /2, [2 | /2, 3 | /2]], 4]'), '[0, 1 | /2, 2 | /2, 3 | /2, 4]');
 });
 
-test('spread operations with nested mots', () => {
+test('spread operations with nested mots now preserve unit duration', () => {
   const a = evalToString('([ [0,1] ], 2) * [1,2]');
-  const b = evalToString('[0 | /2, 1 | /2, 2] * [1,2]');
+  const b = evalToString('[0, 1, 2] * [1,2]');
   assert.equal(a, b);
   const c = evalToString('[1,2] * ([ [0,1] ], 2)');
-  const d = evalToString('[1,2] * [0 | /2, 1 | /2, 2]');
+  const d = evalToString('[1,2] * [0, 1, 2]');
   assert.equal(c, d);
 });
 
-test('nested with tags and ranges', () => {
-  assert.equal(evalToString('[[0, r]]'), '[0 | /2, r | /2]');
-  assert.equal(evalToString('[[0->2]]'), '[0 | /3, 1 | /3, 2 | /3]');
+test('nested with tags and ranges (with / postfix)', () => {
+  assert.equal(evalToString('[[0, r]]/'), '[0 | /2, r | /2]');
+  assert.equal(evalToString('[[0->2]]/'), '[0 | /3, 1 | /3, 2 | /3]');
 });
 
-test('identifier inside mot literal subdivides referenced motif', () => {
+test('identifier inside mot literal with explicit timescales', () => {
   const program = [
-    'ef = [2,3]',
+    'ef = [2 | /2, 3 | /2]',
     'inc01 = [2,2,2]',
-    'inc02 = [ef,2]',
+    'inc02 = [ef, 2]',
     'inc03 = [r |/2, ef, 2 |/2]',
     'inc02',
   ].join('\n');
-  // ef = [2,3] so [ef,2] should subdivide ef: [2/2, 3/2, 2]
+  // ef = [2|/2,3|/2] so [ef,2] uses ef's timescales: [2/2, 3/2, 2]
   assert.equal(evalToString(program), '[2 | /2, 3 | /2, 2]');
 });
 
@@ -443,8 +450,21 @@ test('curly expressions in timeScale positions', () => {
   assert.match(out2, /^\[0, 1( \| ([12])|), 2\]$/);
 });
 
-test('dot with nested mot on RHS coerces subdivision of left pip', () => {
+test('dot with nested mot on RHS with explicit subdivision timescales', () => {
+  // Nested mot with /3 timescales will subdivide with those timescales
+  const program = '[0, 4, 2] . [0, [0 | /3, 1 | /3, 0 | /3], 0]';
+  assert.equal(evalToString(program), '[0, 4 | /3, 5 | /3, 4 | /3, 2]');
+});
+
+test('dot with nested mot subdivides and can use compensation timescales', () => {
+  // Nested mot with |3 timescales multiplies those into the result
   const program = '[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0]';
+  assert.equal(evalToString(program), '[0, 4 | 3, 5 | 3, 4 | 3, 2]');
+});
+
+test('dot with bare nested mot (new default: unit duration)', () => {
+  // Nested mots now preserve unit duration by default
+  const program = '[0, 4, 2] . [0, [0, 1, 0], 0]';
   assert.equal(evalToString(program), '[0, 4, 5, 4, 2]');
 });
 
@@ -459,24 +479,24 @@ test('fan ops ignore ellipsis (treated as single value)', () => {
   assert.equal(evalToString(program), evalToString(baseline));
 });
 
-test('dot nested subdivision carries timescales from RHS nested pips (implicit 1/2)', () => {
-  const program = '[0,4,2] . [0, [1,0], 0]';
+test('dot nested subdivision carries timescales from RHS nested pips', () => {
+  const program = '[0,4,2] . [0, [1 | /2, 0 | /2], 0]';
   assert.equal(evalToString(program), '[0, 5 | /2, 4 | /2, 2]');
 });
 
-test('dot nested subdivision carries explicit timescales from RHS nested pips', () => {
-  const program = '[0,4,2] . [0, [1 | 2, 0 | 2], 0]';
+test('dot nested subdivision with unit duration pips', () => {
+  const program = '[0,4,2] . [0, [1, 0], 0]';
   assert.equal(evalToString(program), '[0, 5, 4, 2]');
 });
 
 test('dot nested subdivision multiplies with LHS timescales', () => {
-  const program = '[0, 4 | 4, 2] . [0, [1,0], 0]';
+  const program = '[0, 4 | 4, 2] . [0, [1 | /2, 0 | /2], 0]';
   assert.equal(evalToString(program), '[0, 5 | 2, 4 | 2, 2]');
 });
 
-test('dot with bare nested mot tiles subdivision across all LHS elements', () => {
-  // Single nested mot should subdivide each LHS element
-  assert.equal(evalToString('[0,1,2] . [[0,0]]'), '[0 | /2, 0 | /2, 1 | /2, 1 | /2, 2 | /2, 2 | /2]');
+test('dot with bare nested mot preserves unit duration by default', () => {
+  // New behavior: nested mots preserve unit duration
+  assert.equal(evalToString('[0,1,2] . [[0,0]]'), '[0, 0, 1, 1, 2, 2]');
 });
 
 test('dot nested mot equivalence: single vs multiple copies', () => {

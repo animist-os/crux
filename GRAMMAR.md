@@ -82,12 +82,27 @@ In decreasing precedence (tighter binds higher):
 [0, 1, 2, 3, 4] _ 3       -> [0, 1, 2]
 ```
 
-2) **Repeat**: `Expr : N` repeats a mot `N` times (N must be a non-negative finite number).
+2) **Postfix subdivide** `/`: divides each pip's timescale by the mot length.
+   - Works on any expression, not just nested mots
+   - Examples:
+```text
+[[0,1,2]]/               -> [0 | /3, 1 | /3, 2 | /3]
+[4->7]/                  -> [4 | /4, 5 | /4, 6 | /4, 7 | /4]
+```
+
+3) **Postfix zip columns** `z`: round-robin interleaving of comma-separated expressions.
+   - Takes multiple mots and interleaves them element by element
+   - Example:
+```text
+(A, B, C)z where A=[0,0,0], B=[1,1,1], C=[2,2,2]  -> [0, 1, 2, 0, 1, 2, 0, 1, 2]
+```
+
+4) **Repeat**: `Expr : N` repeats a mot `N` times (N must be a non-negative finite number).
 ```text
 [1] : 3 -> [1, 1, 1]
 ```
 
-3) **Combine pairs of mots**:
+5) **Combine pairs of mots**:
    - `*` fan-add (cartesian/outer application):
      - For each value in the right mot, combine it with every value in the left mot; concatenate.
      - Steps add; timeScales multiply.
@@ -99,10 +114,10 @@ In decreasing precedence (tighter binds higher):
   - `.` or `.*` cog-add (elementwise add with cycling):
     - Pair each left value with the corresponding value from the right, cycling the right as needed.
     - Nested RHS subdivision: If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group where each emitted pip uses `step = left.step + rhsNested.step` and `timeScale = left.timeScale * rhsNested.timeScale`. Tags combine (`r` carries through).
-      - Example: `[0, 4, 2] . [0, [0 | 3, 1 | 3, 0 | 3], 0] -> [0, 4, 5, 4, 2]`.
-      - Example (implicit 1/2 from two nested elements): `[0,4,2] . [0, [1,0], 0] -> [0, 5/2, 4/2, 2]`.
-      - Example (explicit nested timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
-      - Example (LHS timescale multiplies): `[0, 4 | 4, 2] . [0, [1,0], 0] -> [0, 5*2, 4*2, 2]`.
+      - **Note**: Nested mots now preserve unit duration by default. Use the `/` postfix operator for subdivision.
+      - Example (unit duration preserved): `[0,4,2] . [0, [1,0], 0] -> [0, 5, 4, 2]`.
+      - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
+      - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 4 | /2, 5 | /2, 4 | /2, 4 | /2, 2]`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
   - '.,' cog-concatenate (element-wise zip with no cycling)
       - interleaves two mots
@@ -135,12 +150,12 @@ In decreasing precedence (tighter binds higher):
      - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
      - Example: `[0, 1, 2, 3] ~ [-1] -> [3, 0, 1, 2]`, `[0, 1, 2, 3] ~ [1, 2] -> [1, 2, 3, 0, 2, 3, 0, 1]`.
 
-4) **Concatenation**:
+6) **Concatenation**:
    - Use `,` between expressions to concatenate mots.
    - Examples: `[0, 1], [2, 3] -> [0, 1, 2, 3]`, `[0, 1] [2, 3] -> [0, 1, 2, 3]`.
    - Note: Juxtaposition concatenation (space-separated expressions on the same line) is no longer supported; use explicit commas for clarity.
 
-5) **Grouping**: parentheses `(` `)` control evaluation order.
+7) **Grouping**: parentheses `(` `)` control evaluation order.
 ```text
 ([0, 1] ^ [2]) * [0] -> [0, 2]
 ```

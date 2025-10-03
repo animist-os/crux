@@ -1,8 +1,8 @@
 {
   "configurations": [
   {
-    "command": "npm build:test",
-    "name": "Run npm build:test",
+    "command": "npm run build:test",
+    "name": "Build .cjs bundle",
     "request": "launch",
     "type": "node-terminal"
   }

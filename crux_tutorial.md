@@ -20,16 +20,12 @@ You can concatenate mots, repeat them, slice/rotate, combine them multiplicative
 
 
 
-
-<br>
-<br>
-
 # Fundamentals
 
 
 Here are 4 pips, stepping up the scale.
 ```text
-[0, 1, 2, 4]
+[0, 1, 2, 3]
 ```
 Here they are given different relative durations.   The step value is separated from the time value by a "|" pipe character.
 ```
@@ -568,6 +564,29 @@ Arvo Pärt's tintinnabuli technique. LHS = melodic voice (M-voice), RHS = root n
 <br>
 <br>
 
+## Directives
+
+You can configure the execution environment using special comment directives:
+
+```text
+// @quanta 8n
+[0, 1, 2, 3]
+```
+
+Available directives:
+- `// @quanta <value>` - Sets the unit duration for notes (e.g., `8n` for eighth notes, `16n` for sixteenth notes, `4n` for quarter notes)
+- `// @pitchRegime <value>` - Sets the scale / mode.   You can browser available options in the pitchRegime menu of the crux panel.  Note this directive will be executed whenever you evaluate the code, which will override settings made in other panels or menus.  This is a global setting.
+- `// @octave <value>` - Sets the transposition +/= 12 semitones
+- `// @reverb <value>` - Sets level of reverb send (0-1)
+- `// @delay <value>` - Sets level of delay send (0-1)
+- `// @volume <value>` - Sets level of instsrument volume
+
+
+
+
+<br>
+<br>
+
 # Examples
 
 
@@ -592,15 +611,37 @@ A = ([{-4 ? 4}] j [|/2, |]): 4
 A : 4
 ```
 
+Make aliases for operators, use evocative variable names.
+```
+splay = *
+sprocket = .
+nubbin = [0,-1,1,0]
+gallop = [0,0,0,[1,0]/]
+flip = [|,|-1]
+
+nubbin splay nubbin splay flip sprocket gallop
+
+// @pitchRegime Pentatonic
+// @preset Marimba
+// @octave -2
+// @bpm 140
+// @reverb 0.6
+```
+
 Haydn Op. 76
 ```
-nug =  [1 | /2, -1 | /2, 0] * [0 | 3]
+nug =  [1 | /2, -1 | /2, 0]
 nug2 = nug . [1,1,4]
-aun = [1 | 2, 0 | 2]
+aun = [1, 0]
 
 haydn = [-5] * [0 | 3/2, 1 | /2, 2, 1, 3, 2, 1 | /2, -1 | /2, 0, 5 -> 1, 2 | /2, 0 | /2, 4]
 
 haydn2 = [-5] * [0 -> 2, 1, 2, nug ,5 -> 1, nug2  ] . [0 | 3/2,0 | /2,0,0,aun,0...]
+
+// @pitchRegime MelodicMinor
+// @preset Mellotron_Flute
+// @reverb 0.5
+// @volume 0.5
 ```
 
 Mozart Voi Che Sapete
@@ -626,6 +667,16 @@ woven = (B, T, S, T, S, T) z
 
 woven . [0, 0, [0,-1,0], 0, 0, 0] 
 
+```
+
+Back Fugue 2
+WIP, rhythm is all wrong
+```
+etym = [7,4]
+etym2 = etym . [[0,-1,0 | 2]/, 1]
+nug = etym2 . [0, 0, 0, [-1 | 3/2, 0 | 3/2]/]
+thema = nug, nug _ 3, [8 |3/ 4,4 | 3/4], nug _ 3, [8, 3 | /2, 4 | /2, 5, 4 -> 2 | /2]
+thema * [0,4]
 ```
 
 <br>
@@ -704,7 +755,7 @@ twinkle5 = ([0, 5 -> 0] . [0, aln,0...])
 - Reich: `r` (`.r` is cog Reich)
 - Pärt: `p` (`.p` is cog Pärt)
 - Subdivide: `[[1,2]]/` (postfix `/` divides timescales by mot length)
-- Zip/Interleave: `(A, B, C)z` (round-robin interleave)
+- Zip/Interleave: `(A, B, C) z` (round-robin interleave)
 - Variable:  `tuna = [-7,-5,2 | /2,1 | /2, 0 | 2]`
 - All timescales to 1: `j [|1]`
 - Decimate: `c [1,0]`

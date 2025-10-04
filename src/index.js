@@ -86,7 +86,7 @@ golden.FindAncestorPips = function(aPip) {
 // Grammar is now imported from grammar.js
 
 const s = g.createSemantics().addOperation('parse', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     return new Prog(stmts.parse());
   },
 
@@ -654,7 +654,7 @@ const s = g.createSemantics().addOperation('parse', {
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
 // We rewrite only the suffix ": N" (or ": <number>") to " * [0, 0, ...]" and leave the left expr as-is.
 const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRewrites', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectRepeatSuffixRewrites();
@@ -745,7 +745,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
 // Collect all source indices of timescale numbers across the entire program.
 // This inspects syntactic forms only (no evaluation), so indices map to original source.
 const tsSemantics = g.createSemantics().addOperation('collectTs', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectTs();
@@ -2895,8 +2895,9 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 function stripLineComments(input) {
-  // Replace '//' comments with spaces to preserve indices; keep newlines
-  return input.replace(/\/\/.*$/gm, (m) => ' '.repeat(m.length));
+  // Replace comment-only lines (with optional leading whitespace) with empty lines
+  // For inline comments, replace just the comment part with spaces
+  return input.replace(/^(\s*)\/\/.*$/gm, '$1');
 }
 
 function parse(input) {

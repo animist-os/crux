@@ -642,6 +642,7 @@ haydn2 = [-5] * [0 -> 2, 1, 2, nug ,5 -> 1, nug2  ] . [0 | 3/2,0 | /2,0,0,aun,0.
 // @preset Mellotron_Flute
 // @reverb 0.5
 // @volume 0.5
+// @bpm 80
 ```
 
 Mozart Voi Che Sapete
@@ -665,8 +666,11 @@ B = [0]:10
 
 woven = (B, T, S, T, S, T) z
 
-woven . [0, 0, [0,-1,0], 0, 0, 0] 
+woven . [0, 0, [0,-1,0], 0, 0, 0]
 
+// @preset Mellotron_Flute
+// @octave -2
+// @reverb 0.25
 ```
 
 Back Fugue 2

@@ -4,7 +4,7 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = ListOf<Stmt, nls> nls?
+      = nls? ListOf<Stmt, nls+> nls?
 
     Stmt
       = AssignStmt
@@ -212,13 +212,16 @@ export const g = ohm.grammar(String.raw`
 
     hspace = " " | "\t"
     hspaces = hspace+
-
+    
     // Ellipsis marker for pad semantics inside Mot
     ellipsis = "..."
 
+    // Line comments
+    comment = "//" (~nl any)*
+
     // Make newlines significant by not skipping them as whitespace
-    // Override Ohm's built-in 'space' rule to only skip spaces/tabs
-    space := hspace
+    // Override Ohm's built-in 'space' rule to skip spaces/tabs/comments but not newlines
+    space := hspace | comment
 
     // Newline separator (for statements)
     nl = "\r\n" | "\n" | "\r"

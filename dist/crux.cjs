@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-04T16:54:10.243Z
+// Generated: 2025-10-04T18:37:50.408Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -15,7 +15,7 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = ListOf<Stmt, nls> nls?
+      = nls? ListOf<Stmt, nls+> nls?
 
     Stmt
       = AssignStmt
@@ -223,13 +223,16 @@ export const g = ohm.grammar(String.raw`
 
     hspace = " " | "\t"
     hspaces = hspace+
-
+    
     // Ellipsis marker for pad semantics inside Mot
     ellipsis = "..."
 
+    // Line comments
+    comment = "//" (~nl any)*
+
     // Make newlines significant by not skipping them as whitespace
-    // Override Ohm's built-in 'space' rule to only skip spaces/tabs
-    space := hspace
+    // Override Ohm's built-in 'space' rule to skip spaces/tabs/comments but not newlines
+    space := hspace | comment
 
     // Newline separator (for statements)
     nl = "\r\n" | "\n" | "\r"
@@ -325,7 +328,7 @@ golden.FindAncestorPips = function(aPip) {
 // Grammar is now imported from grammar.js
 
 const s = g.createSemantics().addOperation('parse', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     return new Prog(stmts.parse());
   },
 
@@ -893,7 +896,7 @@ const s = g.createSemantics().addOperation('parse', {
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
 // We rewrite only the suffix ": N" (or ": <number>") to " * [0, 0, ...]" and leave the left expr as-is.
 const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRewrites', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectRepeatSuffixRewrites();
@@ -984,7 +987,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
 // Collect all source indices of timescale numbers across the entire program.
 // This inspects syntactic forms only (no evaluation), so indices map to original source.
 const tsSemantics = g.createSemantics().addOperation('collectTs', {
-  Prog(stmts, _optNls) {
+  Prog(_leadingNls, stmts, _trailingNls) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectTs();
@@ -3134,8 +3137,9 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 function stripLineComments(input) {
-  // Replace '//' comments with spaces to preserve indices; keep newlines
-  return input.replace(/\/\/.*$/gm, (m) => ' '.repeat(m.length));
+  // Replace comment-only lines (with optional leading whitespace) with empty lines
+  // For inline comments, replace just the comment part with spaces
+  return input.replace(/^(\s*)\/\/.*$/gm, '$1');
 }
 
 function parse(input) {

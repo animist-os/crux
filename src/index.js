@@ -805,6 +805,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MotLiteral(_ob, body, _cb) { return body.collectTs(); },
 
   SingleValue(x) { return x.collectTs(); },
+  SingleValue_motSubdivide(node, _slash) { return node.collectTs(); },
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
   // Default: flatten children

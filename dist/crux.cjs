@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-04T18:37:50.408Z
+// Generated: 2025-10-04T21:22:56.838Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -1047,6 +1047,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MotLiteral(_ob, body, _cb) { return body.collectTs(); },
 
   SingleValue(x) { return x.collectTs(); },
+  SingleValue_motSubdivide(node, _slash) { return node.collectTs(); },
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
   // Default: flatten children

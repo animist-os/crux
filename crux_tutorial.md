@@ -167,7 +167,7 @@ basicNotes = [0, 1, 2 , 3]
 ```
 Here we use the dot operator and nest the schenker embellisher in the RHS mot, which has the effect of subdividing coresponding LHS pip.
 ```
-schenkerNeighbor = [0,1,0] * [|3]
+schenkerNeighbor = [0,1,0]
 A = [0,4,-1,5]
 A . [0, schenkerNeighbor, 0, schenkerNeighbor]
 

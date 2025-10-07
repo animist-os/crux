@@ -8,27 +8,53 @@ Cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.  Length wi
 
 ### Program
 
-- **Program**: one or more statements separated by newlines or semicolons. Semicolons act as syntactic sugar for newlines, allowing multiple statements on the same line. The final statement’s value is the result.
-- **Statement**: either an assignment or an expression.
+- **Program**: one or more sections separated by `!`. Each section contains one or more statements separated by newlines or semicolons. The program returns an array of the final statement value from each section.
+- **Section**: A group of statements that share an environment. The `!` separator marks the boundary between sections.
+- **Statement**: either an assignment, an operator alias, or an expression.
 - **Assignment**: `Name = Expr`
+- **Operator Alias**: `Name = OpSym` (allows using custom names for operators)
 - **Reference**: use a previously assigned `Name` in an expression.
 
-Example:
+Example (single section, backward compatible):
 ```text
 A = [0, 1]
 A, [2]
 ```
-Evaluates to `[0, 1, 2]`.
+Returns `[[0, 1, 2]]` (array with one section result).
 
-Example with semicolon:
+Example (multiple sections):
 ```text
-A = [0,1]; A * A
+[0, 2, 4]
+!
+[5, 7, 9]
+!
+[10, 12, 14]
 ```
-Evaluates to `[0, 1, 1, 2]`.
+Returns `[[0, 2, 4], [5, 7, 9], [10, 12, 14]]` (array with three section results).
+
+Example (sections with shared environment):
+```text
+a = [0, 2, 4]
+a * [0, 1]
+!
+a * [0, 2]
+```
+Returns `[[0, 2, 4, 1, 3, 5], [0, 2, 4, 2, 4, 6]]` (assignments persist across sections).
+
+Example with operator aliasing:
+```text
+splay = *
+[0, 1] splay [2, 3]
+```
+Returns `[[0, 1, 2, 3]]`.
 
 ### Mots and values
 
 - **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
+- **Nested Mot**: double-bracket list for hierarchical grouping: `[[Value, Value, ...]]`
+  - Nested mots now preserve unit duration by default (no automatic subdivision)
+  - Use the `/` postfix operator to subdivide: `[[0,1,2]]/` → `[0|/3, 1|/3, 2|/3]`
+  - Can be nested recursively: `[[[0,1],[2,3]]]`
 - **Value** can be:
   - **Pip**: `number` optionally combined with a timeScale using `*` (multiply) or `/` (divide), or a special tag.
     - `number` is the step (may be integer or float).
@@ -41,10 +67,6 @@ Evaluates to `[0, 1, 1, 2]`.
   - **Curly**: `{a, b, c, ...}` picks one option at evaluation time. Example: `[{0, 1, 2}] -> [0]` or `[1]` or `[2]`.
   - **Random Range**: `{a ? b}` picks a random integer between a and b (inclusive). Example: `[{-2 ? 2}] -> [-2]` to `[2]`.
   - **Seeded Random**: `{a ? b}@seed` provides deterministic randomness. Example: `[{1 ? 6}@c0de]`.
-
-- **Avoid Constraint**: `!{a, b, c}` defines forbidden intervals for note rendering. Carried symbolically through operations.
-  - Example: `[0, !{0,6}, 2] * 3 === [3, !{0,6} + 3, 5]`
-  - Supports timescale pipes: `!{0,6} | 1/2`, `!{0,6} | *2`
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
@@ -143,17 +165,27 @@ In decreasing precedence (tighter binds higher):
    - `.->` steps (cog):
      - For each position `i`, expand `left[i]` into a run up to `right[i%|right|]`.
      - Example: `[0, 3] .-> [4] -> [0, 1, 2, 3, 4, 3, 4, 5, 6, 7]`
-   - `~` rotate:
-     - For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
+   - `~` rotate (fan) / `.~` (cog):
+     - Fan: For each value k in the right mot, rotate the left mot left by k (negative k rotates right), appending results in order.
+     - Cog: Apply rotation per-position using RHS values cyclically.
      - Examples: `[0,1,2,3] ~ [-1] -> [3,0,1,2]`, `[0,1,2,3] ~ [1,2] -> [1,2,3,0, 2,3,0,1]`.
-     - Numeric case behaves like `*` on a single pair each step (step add, timeScale multiply).
-     - Tagged pips pass the left value through unchanged; tag `x` in either side is treated as a no-op for that position.
-     - Example: `[0, 1, 2, 3] ~ [-1] -> [3, 0, 1, 2]`, `[0, 1, 2, 3] ~ [1, 2] -> [1, 2, 3, 0, 2, 3, 0, 1]`.
+   - `g` glass (fan) / `.g` (cog):
+     - Glass-inspired minimalist interleaving with different rhythmic subdivisions.
+     - Fan: LHS gets triplet subdivision (1/3), RHS gets duplet subdivision (1/2).
+     - Cog: Alternates between left (triplet) and right (duplet) subdivision element-wise.
+   - `r` reich (fan) / `.r` (cog):
+     - Reich-inspired phasing patterns with repeated cycles.
+     - Fan: Cycles through both sets with 1/4 note subdivision.
+     - Cog: Alternates durations (1/2, 1/4 for left; 1, 1/2 for right).
+   - `p` paert (fan):
+     - Pärt-inspired tintinnabulation operator with octave equivalence.
+     - Snaps LHS steps to nearest RHS scale degree (mod 7), avoiding unisons.
+     - Example: `[0,1,2,3] p [0,2,4] -> [4,0,2,2]` (0→4 down to avoid unison, 1→0, 2→2, 3→2).
 
 6) **Concatenation**:
    - Use `,` between expressions to concatenate mots.
-   - Examples: `[0, 1], [2, 3] -> [0, 1, 2, 3]`, `[0, 1] [2, 3] -> [0, 1, 2, 3]`.
-   - Note: Juxtaposition concatenation (space-separated expressions on the same line) is no longer supported; use explicit commas for clarity.
+   - Example: `[0, 1], [2, 3] -> [0, 1, 2, 3]`.
+   - Note: Juxtaposition concatenation (space-separated expressions) is **not supported**; you must use explicit commas.
 
 7) **Grouping**: parentheses `(` `)` control evaluation order.
 ```text
@@ -165,11 +197,11 @@ In decreasing precedence (tighter binds higher):
 From highest to lowest:
 - Slice (postfix): `start _ end`, `start _`, `_ end`
 - Repeat `Expr : N` (postfix)
+- Subdivide `/` (postfix)
+- Zip `z` (postfix)
 - Tie `t` (postfix, unary)
-- Multiplicative operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `->`, `j`, `m`, `l`, `c`, `*`, `^`, `.`, `~` (left-associative)
+- Multiplicative operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~` (left-associative)
 - Concatenation: `,` (left-associative)
-
-Note: Concatenation by adjacency (juxtaposition) works only on the same line, not across newlines.
 
 ### Identifiers
 
@@ -197,7 +229,7 @@ Note: Concatenation by adjacency (juxtaposition) works only on the same line, no
 [{-2 ? 2}]                   -> random integer from -2 to 2
 [{1 ? 6}@c0de]               -> seeded random (deterministic)
 
-// Concatenation (comma or juxtaposition)
+// Concatenation (comma only)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
 
 // Multiplicative family
@@ -223,114 +255,167 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 
 ### Ohm-JS grammar (reference)
 
-This is a lightly reformatted view of the core grammar implemented in `src/index.js`.
+This is a lightly reformatted view of the core grammar implemented in `src/grammar.js`.
 
 ```text
 Crux {
-  Prog        = ListOf<Stmt, nls> nls?
-  Stmt        = AssignStmt | ExprStmt
+  Prog        = nls? ListOf<Section, SectionSep> nls?
+  Section     = ListOf<Stmt, nls+>
+  SectionSep  = nls? "!" nls?
+
+  Stmt        = AssignStmt | OpAliasStmt | ExprStmt
   AssignStmt  = ident "=" Expr
+  OpAliasStmt = ident "=" OpSym
   ExprStmt    = Expr
 
   Expr            = FollowedByExpr
-  FollowedByExpr  = FollowedByExpr "," TieExpr
-                 | TieExpr
+  FollowedByExpr  = FollowedByExpr "," PostfixExpr -- fby
+                  | PostfixExpr
 
-  TieExpr     = TieExpr "t"          -- tiePostfix
+  PostfixExpr = PostfixExpr "/"                 -- subdivide
+              | PostfixExpr "z"                 -- zipColumns
+              | PostfixExpr "t"                 -- tiePostfix
+              | PostfixExpr ":" RandNum         -- repeatPostRand
+              | PostfixExpr ":" number          -- repeatPost
+              | PostfixExpr SliceOp             -- slice
               | MulExpr
 
-  MulExpr     = MulExpr ".*" AppendExpr
-              | MulExpr ".^" AppendExpr
-              | MulExpr ".->" AppendExpr
-              | MulExpr ".j" AppendExpr
-              | MulExpr ".m" AppendExpr
-              | MulExpr ".l" AppendExpr
-              | MulExpr ".t" AppendExpr
-              | MulExpr ".c" AppendExpr
-              | MulExpr "->" AppendExpr
-              | MulExpr "j" AppendExpr
-              | MulExpr "m" AppendExpr
-              | MulExpr "l" AppendExpr
-              | MulExpr "c" AppendExpr
-              | MulExpr "*" AppendExpr
-              | MulExpr "^" AppendExpr
-              | MulExpr "." AppendExpr
-              | MulExpr "~" AppendExpr
+  MulExpr     = MulExpr ".*" AppendExpr         -- dotStar
+              | MulExpr ".^" AppendExpr         -- dotExpand
+              | MulExpr ".->" AppendExpr        -- dotSteps
+              | MulExpr ".j" AppendExpr         -- dotJam
+              | MulExpr ".m" AppendExpr         -- dotMirror
+              | MulExpr ".l" AppendExpr         -- dotLens
+              | MulExpr ".t" AppendExpr         -- dotTie
+              | MulExpr ".c" AppendExpr         -- dotConstraint
+              | MulExpr ".," AppendExpr         -- dotZip
+              | MulExpr ".g" AppendExpr         -- dotGlass
+              | MulExpr ".r" AppendExpr         -- dotReich
+              | MulExpr ".~" AppendExpr         -- dotRotate
+              | MulExpr "->" AppendExpr         -- steps
+              | MulExpr "j" AppendExpr          -- jam
+              | MulExpr "m" AppendExpr          -- mirror
+              | MulExpr "l" AppendExpr          -- lens
+              | MulExpr "c" AppendExpr          -- constraint
+              | MulExpr "g" AppendExpr          -- glass
+              | MulExpr "r" AppendExpr          -- reich
+              | MulExpr "p" AppendExpr          -- paert
+              | MulExpr "*" AppendExpr          -- mul
+              | MulExpr "^" AppendExpr          -- expand
+              | MulExpr "." AppendExpr          -- dot
+              | MulExpr "~" AppendExpr          -- rotate
+              | MulExpr ident AppendExpr        -- aliasOp
               | AppendExpr
 
-  AppendExpr  = AppendExpr ":" RandNum  -- repeatPostRand
-              | AppendExpr ":" number   -- repeatPost
-              | AppendExpr SliceOp      -- slice
-              | PostfixExpr
+  AppendExpr  = PriExpr
 
-  PostfixExpr = PriExpr
+  PriExpr     = ident                           -- ref
+              | "[[" NestedBody "]]"            -- nestedMot
+              | "[" MotBody "]"                 -- mot
+              | number                          -- numAsMot
+              | "(" Expr ")"                    -- parens
+              | Curly                           -- curlyAsExpr
 
-  PriExpr     = ident                -- ref
-              | "[" MotBody "]"      -- mot
-              | "(" Expr ")"          -- parens
-              | Curly                 -- curlyAsExpr
+  NestedBody  = ListOf<NestedElem, ",">         -- nestedAbsolute
 
-  SliceOp     = SliceIndex "_" SliceIndex  -- both
-              | SliceIndex "_"             -- startOnly
-              | "_" SliceIndex             -- endOnly
-              | "_" SliceIndex             -- endOnlyTight
+  NestedElem  = MotLiteral "/"                  -- motSubdivide
+              | NestedMotLiteral "/"            -- nestedSubdivide
+              | SingleValue                     -- single
+              | MotLiteral                      -- mot
+              | NestedMotLiteral                -- nested
+
+  MotLiteral        = "[" MotBody "]"
+  NestedMotLiteral  = "[[" NestedBody "]]"
+  NestedMotAbbrev   = "[[" MotBody "]"
+
+  SliceOp     = SliceIndex "_" SliceIndex       -- both
+              | SliceIndex "_"                  -- startOnly
+              | "_" SliceIndex                  -- endOnly
+              | "_" SliceIndex                  -- endOnlyTight
 
   SliceIndex  = RandNum  -- rand
-              | Index   -- num
+              | Index    -- num
   Index       = sign? digit+
 
-  MotBody     = ListOf<Value, ",">
+  MotBody     = ListOf<Entry, ",">              -- absolute
+
+  Entry       = Value ellipsis                  -- withPad
+              | Value                           -- plain
 
   Value       = SingleValue
-  SingleValue = Pip | Range | Curly
-  Range       = RandNum "->" RandNum
-  
-  Pip         = number "|" TimeScale              -- withTimeMulPipeImplicit
-              | number "|" "*" RandNum           -- withTimeMulPipe
-              | number "|" "/" RandNum           -- withTimeDivPipe
-              | number "|"                       -- withPipeNoTs
-              | "|" TimeScale                    -- pipeOnlyTs
-              | "|" "*" RandNum                  -- pipeOnlyMul
-              | "|" "/" RandNum                  -- pipeOnlyDiv
-              | "|"                             -- pipeBare
-              | PlainNumber                     -- noTimeScale
-              | Special "|" TimeScale           -- specialWithTimeMulPipeImplicit
-              | Special "|" "*" RandNum         -- specialWithTimeMulPipe
-              | Special "|" "/" RandNum         -- specialWithTimeDivPipe
-              | Special                        -- special
-              | Range "|" TimeScale            -- rangeWithTimeMulPipeImplicit
-              | Range "|" "/" RandNum           -- rangeWithTimeDivPipe
-              | Curly "|" TimeScale            -- curlyWithTimeMulPipeImplicit
-              | Curly "|" "*" RandNum          -- curlyWithTimeMulPipe
-              | Curly "|" "/" RandNum          -- curlyWithTimeDivPipe
-              | BangAvoidBase                 -- avoid
 
-  BangAvoidBase = "!" "{" BangBody "}"
-  BangBody = ListOf<number, ",">
-  BangInterval = number
+  SingleValue = MotLiteral "*" MotLiteral       -- inlineMulMots
+              | MotLiteral "/"                  -- motSubdivide
+              | NestedMotLiteral "/"            -- nestedSubdivide
+              | NestedMotLiteral
+              | NestedMotAbbrev
+              | MotLiteral
+              | Pip
+              | Range
+              | Curly
+              | CurlyPip
+              | ident "*" MotLiteral            -- inlineMulRefMot
+              | "(" Expr ")"                    -- exprInMot
+              | ident                           -- refInMot
+
+  Range       = RandNum "->" RandNum            -- inclusive
+
+  Pip         = number "|" TimeScale                        -- withTimeMulPipeImplicit
+              | number "|" "*" RandNum                     -- withTimeMulPipe
+              | number "|" "/" RandNum                     -- withTimeDivPipe
+              | number "|"                                  -- withPipeNoTs
+              | "|" TimeScale                               -- pipeOnlyTs
+              | "|" "*" RandNum                             -- pipeOnlyMul
+              | "|" "/" RandNum                             -- pipeOnlyDiv
+              | "|"                                         -- pipeBare
+              | PlainNumber                                 -- noTimeScale
+              | Special "|" TimeScale                       -- specialWithTimeMulPipeImplicit
+              | Special "|" "*" RandNum                     -- specialWithTimeMulPipe
+              | Special "|" "/" RandNum                     -- specialWithTimeDivPipe
+              | Special                                     -- special
+              | Range "|" TimeScale                         -- rangeWithTimeMulPipeImplicit
+              | Range "|" "/" RandNum                       -- rangeWithTimeDivPipe
+              | Curly "|" TimeScale                         -- curlyWithTimeMulPipeImplicit
+              | Curly "|" "*" RandNum                       -- curlyWithTimeMulPipe
+              | Curly "|" "/" RandNum                       -- curlyWithTimeDivPipe
+              | CurlyPip "|" TimeScale                      -- curlyPipWithTimeMulPipeImplicit
+              | CurlyPip "|" "*" RandNum                    -- curlyPipWithTimeMulPipe
+              | CurlyPip "|" "/" RandNum                    -- curlyPipWithTimeDivPipe
 
   RandNum     = Curly | number
+  CurlyPip    = "{" ListOf<Pip, ","> "}" Seed?
   Curly       = "{" CurlyBody "}" Seed?
-  CurlyBody   = number "?" number     -- range
-              | ListOf<CurlyEntry, ",">  -- list
+  CurlyBody   = number "?" number               -- range
+              | ListOf<CurlyEntry, ",">         -- list
   CurlyEntry  = number  -- num
               | ident   -- ref
   Seed        = "@" SeedChars
   SeedChars   = seedChar+
   seedChar    = letter | digit | "_"
 
-  TimeScale   = number "/" number
-              | number
+  TimeScale   = RandNum "/" RandNum             -- frac
+              | RandNum                         -- plain
+
   Special     = specialChar
-  specialChar = letter | "?"
-  ident       = (letter | "_") alnum*
-  number      = sign? digit+ ("." digit*)?
+  specialChar = "r" | "?"
+
+  ident       = (letter | "_") alnum+           -- withChars
+              | letter                          -- single
+
+  OpSym       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
+              | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~"
+
+  number      = sign? digit+ ("." digit+)?
               | sign? digit* "." digit+
+
   PlainNumber = number ~ (hspaces? "->")
+
   sign        = "+" | "-"
   hspace      = " " | "\t"
   hspaces     = hspace+
-  space       := hspace
+  ellipsis    = "..."
+  comment     = "//" (~nl any)*
+  space      := hspace | comment
   nl          = "\r\n" | "\n" | "\r"
   nls         = nl+
 }

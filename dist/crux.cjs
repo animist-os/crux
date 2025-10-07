@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-04T21:22:56.838Z
+// Generated: 2025-10-07T01:35:56.856Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -15,7 +15,13 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Stmt, nls+> nls?
+      = nls? ListOf<Section, SectionSep> nls?
+
+    Section
+      = ListOf<Stmt, nls+>
+
+    SectionSep
+      = nls? "!" nls?
 
     Stmt
       = AssignStmt
@@ -328,8 +334,12 @@ golden.FindAncestorPips = function(aPip) {
 // Grammar is now imported from grammar.js
 
 const s = g.createSemantics().addOperation('parse', {
-  Prog(_leadingNls, stmts, _trailingNls) {
-    return new Prog(stmts.parse());
+  Prog(_leadingNls, sections, _trailingNls) {
+    return new Prog(sections.parse());
+  },
+
+  Section(stmts) {
+    return stmts.parse();
   },
 
   AssignStmt(name, _equals, expr) {
@@ -896,7 +906,15 @@ const s = g.createSemantics().addOperation('parse', {
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
 // We rewrite only the suffix ": N" (or ": <number>") to " * [0, 0, ...]" and leave the left expr as-is.
 const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRewrites', {
-  Prog(_leadingNls, stmts, _trailingNls) {
+  Prog(_leadingNls, sections, _trailingNls) {
+    const out = [];
+    for (const sec of sections.children) {
+      const v = sec.collectRepeatSuffixRewrites();
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  Section(stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectRepeatSuffixRewrites();
@@ -987,7 +1005,15 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
 // Collect all source indices of timescale numbers across the entire program.
 // This inspects syntactic forms only (no evaluation), so indices map to original source.
 const tsSemantics = g.createSemantics().addOperation('collectTs', {
-  Prog(_leadingNls, stmts, _trailingNls) {
+  Prog(_leadingNls, sections, _trailingNls) {
+    const out = [];
+    for (const sec of sections.children) {
+      const v = sec.collectTs();
+      if (Array.isArray(v)) out.push(...v);
+    }
+    return out;
+  },
+  Section(stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectTs();
@@ -1145,17 +1171,23 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
 });
 
 class Prog {
-  constructor(stmts) {
-    this.stmts = stmts;
+  constructor(sections) {
+    this.sections = sections; // array of arrays of statements
   }
 
   interp() {
     const env = new Map();
-    let lastValue = new Mot([]);
-    for (const stmt of this.stmts) {
-      lastValue = stmt.eval(env);
+    const sectionResults = [];
+
+    for (const stmts of this.sections) {
+      let lastValue = new Mot([]);
+      for (const stmt of stmts) {
+        lastValue = stmt.eval(env);
+      }
+      sectionResults.push(lastValue);
     }
-    return lastValue;
+
+    return sectionResults;
   }
 }
 
@@ -2822,12 +2854,17 @@ function isBinaryTransformNode(node) {
 function getFinalRootAstAndEnv(prog) {
   const env = new Map();
   let last = null;
-  for (const stmt of prog.stmts) {
-    last = stmt;
-    if (stmt instanceof Assign) {
-      env.set(stmt.name, stmt.expr);
+
+  // Process all sections to build up the environment
+  for (const stmts of prog.sections) {
+    for (const stmt of stmts) {
+      last = stmt;
+      if (stmt instanceof Assign) {
+        env.set(stmt.name, stmt.expr);
+      }
     }
   }
+
   const root = (last instanceof Assign) ? last.expr : last;
   return { root, env };
 }

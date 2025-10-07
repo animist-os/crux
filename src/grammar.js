@@ -4,7 +4,13 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Stmt, nls+> nls?
+      = nls? ListOf<Section, SectionSep> nls?
+
+    Section
+      = ListOf<Stmt, nls+>
+
+    SectionSep
+      = nls? "!" nls?
 
     Stmt
       = AssignStmt

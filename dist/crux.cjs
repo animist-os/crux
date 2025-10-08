@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-08T15:33:53.581Z
+// Generated: 2025-10-08T18:31:29.692Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -2461,8 +2461,11 @@ class Mot {
 
   eval(env) {
     const resolved = [];
-    // Determine RNG
-    const seed = this.rng_seed;
+    // Determine RNG - use global seed if no local seed set
+    let seed = this.rng_seed;
+    if (seed == null && golden.CRUX_SEED != null) {
+      seed = golden.CRUX_SEED;
+    }
     if (seed != null && this._rng == null) {
       this._rng = createSeededRng(seed);
     }

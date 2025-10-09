@@ -576,4 +576,16 @@ test('z operator with unequal lengths', () => {
   assert.equal(result, expected);
 });
 
+test('subdivision preserves sourceStart for findNumericValueIndicesAtDepth', () => {
+  const source = `schenkerNeighbor = [0, 0, 1, 0]
+basicNotes = [0, 1, 2 , 3]
+basicNotes . [[schenkerNeighbor]] t`;
+
+  const indices = golden.findNumericValueIndicesAtDepth(source, 1);
+  // Should find the positions of 0, 1, 2, 3 in "basicNotes = [0, 1, 2 , 3]"
+  // The depth is 1 because: Dot is at depth 0, and its children (including basicNotes Ref) are at depth 1
+  // TieOp is transparent to depth calculation
+  assert.deepEqual(indices, [46, 49, 52, 56]);
+});
+
 

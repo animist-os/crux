@@ -854,6 +854,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
   CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
   number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
+  ident_withChars(_first, _rest) { return []; },
+  ident_single(_letter) { return []; },
 });
 
 class Prog {
@@ -1768,7 +1770,7 @@ class Subdivide {
     const N = mot.values.length;
     if (N === 0) return new Mot([]);
     const factor = 1 / N;
-    const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag));
+    const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag, pip.sourceStart));
     return new Mot(out);
   }
 }
@@ -1781,7 +1783,7 @@ function subdivide(motOrNested) {
     const factor = 1 / N;
     const out = motOrNested.values.map(pip => {
       if (pip instanceof Pip) {
-        return new Pip(pip.step, pip.timeScale * factor, pip.tag);
+        return new Pip(pip.step, pip.timeScale * factor, pip.tag, pip.sourceStart);
       }
       return pip;
     });
@@ -1793,7 +1795,7 @@ function subdivide(motOrNested) {
     const factor = 1 / N;
     const out = motOrNested.values.map(v => {
       if (v instanceof Pip) {
-        return new Pip(v.step, v.timeScale * factor, v.tag);
+        return new Pip(v.step, v.timeScale * factor, v.tag, v.sourceStart);
       }
       return v;
     });
@@ -1816,8 +1818,8 @@ class TieOp {
     for (let i = 1; i < values.length; i++) {
       const cur = values[i];
       if (acc.step === cur.step && acc.tag === cur.tag) {
-        // merge durations (sum timeScales)
-        acc = new Pip(acc.step, acc.timeScale + cur.timeScale, acc.tag);
+        // merge durations (sum timeScales), preserve first sourceStart
+        acc = new Pip(acc.step, acc.timeScale + cur.timeScale, acc.tag, acc.sourceStart);
       } else {
         out.push(acc);
         acc = cur;
@@ -1849,7 +1851,7 @@ class DotTie {
         const mask = right.values[j % right.values.length];
         const next = values[j + 1];
         if (mask.step !== 0 && acc.step === next.step && acc.tag === next.tag) {
-          acc = new Pip(acc.step, acc.timeScale + next.timeScale, acc.tag);
+          acc = new Pip(acc.step, acc.timeScale + next.timeScale, acc.tag, acc.sourceStart);
           j++;
         } else {
           break;
@@ -1880,7 +1882,7 @@ class ConstraintOp {
       // keep when r.step != 0
       const omit = r.step === 0;
       if (!omit) {
-        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag, a.sourceStart));
       }
     }
     return new Mot(out);
@@ -2557,6 +2559,18 @@ golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excl
 
     if (node instanceof SegmentTransform) {
       visit(node.expr, depth);
+      return;
+    }
+
+    if (node instanceof TieOp) {
+      // TieOp is transparent - doesn't affect depth
+      visit(node.x, depth);
+      return;
+    }
+
+    if (node instanceof Subdivide) {
+      // Subdivide is transparent - doesn't affect depth
+      visit(node.x, depth);
       return;
     }
 

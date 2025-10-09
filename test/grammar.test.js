@@ -732,4 +732,77 @@ A, B, A, B
   });
 });
 
+test('findAllTimescaleIndices crash case with complex nested operators', () => {
+  const source = `// @pitchRegime MelodicMinor
+// @preset Mellotron_Flute
+// @reverb 0.5
+// @volume 0.5
+// @bpm 81
+
+nug =  [1 | /2, -1 | /2, 0]
+nug2 = nug . [1,1,4]
+aun = [1, 0]
+
+haydn = [-5] * [0 | 3/2, 1 | /2, 2, 1, 3, 2, 1 | /2, -1 | /2, 0, 5 -> 1, 2 | /2, 0 | /2, 4]
+
+haydn2 = [-5] * [0 -> 2, 1, 2, nug ,5 -> 1, nug2  ] . [0 | 3/2,0 | /2,0,0,aun,0...]`;
+
+  const indices = findAllTimescaleIndices(source);
+  assert.ok(Array.isArray(indices));
+  // Should find timescales in nug, haydn, and haydn2 definitions
+  assert.ok(indices.length > 0, 'Should find timescale indices');
+});
+
+test('findAllTimescaleIndices with NestedElem variants', () => {
+  // Test NestedElem_motSubdivide - mot literal with / inside nested mot
+  const source1 = '[[[ 1 | 2, 2]/]]';
+  const indices1 = findAllTimescaleIndices(source1);
+  assert.ok(Array.isArray(indices1));
+  assert.equal(indices1.length, 1); // Should find the timescale number 2
+
+  // Test NestedElem_nestedSubdivide - nested mot with / inside another nested mot
+  const source2 = '[[[[ 1 | 3, 2]]/]]';
+  const indices2 = findAllTimescaleIndices(source2);
+  assert.ok(Array.isArray(indices2));
+  assert.equal(indices2.length, 1); // Should find the timescale number 3
+});
+
+test('findAllTimescaleIndices with SingleValue inline multiply', () => {
+  // Test SingleValue_inlineMulMots - [1] * [2] inside a mot
+  const source1 = '[[1 | 2] * [3 | 4]]';
+  const indices1 = findAllTimescaleIndices(source1);
+  // Indices point to the timescale numbers (not the pipes)
+  assert.equal(indices1.length, 2); // Should find both timescales
+  assert.equal(source1[indices1[0]], '2');
+  assert.equal(source1[indices1[1]], '4');
+
+  // Test SingleValue_inlineMulRefMot - ref * [mot] inside a mot
+  const source2 = 'a = [1 | 2]\n[[3], a * [4 | 5]]';
+  const indices2 = findAllTimescaleIndices(source2);
+  assert.ok(indices2.length >= 2); // Should find at least the assignment and inline mul timescales
+  // Verify at least one points to '2' and one points to '5'
+  assert.ok(indices2.some(i => source2[i] === '2'));
+  assert.ok(indices2.some(i => source2[i] === '5'));
+});
+
+test('findAllTimescaleIndices with NestedMotAbbrev', () => {
+  // Test abbreviated nested mot [[...], ...] form
+  const source = '[[[1 | 2], 3 | 4]';
+  const indices = findAllTimescaleIndices(source);
+  assert.equal(indices.length, 2); // Should find both timescales
+  // Verify they point to the numbers
+  assert.equal(source[indices[0]], '2');
+  assert.equal(source[indices[1]], '4');
+});
+
+test('findAllTimescaleIndices with NestedMotLiteral', () => {
+  // Test nested mot literal with timescales
+  const source = '[[1 | 2, 3 | 4]]';
+  const indices = findAllTimescaleIndices(source);
+  assert.equal(indices.length, 2); // Should find both timescales
+  // Verify they point to the numbers
+  assert.equal(source[indices[0]], '2');
+  assert.equal(source[indices[1]], '4');
+});
+
 

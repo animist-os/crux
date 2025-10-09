@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-09T02:48:10.235Z
+// Generated: 2025-10-09T15:12:37.288Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -1005,9 +1005,24 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MotBody_absolute(values) { return values.collectTs(); },
 
   MotLiteral(_ob, body, _cb) { return body.collectTs(); },
+  NestedMotLiteral(_ob, body, _cb) { return body.collectTs(); },
+  NestedMotAbbrev(_ob, body, _cb) { return body.collectTs(); },
+
+  // NestedElem variants
+  NestedElem_motSubdivide(mot, _slash) { return mot.collectTs(); },
+  NestedElem_nestedSubdivide(nested, _slash) { return nested.collectTs(); },
+  NestedElem_single(value) { return value.collectTs(); },
+  NestedElem_mot(mot) { return mot.collectTs(); },
+  NestedElem_nested(nested) { return nested.collectTs(); },
 
   SingleValue(x) { return x.collectTs(); },
   SingleValue_motSubdivide(node, _slash) { return node.collectTs(); },
+  SingleValue_nestedSubdivide(nested, _slash) { return nested.collectTs(); },
+  SingleValue_inlineMulMots(mot1, _h1, _star, _h2, mot2) { return [...mot1.collectTs(), ...mot2.collectTs()]; },
+  SingleValue_inlineMulRefMot(_ref, _h1, _star, _h2, mot) { return mot.collectTs(); },
+  SingleValue_exprInMot(_op, expr, _cp) { return expr.collectTs(); },
+  SingleValue_refInMot(_ref) { return []; },
+
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
   // Default: flatten children
@@ -1101,6 +1116,11 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   // Curly-of-pips: collect timescale indices from each contained pip
   CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
   CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
+
+  // Entry with pad (ellipsis notation like "0...")
+  Entry_withPad(value, _dots) { return value.collectTs(); },
+  Entry_plain(value) { return value.collectTs(); },
+
   number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
   ident_withChars(_first, _rest) { return []; },
   ident_single(_letter) { return []; },
@@ -3079,8 +3099,7 @@ golden.CruxRewriteCurlySeeds = function(input) {
 golden.CruxDesugarRepeats = function(input) {
   const src = String(input || '');
   // Parse on a comment-stripped shadow to align indices, like parse()
-  const withoutComments = stripLineComments(src);
-  const matchResult = g.match(withoutComments);
+  const matchResult = g.match(src);
   if (matchResult.failed()) return src;
   const edits = repeatRewriteSem(matchResult).collectRepeatSuffixRewrites();
   if (!Array.isArray(edits) || edits.length === 0) return src;
@@ -3100,16 +3119,9 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 
-function stripLineComments(input) {
-  // Replace comment-only lines (with optional leading whitespace) with empty lines
-  // For inline comments, replace just the comment part with spaces
-  return input.replace(/^(\s*)\/\/.*$/gm, '$1');
-}
-
 function parse(input) {
   const processed = input.replace(/\s*;\s*/g, '\n').trim();
-  const withoutComments = stripLineComments(processed);
-  const matchResult = g.match(withoutComments);
+  const matchResult = g.match(processed);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);
   }

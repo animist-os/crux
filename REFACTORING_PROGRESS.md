@@ -130,7 +130,7 @@ src/
     - Set up global state as needed
 
 12. **parse.js** (helper) (~30 lines)
-    - Extract: `stripLineComments`, `parse`, `requireMot`
+    - Extract: `parse`, `requireMot`
     - These are utility functions used by semantics
 
 ---

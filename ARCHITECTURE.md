@@ -65,7 +65,7 @@ Contains the complete interpreter implementation:
 - **Provenance tracking**: `_provAddEdge()`, `_provAddPipToMot()`, `FindAncestorPips()`, `getCruxUUID()`
 - **RNG**: `createSeededRng()`, `hashSeedTo32Bit()`, `warmUpRng()`, `resolveRandNumToNumber()`
 - **Seed utilities**: `stringToSeed()`, `formatSeed4()`, `generateSeed4()`
-- **Helpers**: `stripLineComments()`, `requireMot()`, `opKey()`, `instantiateOpNodeBySymbol()`
+- **Helpers**:  `requireMot()`, `opKey()`, `instantiateOpNodeBySymbol()`
 
 #### Semantic Operations
 - `parse` - AST construction from CST

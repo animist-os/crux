@@ -56,7 +56,7 @@ Extracted key components from the monolithic `index.js`:
 #### Helper Utilities (`src/utils/helpers.js`)
 - 21 lines
 - General utility functions
-- Functions: `stripLineComments`, `requireMot`, `opKey`
+- Functions:  `requireMot`, `opKey`
 
 ### 3. Build System
 

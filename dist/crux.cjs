@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-09T00:56:17.771Z
+// Generated: 2025-10-09T02:48:10.235Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -18,7 +18,7 @@ export const g = ohm.grammar(String.raw`
       = nls? ListOf<Section, SectionSep> nls?
 
     Section
-      = ListOf<Stmt, nls+>
+      = nls* ListOf<Stmt, nls+>
 
     SectionSep
       = nls? "!" nls?
@@ -272,7 +272,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Prog(sections.parse());
   },
 
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     return stmts.parse();
   },
 
@@ -848,7 +848,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
     }
     return out;
   },
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectRepeatSuffixRewrites();
@@ -947,7 +947,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
     }
     return out;
   },
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectTs();
@@ -2948,8 +2948,8 @@ golden.computeHeightFromLeaves = function(source, options = {}) {
 
 // Find all source indices where a timescale literal appears in the source program.
 golden.findAllTimescaleIndices = function(source) {
-  const withoutComments = stripLineComments(source);
-  const matchResult = g.match(withoutComments);
+  // Don't strip comments - the grammar handles them and we need correct source positions
+  const matchResult = g.match(source);
   if (matchResult.failed()) return [];
   const idxs = tsSemantics(matchResult).collectTs();
   // Deduplicate and sort for stability

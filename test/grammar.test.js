@@ -588,4 +588,148 @@ basicNotes . [[schenkerNeighbor]] t`;
   assert.deepEqual(indices, [46, 49, 52, 56]);
 });
 
+test('findNumericValueIndicesAtDepth finds values at correct depth', () => {
+  const source = '[0, 1] * [2, 3]';
+  const depthZero = golden.findNumericValueIndicesAtDepth(source, 0);
+  const depthOne = golden.findNumericValueIndicesAtDepth(source, 1);
+
+  // At depth 0 (root), there are no mot literals
+  assert.deepEqual(depthZero, []);
+  // At depth 1 (children of Mul), we have [0,1] and [2,3]
+  assert.deepEqual(depthOne, [1, 4, 10, 13]);
+});
+
+test('findNumericValueIndicesAtDepth includes range endpoints', () => {
+  const source = '[0->3, 5]';
+  const indices = golden.findNumericValueIndicesAtDepth(source, 0);
+  // Should include both endpoints of the range (0 and 3) plus the standalone 5
+  assert.deepEqual(indices, [1, 4, 7]);
+});
+
+test('findNumericValueIndicesAtDepth includes curly choice positions', () => {
+  const source = '[{1,2,3}]';
+  const indices = golden.findNumericValueIndicesAtDepth(source, 0);
+  // Should include all numeric options in the curly choice
+  assert.deepEqual(indices, [2, 4, 6]);
+});
+
+test('findNumericValueIndicesAtDepth handles nested expressions', () => {
+  const source = 'a = [0, 1]\nb = [2, 3]\na * b';
+  const indices = golden.findNumericValueIndicesAtDepth(source, 1);
+  // At depth 1, we should find the mots assigned to a and b
+  assert.deepEqual(indices, [5, 8, 16, 19]);
+});
+
+test('findAllTimescaleIndices finds timescale literals', () => {
+  const source = '[0 | 2, 1 | /4, 2 | 3/2]';
+  const indices = golden.findAllTimescaleIndices(source);
+  // Should find: 2 (at pos 5), 4 (at pos 13), 3 (at pos 20), 2 (at pos 22)
+  assert.deepEqual(indices, [5, 13, 20, 22]);
+});
+
+test('findAllTimescaleIndices ignores numbers in comments', () => {
+  const source = '[0 | 2, 1] // timescale 4';
+  const indices = golden.findAllTimescaleIndices(source);
+  // Should only find the 2, not the 4 in the comment
+  assert.deepEqual(indices, [5]);
+});
+
+test('findAllTimescaleIndices handles pipe-only forms', () => {
+  const source = '[0, | 2, | /3, |]';
+  const indices = golden.findAllTimescaleIndices(source);
+  // Should find 2 and 3 from the pipe forms
+  assert.deepEqual(indices, [6, 12]);
+});
+
+test('findAllTimescaleIndices handles fractional timescales', () => {
+  const source = '[0 | 3/4, 1 | 5/2]';
+  const indices = golden.findAllTimescaleIndices(source);
+  // Should find: 3, 4 (from 3/4) and 5, 2 (from 5/2)
+  assert.deepEqual(indices, [5, 7, 14, 16]);
+});
+
+test('findNumericValueIndicesAtDepth with tie operator (transparent)', () => {
+  const source = '[0, 0, 1, 1] t';
+  const indices = golden.findNumericValueIndicesAtDepth(source, 0);
+  // TieOp is transparent, so depth 0 is the mot itself
+  assert.deepEqual(indices, [1, 4, 7, 10]);
+});
+
+test('findNumericValueIndicesAtDepth with subdivide operator (transparent)', () => {
+  const source = '[0, 1, 2]/';
+  const indices = golden.findNumericValueIndicesAtDepth(source, 0);
+  // Subdivide is transparent, so depth 0 is the mot itself
+  assert.deepEqual(indices, [1, 4, 7]);
+});
+
+test('findAllTimescaleIndices multi-section program with comments and subdivisions', () => {
+  const source = `// @tonic 50
+// @scaleDeformation 1 0 0 0 0 0 1
+// @quanta 2n
+// @octave 1
+// @volume 4
+// @bpm 110
+// @preset ZT_Synth10
+// @filterVerb 0.6
+A = [1,-3,0|2]
+B = A . [0,0,[0 | 3/2, 2|/2]/]
+A, B, A, B
+!
+[-10|2]:8
+!
+[-17|4]:4
+!
+[-6|2]:8
+!
+[13|2]:9`;
+  const indices = findAllTimescaleIndices(source);
+  // Find all timescale literals: |2 on line 9, | 3/2 and |/2 on line 10,
+  // |2 on lines 13, 15, 17, 19
+  // Positions: line 9 char 14 (|2), line 10 char 19 (3), line 10 char 21 (/2),
+  // line 13 char 4 (2), line 15 char 4 (4), line 17 char 4 (2), line 19 char 4 (2)
+  assert.ok(Array.isArray(indices));
+  assert.ok(indices.length > 0);
+  // Verify indices don't include comment numbers (50, 1, 0, 110, etc.)
+  assert.ok(indices.every(idx => {
+    const char = source[idx];
+    return /[0-9]/.test(char);
+  }));
+});
+
+test('findNumericValueIndicesAtDepth multi-section program with nested expressions', () => {
+  const source = `// @tonic 50
+// @scaleDeformation 1 0 0 0 0 0 1
+// @quanta 2n
+// @octave 1
+// @volume 4
+// @bpm 110
+// @preset ZT_Synth10
+// @filterVerb 0.6
+A = [1,-3,0|2]
+B = A . [0,0,[0 | 3/2, 2|/2]/]
+A, B, A, B
+!
+[-10|2]:8
+!
+[-17|4]:4
+!
+[-6|2]:8
+!
+[13|2]:9`;
+  // Test depth 0 - should find numeric values at the top level
+  const indicesDepth0 = golden.findNumericValueIndicesAtDepth(source, 0);
+  assert.ok(Array.isArray(indicesDepth0));
+  // Verify returned indices point to numeric characters
+  indicesDepth0.forEach(idx => {
+    assert.ok(/[-0-9]/.test(source[idx]), `Index ${idx} should point to numeric character, got '${source[idx]}'`);
+  });
+  // Verify no indices from comments
+  indicesDepth0.forEach(idx => {
+    const lineStart = source.lastIndexOf('\n', idx) + 1;
+    const lineEnd = source.indexOf('\n', idx);
+    const line = source.substring(lineStart, lineEnd === -1 ? source.length : lineEnd);
+    assert.ok(!line.trimStart().startsWith('//'), `Index ${idx} should not be in a comment line`);
+  });
+});
+
 

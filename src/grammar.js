@@ -7,7 +7,7 @@ export const g = ohm.grammar(String.raw`
       = nls? ListOf<Section, SectionSep> nls?
 
     Section
-      = ListOf<Stmt, nls+>
+      = nls* ListOf<Stmt, nls+>
 
     SectionSep
       = nls? "!" nls?

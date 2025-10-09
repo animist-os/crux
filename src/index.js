@@ -24,7 +24,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Prog(sections.parse());
   },
 
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     return stmts.parse();
   },
 
@@ -600,7 +600,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
     }
     return out;
   },
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectRepeatSuffixRewrites();
@@ -699,7 +699,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
     }
     return out;
   },
-  Section(stmts) {
+  Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
       const v = s.collectTs();
@@ -2700,8 +2700,8 @@ golden.computeHeightFromLeaves = function(source, options = {}) {
 
 // Find all source indices where a timescale literal appears in the source program.
 golden.findAllTimescaleIndices = function(source) {
-  const withoutComments = stripLineComments(source);
-  const matchResult = g.match(withoutComments);
+  // Don't strip comments - the grammar handles them and we need correct source positions
+  const matchResult = g.match(source);
   if (matchResult.failed()) return [];
   const idxs = tsSemantics(matchResult).collectTs();
   // Deduplicate and sort for stability
@@ -2831,8 +2831,7 @@ golden.CruxRewriteCurlySeeds = function(input) {
 golden.CruxDesugarRepeats = function(input) {
   const src = String(input || '');
   // Parse on a comment-stripped shadow to align indices, like parse()
-  const withoutComments = stripLineComments(src);
-  const matchResult = g.match(withoutComments);
+  const matchResult = g.match(src);
   if (matchResult.failed()) return src;
   const edits = repeatRewriteSem(matchResult).collectRepeatSuffixRewrites();
   if (!Array.isArray(edits) || edits.length === 0) return src;
@@ -2852,16 +2851,9 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 
-function stripLineComments(input) {
-  // Replace comment-only lines (with optional leading whitespace) with empty lines
-  // For inline comments, replace just the comment part with spaces
-  return input.replace(/^(\s*)\/\/.*$/gm, '$1');
-}
-
 function parse(input) {
   const processed = input.replace(/\s*;\s*/g, '\n').trim();
-  const withoutComments = stripLineComments(processed);
-  const matchResult = g.match(withoutComments);
+  const matchResult = g.match(processed);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);
   }

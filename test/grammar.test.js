@@ -6,8 +6,9 @@ const { parse, findAllTimescaleIndices } = golden;
 
 function evalToString(input) {
   const prog = parse(input);
-  const value = prog.interp();
-  return value.toString();
+  const result = prog.interp();
+  const lastSection = result.sections[result.sections.length - 1];
+  return lastSection.toString();
 }
 
 test('absolute mot with commas', () => {

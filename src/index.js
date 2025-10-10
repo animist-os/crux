@@ -878,6 +878,25 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   ident_single(_letter) { return []; },
 });
 
+// Helper: Get the final statement's root AST and environment
+function getFinalRootAstAndEnv(prog) {
+  const env = new Map();
+  let last = null;
+
+  // Process all sections to build up the environment
+  for (const stmts of prog.sections) {
+    for (const stmt of stmts) {
+      last = stmt;
+      if (stmt instanceof Assign) {
+        env.set(stmt.name, stmt.expr);
+      }
+    }
+  }
+
+  const root = (last instanceof Assign) ? last.expr : last;
+  return { root, env };
+}
+
 class Prog {
   constructor(sections) {
     this.sections = sections; // array of arrays of statements
@@ -885,17 +904,44 @@ class Prog {
 
   interp() {
     const env = new Map();
-    const sectionResults = [];
+    const sections = [];
 
     for (const stmts of this.sections) {
       let lastValue = new Mot([]);
       for (const stmt of stmts) {
         lastValue = stmt.eval(env);
       }
-      sectionResults.push(lastValue);
+      sections.push(lastValue);
     }
 
-    return sectionResults;
+    // Compute program info for the final statement
+    const { root, env: finalEnv } = getFinalRootAstAndEnv(this);
+    const pip_depth = golden.computeExprHeight(root, finalEnv);
+    const leaves = golden.collectMotLeavesWithDepth(root, finalEnv);
+
+    let pip_count = 0;
+    for (const { mot } of leaves) {
+      pip_count += mot.values.length;
+    }
+
+    // For duration, find the largest duration across all sections
+    let duration = 0;
+    for (const mot of sections) {
+      if (mot && mot.values) {
+        let sectionDuration = 0;
+        for (const pip of mot.values) {
+          sectionDuration += pip.timeScale;
+        }
+        duration = Math.max(duration, sectionDuration);
+      }
+    }
+
+    return {
+      sections,
+      pip_count,
+      pip_depth,
+      duration
+    };
   }
 }
 
@@ -2537,24 +2583,6 @@ function isBinaryTransformNode(node) {
   return false;
 }
 
-function getFinalRootAstAndEnv(prog) {
-  const env = new Map();
-  let last = null;
-
-  // Process all sections to build up the environment
-  for (const stmts of prog.sections) {
-    for (const stmt of stmts) {
-      last = stmt;
-      if (stmt instanceof Assign) {
-        env.set(stmt.name, stmt.expr);
-      }
-    }
-  }
-
-  const root = (last instanceof Assign) ? last.expr : last;
-  return { root, env };
-}
-
 // Collect leaf Mots with their binary-transform depth from the root.
 // - followRefs: when true, inline assignment RHS at Ref sites without adding depth.
 // - excludeConcat: when true, do not count concatenation (FollowedBy) as a transform.
@@ -2716,6 +2744,40 @@ golden.computeHeightFromLeaves = function(source, options = {}) {
   const prog = parse(source);
   const { root, env } = getFinalRootAstAndEnv(prog);
   return golden.computeExprHeight(root, env, options);
+}
+
+// Get program info: pip count, pip tree depth, and duration (unit durations in bottom-most mot)
+golden.CruxProgramInfo = function(code) {
+  const prog = parse(code);
+  const { root, env } = getFinalRootAstAndEnv(prog);
+
+  // Compute pip tree depth (height of expression tree)
+  const pip_depth = golden.computeExprHeight(root, env);
+
+  // Collect all leaf mots with their depths
+  const leaves = golden.collectMotLeavesWithDepth(root, env);
+
+  // Count total pips across all leaf mots
+  let pip_count = 0;
+  for (const { mot } of leaves) {
+    pip_count += mot.values.length;
+  }
+
+  // Find the bottom-most mot (deepest leaf) and count its unit durations
+  let duration = 0;
+  let maxDepth = -1;
+  for (const { mot, depth } of leaves) {
+    if (depth > maxDepth) {
+      maxDepth = depth;
+      // Count unit durations in this mot
+      duration = 0;
+      for (const pip of mot.values) {
+        duration += pip.timeScale;
+      }
+    }
+  }
+
+  return { pip_count, pip_depth, duration };
 }
 
 // Find all source indices where a timescale literal appears in the source program.

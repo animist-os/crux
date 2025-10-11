@@ -451,6 +451,49 @@ test('curly expressions in timeScale positions', () => {
   assert.match(out2, /^\[0, 1( \| ([12])|), 2\]$/);
 });
 
+test('curly choice among multiple timescales including 1', () => {
+  // Test {2,1,3} - randomly choose among three timescales
+  const out1 = evalToString('[0 | {2,1,3}]');
+  // Should produce [0], [0 | 2], or [0 | 3]
+  assert.match(out1, /^\[0( \| ([23]))?\]$/);
+
+  // Test {1/2, 1, 2} - choose among fraction, unit, and multiple
+  const out2 = evalToString('[0 | {1/2, 1, 2}]');
+  // Should produce [0 | /2], [0], or [0 | 2]
+  assert.match(out2, /^\[0( \| (\/2|2))?\]$/);
+});
+
+test('curly in division position creates fractional timescales', () => {
+  // Test /{2,4} which should be equivalent to {1/2, 1/4}
+  const out = evalToString('[0 | /{2,4}]');
+  // Should produce [0 | /2] or [0 | /4]
+  assert.match(out, /^\[0 \| \/(2|4)\]$/);
+
+  // Verify we get both values over multiple runs
+  const results = new Set();
+  for (let i = 0; i < 20; i++) {
+    results.add(evalToString('[0 | /{2,4}]'));
+  }
+  assert.ok(results.has('[0 | /2]') || results.has('[0 | /4]'),
+    'Should produce at least one of the possible values');
+});
+
+test('random range step with random choice timescale', () => {
+  // Test {-2 ? 2} | {2,1,3} - random step from -2 to 2, with random timescale from {2,1,3}
+  const out = evalToString('[{-2 ? 2} | {2,1,3}]');
+  // Should produce a pip with step in [-2, 2] and timescale from {2, 1, 3}
+  // When timescale is 1, it's omitted, so patterns like [-1], [0 | 2], [1 | 3] are all valid
+  assert.match(out, /^\[([-]?[012]) (\| ([123]))?\]$/);
+
+  // Verify we see multiple different outputs over runs
+  const results = new Set();
+  for (let i = 0; i < 30; i++) {
+    results.add(evalToString('[{-2 ? 2} | {2,1,3}]'));
+  }
+  // Should have at least 3 unique outputs given the randomness
+  assert.ok(results.size >= 3, `Expected at least 3 unique outputs, got ${results.size}: ${[...results].join(', ')}`);
+});
+
 test('dot with nested mot on RHS with explicit subdivision timescales', () => {
   // Nested mot with /3 timescales will subdivide with those timescales
   const program = '[0, 4, 2] . [0, [0 | /3, 1 | /3, 0 | /3], 0]';

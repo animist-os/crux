@@ -373,6 +373,12 @@ const s = g.createSemantics().addOperation('parse', {
     return { __kind: 'numLit', value: n.parse(), pos: n.source.startIdx };
   },
 
+  CurlyEntry_frac(n, _slash, d) {
+    const num = n.parse();
+    const den = d.parse();
+    return { __kind: 'numLit', value: num / den, pos: n.source.startIdx };
+  },
+
   CurlyEntry_ref(name) {
     return new Ref(name.sourceString);
   },
@@ -438,7 +444,12 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
-    return new Pip(0, 1 / d.parse(), sym.sourceString, sym.source.startIdx);
+    const divisor = d.parse();
+    // If divisor is a random choice/range, create fractional timescale object
+    if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
+      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString, sym.source.startIdx);
+    }
+    return new Pip(0, 1 / divisor, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
@@ -448,7 +459,12 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
     const start = n.source.startIdx;
-    return new Pip(n.parse(), 1 / d.parse(), null, start);
+    const divisor = d.parse();
+    // If divisor is a random choice/range, create fractional timescale object
+    if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
+      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null, start);
+    }
+    return new Pip(n.parse(), 1 / divisor, null, start);
   },
 
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
@@ -480,7 +496,15 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_pipeOnlyDiv(_pipe, _h1, _slash, _h2, d) {
-    const p = new Pip(0, 1 / d.parse(), null, _pipe.source.startIdx);
+    const divisor = d.parse();
+    let ts;
+    // If divisor is a random choice/range, create fractional timescale object
+    if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
+      ts = { _frac: true, num: 1, den: divisor };
+    } else {
+      ts = 1 / divisor;
+    }
+    const p = new Pip(0, ts, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
@@ -2332,6 +2356,9 @@ class Mot {
         const spec = value.timeScale;
         if (typeof spec === 'number') {
           ts = spec;
+        } else if (spec instanceof RandomRange || spec instanceof RandomChoice) {
+          // Direct RandomRange/RandomChoice as timescale
+          ts = resolveRandNumToNumber(spec, rng);
         } else if (spec && typeof spec === 'object') {
           const rhsRaw = spec.rhs;
           const rhsVal = typeof rhsRaw === 'number' ? rhsRaw : resolveRandNumToNumber(rhsRaw, rng);

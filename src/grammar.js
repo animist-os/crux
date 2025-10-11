@@ -180,7 +180,8 @@ export const g = ohm.grammar(String.raw`
       = number hspaces? "?" hspaces? number   -- range
       | ListOf<CurlyEntry, ",">              -- list
     CurlyEntry
-      = number  -- num
+      = number "/" number  -- frac
+      | number  -- num
       | ident   -- ref
 
     Seed = "@" SeedChars

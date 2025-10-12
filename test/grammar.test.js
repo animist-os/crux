@@ -345,10 +345,23 @@ test('rotate operator ~ applies right rotations per right mot', () => {
   assert.equal(evalToString('[0, 1, 2, 3] ~ [1, 2]'), '[1, 2, 3, 0, 2, 3, 0, 1]');
 });
 
-test('dotRotate operator .~ rotates per position (cog version)', () => {
-  assert.equal(evalToString('[0, 1, 2, 3] .~ [1]'), '[1]');
-  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2]'), '[1, 3]');
-  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2, 0]'), '[1, 3, 2]');
+test('dotRotate operator .~ applies per-element circular indexing', () => {
+  // Each position i picks element at (i + right[i].step) mod n
+  // [0,1,2,3] .~ [1] → each position offset by +1: [1,2,3,0]
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1]'), '[1, 2, 3, 0]');
+
+  // Alternating offsets +1, +2: positions 0,2 get +1 offset, positions 1,3 get +2 offset
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2]'), '[1, 3, 3, 1]');
+
+  // Cycling offsets +1, +2, +0:
+  // i=0: (0+1)%4=1→1, i=1: (1+2)%4=3→3, i=2: (2+0)%4=2→2, i=3: (3+1)%4=0→0
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [1, 2, 0]'), '[1, 3, 2, 0]');
+
+  // Zero offset = identity
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [0]'), '[0, 1, 2, 3]');
+
+  // Negative offset shifts backward
+  assert.equal(evalToString('[0, 1, 2, 3] .~ [-1]'), '[3, 0, 1, 2]');
 });
 
 test('bare Curly as PriExpr works in operators', () => {

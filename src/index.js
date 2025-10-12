@@ -1346,17 +1346,16 @@ class DotRotate {
     const left = requireMot(this.x.eval(env));
     const right = requireMot(this.y.eval(env));
     const out = [];
-    for (let i = 0; i < right.values.length; i++) {
-      const r = right.values[i];
+    const n = left.values.length;
+    if (n === 0) return new Mot([]);
+
+    // Per-element circular indexing: each position i gets rotated by right[i].step
+    for (let i = 0; i < n; i++) {
+      const r = right.values[i % right.values.length];
       const k = Math.trunc(r.step);
-      if (left.values.length === 0) {
-        continue;
-      }
-      const n = left.values.length;
-      // Rotate left by k
-      let rot = ((-k % n) + n) % n;
-      const rotated = left.values.slice(-rot).concat(left.values.slice(0, -rot));
-      out.push(rotated[i % rotated.length]);
+      // Pick element at position (i + k) mod n, circularly
+      const idx = ((i + k) % n + n) % n;
+      out.push(left.values[idx]);
     }
     return new Mot(out);
   }

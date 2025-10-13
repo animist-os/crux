@@ -45,20 +45,44 @@ test('curly before pipe with implicit multiply', () => {
 // (Removed) explicit star randnum after pipe is deprecated; covered by implicit forms above.
 
 test('curly before pipe with explicit / randnum', () => {
-  const out = evalToString('[ {1,2} | / {2,4} ]');
-  // 1/2 or 1/4 timeScale, printed as | /2 or | /4
-  assert.match(out, /^\[(1 \| \/(2|4)|2 \| \/(2|4))\]$/);
+  const results = new Set();
+  const validPattern = /^\[(1 \| \/(2|4)|2 \| \/(2|4))\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[ {1,2} | / {2,4} ]');
+    // 1/2 or 1/4 timeScale, printed as | /2 or | /4
+    assert.match(out, validPattern, `Output ${i}: ${out} doesn't match expected pattern`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('curly-of-pips chooses among pip forms', () => {
-  const out = evalToString('[ {2, 1, 0 | /2} ]');
-  assert.ok(out === '[2]' || out === '[1]' || out === '[0 | /2]', 'Unexpected CurlyPip result: ' + out);
+  const results = new Set();
+  const validOutputs = ['[2]', '[1]', '[0 | /2]'];
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[ {2, 1, 0 | /2} ]');
+    assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('curly-of-pips supports outer timescale pipe', () => {
-  const out = evalToString('[ {2, 1, 0 | /2} | 2 ]');
-  // options multiply timescale by 2: 2->2 | 2, 1->1 | 2, 0/2->0
-  assert.ok(out === '[2 | 2]' || out === '[1 | 2]' || out === '[0]', 'Unexpected CurlyPip pipe result: ' + out);
+  const results = new Set();
+  const validOutputs = ['[2 | 2]', '[1 | 2]', '[0]'];
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[ {2, 1, 0 | /2} | 2 ]');
+    // options multiply timescale by 2: 2->2 | 2, 1->1 | 2, 0/2->0
+    assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('range expands inclusively', () => {
@@ -84,12 +108,21 @@ test(':N multiplies by a zero-mot of length N', () => {
 
 test(':N accepts RandNum and resolves per repetition without seed', () => {
   // Random length 2 or 4; replicated twice should be either length 4 or 8
-  const out = evalToString('[3,1] : {2,4} : {2,4}');
-  const ok = out === evalToString('[3,1] * [0,0] * [0,0]') ||
-             out === evalToString('[3,1] * [0,0] * [0,0,0,0]') ||
-             out === evalToString('[3,1] * [0,0,0,0] * [0,0]') ||
-             out === evalToString('[3,1] * [0,0,0,0] * [0,0,0,0]');
-  assert.ok(ok, 'Unexpected :{..} expansion: ' + out);
+  const results = new Set();
+  const validOutputs = [
+    evalToString('[3,1] * [0,0] * [0,0]'),
+    evalToString('[3,1] * [0,0] * [0,0,0,0]'),
+    evalToString('[3,1] * [0,0,0,0] * [0,0]'),
+    evalToString('[3,1] * [0,0,0,0] * [0,0,0,0]')
+  ];
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[3,1] : {2,4} : {2,4}');
+    assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of expected outputs`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('implicit multiply after pipe still parses with whitespace', () => {
@@ -211,18 +244,33 @@ test('constraint keeps where mask nonzero (no special x tag)', () => {
 });
 
 test('random ranged a -> b bounds the integer range', () => {
-  const out = evalToString('[0, {-2 -> 2}, 3]');
-  const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
-  assert.ok(m, 'Output shape mismatch: ' + out);
-  const rnd = parseInt(m[2], 10);
-  assert.ok(Number.isInteger(rnd) && rnd >= -2 && rnd <= 2, 'rnd out of range: ' + rnd);
+  const results = new Set();
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[0, {-2 -> 2}, 3]');
+    const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
+    assert.ok(m, `Output ${i} shape mismatch: ${out}`);
+    const rnd = parseInt(m[2], 10);
+    assert.ok(Number.isInteger(rnd) && rnd >= -2 && rnd <= 2, `rnd out of range: ${rnd}`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 3, `Expected at least 3 unique outputs, got ${results.size}`);
 });
 
 test('range endpoints support curly choice', () => {
   // choose from 0..2 then build range -1 -> k (inclusive)
-  const out = evalToString('[-1 -> {0, 1, 2}]');
-  // Accept k ∈ {0,1,2}: [-1], [-1,0], [-1,0,1], or [-1,0,1,2]
-  assert.match(out, /^\[(\-1|\-1, 0|\-1, 0, 1|\-1, 0, 1, 2)\]$/);
+  const results = new Set();
+  const validPattern = /^\[(\-1|\-1, 0|\-1, 0, 1|\-1, 0, 1, 2)\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[-1 -> {0, 1, 2}]');
+    // Accept k ∈ {0,1,2}: [-1], [-1,0], [-1,0,1], or [-1,0,1,2]
+    assert.match(out, validPattern, `Output ${i}: ${out} doesn't match expected pattern`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('jam can reset durations via pass-through with timeScale', () => {
@@ -252,9 +300,17 @@ test('assignment then later expression with juxtaposition disabled across newlin
 });
 
 test('choice picks one of the options (curly)', () => {
-  const out = evalToString('[{0, 1, 2}]');
-  // Should be a single element mot with one of 0,1,2
-  assert.match(out, /^\[(0|1|2)\]$/);
+  const results = new Set();
+  const validPattern = /^\[(0|1|2)\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[{0, 1, 2}]');
+    // Should be a single element mot with one of 0,1,2
+    assert.match(out, validPattern, `Output ${i}: ${out} doesn't match expected pattern`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('curly refs choose a mot by name and inline it', () => {
@@ -337,8 +393,16 @@ test('slice operator endOnly: _ end', () => {
 
 test('slice end is randomly chosen from curly list', () => {
   // [0->8] expands to [0,1,2,3,4,5,6,7,8]; slicing 3..{5,7} with exclusive end yields [3,4] or [3,4,5,6]
-  const out = evalToString('[0 -> 8] 3 _ {5,7}');
-  assert.ok(out === '[3, 4]' || out === '[3, 4, 5, 6]', 'Unexpected slice: ' + out);
+  const results = new Set();
+  const validOutputs = ['[3, 4]', '[3, 4, 5, 6]'];
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[0 -> 8] 3 _ {5,7}');
+    assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
+    results.add(out);
+  }
+
+  assert.ok(results.size === 2, `Expected exactly 2 unique outputs, got ${results.size}`);
 });
 
 test('rotate operator ~ applies right rotations per right mot', () => {
@@ -467,14 +531,30 @@ test('curly expressions in timeScale positions', () => {
 
 test('curly choice among multiple timescales including 1', () => {
   // Test {2,1,3} - randomly choose among three timescales
-  const out1 = evalToString('[0 | {2,1,3}]');
-  // Should produce [0], [0 | 2], or [0 | 3]
-  assert.match(out1, /^\[0( \| ([23]))?\]$/);
+  const results1 = new Set();
+  const validPattern1 = /^\[0( \| ([23]))?\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out1 = evalToString('[0 | {2,1,3}]');
+    // Should produce [0], [0 | 2], or [0 | 3]
+    assert.match(out1, validPattern1, `Output ${i}: ${out1} doesn't match expected pattern`);
+    results1.add(out1);
+  }
+
+  assert.ok(results1.size >= 2, `Expected at least 2 unique outputs for {2,1,3}, got ${results1.size}`);
 
   // Test {1/2, 1, 2} - choose among fraction, unit, and multiple
-  const out2 = evalToString('[0 | {1/2, 1, 2}]');
-  // Should produce [0 | /2], [0], or [0 | 2]
-  assert.match(out2, /^\[0( \| (\/2|2))?\]$/);
+  const results2 = new Set();
+  const validPattern2 = /^\[0( \| (\/2|2))?\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out2 = evalToString('[0 | {1/2, 1, 2}]');
+    // Should produce [0 | /2], [0], or [0 | 2]
+    assert.match(out2, validPattern2, `Output ${i}: ${out2} doesn't match expected pattern`);
+    results2.add(out2);
+  }
+
+  assert.ok(results2.size >= 2, `Expected at least 2 unique outputs for {1/2,1,2}, got ${results2.size}`);
 });
 
 test('curly in division position creates fractional timescales', () => {
@@ -494,17 +574,18 @@ test('curly in division position creates fractional timescales', () => {
 
 test('random range step with random choice timescale', () => {
   // Test {-2 -> 2} | {2,1,3} - random step from -2 to 2, with random timescale from {2,1,3}
-  const out = evalToString('[{-2 -> 2} | {2,1,3}]');
-  // Should produce a pip with step in [-2, 2] and timescale from {2, 1, 3}
-  // When timescale is 1, it's omitted, so patterns like [-1], [0 | 2], [1 | 3] are all valid
-  assert.match(out, /^\[([-]?[012]) (\| ([123]))?\]$/);
-
-  // Verify we see multiple different outputs over runs
+  // Run multiple times to verify all outputs match expected format and show variety
   const results = new Set();
+  const validPattern = /^\[(-?[012])( \| ([123]))?\]$/;
+
   for (let i = 0; i < 30; i++) {
-    results.add(evalToString('[{-2 -> 2} | {2,1,3}]'));
+    const out = evalToString('[{-2 -> 2} | {2,1,3}]');
+    // Each output should match: step in [-2,2], optional timescale from {1,2,3}
+    assert.match(out, validPattern, `Output ${i}: ${out} doesn't match expected pattern`);
+    results.add(out);
   }
-  // Should have at least 3 unique outputs given the randomness
+
+  // Should have at least 3 unique outputs given the randomness (5 steps × 3 timescales = 15 combos)
   assert.ok(results.size >= 3, `Expected at least 3 unique outputs, got ${results.size}: ${[...results].join(', ')}`);
 });
 
@@ -549,12 +630,19 @@ test('pip-level repetition with timescales', () => {
 });
 
 test('pip-level repetition with random count', () => {
-  const out = evalToString('[5: {2 -> 4}]');
-  const m = out.match(/^\[5(?:, 5)*\]$/);
-  assert.ok(m, 'Output should be repeated 5s: ' + out);
-  // Count how many 5s
-  const count = (out.match(/5/g) || []).length;
-  assert.ok(count >= 2 && count <= 4, `Expected 2-4 repetitions, got ${count}`);
+  const results = new Set();
+  const validPattern = /^\[5(?:, 5)*\]$/;
+
+  for (let i = 0; i < 30; i++) {
+    const out = evalToString('[5: {2 -> 4}]');
+    assert.ok(validPattern.test(out), `Output ${i}: ${out} should be repeated 5s`);
+    // Count how many 5s
+    const count = (out.match(/5/g) || []).length;
+    assert.ok(count >= 2 && count <= 4, `Output ${i}: Expected 2-4 repetitions, got ${count}`);
+    results.add(out);
+  }
+
+  assert.ok(results.size >= 2, `Expected at least 2 unique outputs, got ${results.size}`);
 });
 
 test('dot nested subdivision carries timescales from RHS nested pips', () => {
@@ -654,34 +742,23 @@ test('z operator with unequal lengths', () => {
   assert.equal(result, expected);
 });
 
-test('subdivision preserves sourceStart for findNumericValueIndicesAtDepth', () => {
-  const source = `schenkerNeighbor = [0, 0, 1, 0]
-basicNotes = [0, 1, 2 , 3]
-basicNotes . [[schenkerNeighbor]] t`;
-
-  const indices = golden.findNumericValueIndicesAtDepth(source, 1);
-  // Should find the positions of 0, 1, 2, 3 in "basicNotes = [0, 1, 2 , 3]"
-  // The depth is 1 because: Dot is at depth 0, and its children (including basicNotes Ref) are at depth 1
-  // TieOp is transparent to depth calculation
-  assert.deepEqual(indices, [46, 49, 52, 56]);
-});
-
-test('findNumericValueIndicesAtDepth finds values at correct depth', () => {
-  const source = '[0, 1] * [2, 3]';
+test('findNumericValueIndicesAtDepth finds range endpoints at correct depth', () => {
+  const source = '[0->3] * [5->7]';
   const depthZero = golden.findNumericValueIndicesAtDepth(source, 0);
   const depthOne = golden.findNumericValueIndicesAtDepth(source, 1);
 
   // At depth 0 (root), there are no mot literals
   assert.deepEqual(depthZero, []);
-  // At depth 1 (children of Mul), we have [0,1] and [2,3]
+  // At depth 1 (children of Mul), we have [0->3] and [5->7]
   assert.deepEqual(depthOne, [1, 4, 10, 13]);
 });
 
 test('findNumericValueIndicesAtDepth includes range endpoints', () => {
   const source = '[0->3, 5]';
   const indices = golden.findNumericValueIndicesAtDepth(source, 0);
-  // Should include both endpoints of the range (0 and 3) plus the standalone 5
-  assert.deepEqual(indices, [1, 4, 7]);
+  // Should include both endpoints of the range (0 and 3)
+  // Plain pips like 5 are no longer tracked
+  assert.deepEqual(indices, [1, 4]);
 });
 
 test('findNumericValueIndicesAtDepth includes curly choice positions', () => {
@@ -692,9 +769,9 @@ test('findNumericValueIndicesAtDepth includes curly choice positions', () => {
 });
 
 test('findNumericValueIndicesAtDepth handles nested expressions', () => {
-  const source = 'a = [0, 1]\nb = [2, 3]\na * b';
+  const source = 'a = [0->2]\nb = [3->5]\na * b';
   const indices = golden.findNumericValueIndicesAtDepth(source, 1);
-  // At depth 1, we should find the mots assigned to a and b
+  // At depth 1, we should find the range endpoints in mots assigned to a and b
   assert.deepEqual(indices, [5, 8, 16, 19]);
 });
 
@@ -727,17 +804,17 @@ test('findAllTimescaleIndices handles fractional timescales', () => {
 });
 
 test('findNumericValueIndicesAtDepth with tie operator (transparent)', () => {
-  const source = '[0, 0, 1, 1] t';
+  const source = '[0->3, 1->2] t';
   const indices = golden.findNumericValueIndicesAtDepth(source, 0);
   // TieOp is transparent, so depth 0 is the mot itself
   assert.deepEqual(indices, [1, 4, 7, 10]);
 });
 
 test('findNumericValueIndicesAtDepth with subdivide operator (transparent)', () => {
-  const source = '[0, 1, 2]/';
+  const source = '[0->2, 3->5]/';
   const indices = golden.findNumericValueIndicesAtDepth(source, 0);
   // Subdivide is transparent, so depth 0 is the mot itself
-  assert.deepEqual(indices, [1, 4, 7]);
+  assert.deepEqual(indices, [1, 4, 7, 10]);
 });
 
 test('findAllTimescaleIndices multi-section program with comments and subdivisions', () => {
@@ -783,18 +860,18 @@ test('findNumericValueIndicesAtDepth multi-section program with nested expressio
 // @bpm 110
 // @preset ZT_Synth10
 // @filterVerb 0.6
-A = [1,-3,0|2]
-B = A . [0,0,[0 | 3/2, 2|/2]/]
+A = [1->3, {2,4,6}]
+B = A . [{0,1},{2,3},[{5,7} | 3/2, 2|/2]/]
 A, B, A, B
 !
-[-10|2]:8
+[-10->-8|2]:8
 !
-[-17|4]:4
+[-17->-15|4]:4
 !
-[-6|2]:8
+[-6->-4|2]:8
 !
-[13|2]:9`;
-  // Test depth 0 - should find numeric values at the top level
+[13->15|2]:9`;
+  // Test depth 0 - should find numeric values at the top level (ranges and random choices)
   const indicesDepth0 = golden.findNumericValueIndicesAtDepth(source, 0);
   assert.ok(Array.isArray(indicesDepth0));
   // Verify returned indices point to numeric characters

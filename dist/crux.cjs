@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-13T04:50:04.319Z
+// Generated: 2025-10-13T04:54:08.258Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 

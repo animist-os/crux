@@ -7,7 +7,10 @@
       "Bash(npm run build:*)",
       "Bash(chmod:*)",
       "Bash(mkdir:*)",
-      "Bash(npm run build:test:*)"
+      "Bash(npm run build:test:*)",
+      "Bash(for i in {1..5})",
+      "Bash(do npm test)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

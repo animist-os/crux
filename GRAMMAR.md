@@ -65,8 +65,8 @@ Returns `[[0, 1, 2, 3]]`.
     - `[0->3] -> [0, 1, 2, 3]`
     - `[3->1] -> [3, 2, 1]`
   - **Curly**: `{a, b, c, ...}` picks one option at evaluation time. Example: `[{0, 1, 2}] -> [0]` or `[1]` or `[2]`.
-  - **Random Range**: `{a ? b}` picks a random integer between a and b (inclusive). Example: `[{-2 ? 2}] -> [-2]` to `[2]`.
-  - **Seeded Random**: `{a ? b}@seed` provides deterministic randomness. Example: `[{1 ? 6}@c0de]`.
+  - **Random Range**: `{a -> b}` picks a random integer between a and b (inclusive). Example: `[{-2 -> 2}] -> [-2]` to `[2]`.
+  - **Seeded Random**: `{a -> b}@seed` provides deterministic randomness. Example: `[{1 -> 6}@c0de]`.
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
@@ -81,10 +81,11 @@ Notes:
   - `r`: rest (silence with duration)
   - Other letters: pass-through behavior in dot operations (no special omit tag)
 - **Curly expressions**: Standalone `{...}` expressions are treated as single random-step pips.
- - **Ellipsis padding in cog ops**:
-   - Inside a mot literal, appending `...` to a value marks it as a pad entry for cog operators. In cog context (e.g., with `.`), padding repeats that RHS value to cover the middle positions without cycling; any trailing RHS entries are right‑aligned to the end of the LHS.
-   - Interior pad is supported: `[0,1,2,3,4,5,6] . [7, 0..., 7] -> [7, 1, 2, 3, 4, 5, 13]`.
-   - Fan operators (`*`, `^`, `->`, etc.) ignore `...` (the value behaves as a single entry): `[0,1,2] * [2, 3...] == [0,1,2] * [2,3]`.
+ - **Pip repetition and padding**:
+   - **Repetition**: Inside a mot literal, appending `: N` to a value repeats it N times: `[0: 3] -> [0, 0, 0]`. Works with timescales: `[-2|/2 : 4] -> [-2|/2, -2|/2, -2|/2, -2|/2]`.
+   - **Padding**: Appending `:` (without N) marks a value as a pad entry for cog operators. In cog context (e.g., with `.`), padding repeats that RHS value to cover the middle positions without cycling; any trailing RHS entries are right‑aligned to the end of the LHS.
+   - Interior pad is supported: `[0,1,2,3,4,5,6] . [7, 0:, 7] -> [7, 1, 2, 3, 4, 5, 13]`.
+   - Fan operators (`*`, `^`, `->`, etc.) ignore `:` (the value behaves as a single entry): `[0,1,2] * [2, 3:] == [0,1,2] * [2,3]`.
  
 
 ### Operators (left to right unless grouped)
@@ -226,8 +227,8 @@ From highest to lowest:
 
 // Random choices (result varies)
 [{0, 1, 2}]                  -> one of [0], [1], [2]
-[{-2 ? 2}]                   -> random integer from -2 to 2
-[{1 ? 6}@c0de]               -> seeded random (deterministic)
+[{-2 -> 2}]                  -> random integer from -2 to 2
+[{1 -> 6}@c0de]              -> seeded random (deterministic)
 
 // Concatenation (comma only)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
@@ -413,7 +414,6 @@ Crux {
   sign        = "+" | "-"
   hspace      = " " | "\t"
   hspaces     = hspace+
-  ellipsis    = "..."
   comment     = "//" (~nl any)*
   space      := hspace | comment
   nl          = "\r\n" | "\n" | "\r"

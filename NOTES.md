@@ -145,7 +145,7 @@ We h ave implemented this curly brace notation but it feels wrong.
 
         4$A === [c, d, b, d, b, c, b, c, d, c, d, b]
     
-      {?, +4} means random insk, duration 4 or {?-4, +4}  TBD
+      TBD old syntax notes
 
 
   POLYPHONY

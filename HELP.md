@@ -34,7 +34,7 @@ Pips:
 
 * Range: `[0->3] === [0, 1, 2, 3]`
 * Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
-* Random Range: `[{-2 ? 2}] === random integer from -2 to 2`
+* Random Range: `[{-2 -> 2}] === random integer from -2 to 2`
 * Tags (character pips): `r` (rest)
 
 ### Binary Mot Operators
@@ -75,16 +75,10 @@ Pips:
 
 ### All RNG-bearing syntax, with examples
 
-- **Bare random pip `?`**: random integer step in [-7, 7]
+- **Curly random range `{a -> b}`**: inclusive integer
 ```text
-[?]
-[0, ?, 2]
-```
-
-- **Curly random range `{a ? b}`**: inclusive integer
-```text
-[{1 ? 6}]           // d6
-[{-2 ? 2}]
+[{1 -> 6}]           // d6
+[{-2 -> 2}]
 ```
 
 - **Curly random choice `{a, b, c, ...}`**
@@ -94,15 +88,15 @@ Pips:
 
 - **Seeded curly (deterministic per seed) `@hhhh`**
 ```text
-[{1 ? 6}@c0de]
+[{1 -> 6}@c0de]
 [{0,2,5}@beef]
 ```
 
 - **Random endpoints in ranges**:
 ```text
-[{0 ? 2} -> 4]
+[{0 -> 2} -> 4]
 [1 -> {2, 4}]
-[{0 ? 1} -> {3, 5}]
+[{0 -> 1} -> {3, 5}]
 ```
 
 - **Random timeScale for numeric pip via pipe**
@@ -115,7 +109,7 @@ Pips:
 ```text
 [{1,2} | 2]                 // fixed ts
 [{1,2} | * {2,4}]           // random ts
-[{1 ? 4}@cafe | / {2,4}@babe]  // both seeded
+[{1 -> 4}@cafe | / {2,4}@babe]  // both seeded
 ```
 
 - **Random timeScale for special/tagged pips (e.g., rest `r`)**
@@ -137,17 +131,10 @@ Pips:
 - **Bare curly as a value (random-step pip)**
 ```text
 [{0,1,2}]          // picks a single step; timeScale 1
-[{1 ? 6}]          // same; random in 1..6
+[{1 -> 6}]         // same; random in 1..6
 ```
 
-- **Bare `?` with timeScale**
-```text
-[? | 2]
-[? | / {2,4}]
-```
-
-
-- Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly`, `?`, or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
+- Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly` or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
 
 - If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression.
 

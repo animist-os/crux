@@ -13,11 +13,11 @@
 **3. Timescale Sophistication**
 - Fractional notation: `n|/d` or `n|m`
 - Pipe-only forms: `|`, `|/n`, `|*n`
-- Random timescales: `{2?4}|`
+- Random timescales: `{2 -> 4}|`
 - Per-element specification via dot operators
 
 **4. Randomness Integration**
-- Range syntax: `{0?7}` with position tracking
+- Range syntax: `{0 -> 7}` with position tracking
 - Choice lists: `{0,2,4}` with optional `@seed`
 - Curly-of-pips: `{0|, 1|/2, 2|*3}` for complex stochastic patterns
 - Seeded determinism for reproducibility
@@ -68,7 +68,7 @@ Element-wise operations enable heterogeneous textures.
 
 **6. Parametric Control via Randomness**
 ```
-melody = [0, {0?7}, 4, {-3?3}]@abc1
+melody = [0, {0 -> 7}, 4, {-3 -> 3}]@abc1
 ```
 Controlled indeterminacy with reproducible seeds.
 
@@ -256,4 +256,4 @@ The grammar lacks **positional predicates**.
 5. **Higher-order ops**: Could operator aliasing extend to parameterized transformations?
 6. **Microtones**: Should steps accept fractional values with explicit cents/Hz mapping?
 7. **Time warping**: Is a `warp` operator feasible (e.g., `[0,2,4] warp [1,1.5,2]`)?
-8. **Iteration**: Should `:N` support computed values (e.g., `:({2?8})`) or iterative schemes?
+8. **Iteration**: Should `:N` support computed values (e.g., `:({2 -> 8})`) or iterative schemes?

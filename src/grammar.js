@@ -120,8 +120,9 @@ export const g = ohm.grammar(String.raw`
       = ListOf<Entry, ",">            -- absolute
 
     Entry
-      = Value ellipsis                  -- withPad
-      | Value                           -- plain
+      = Value hspaces? ":" hspaces? RandNum  -- repeatPip
+      | Value hspaces? ":"                    -- padPip
+      | Value                                 -- plain
 
     Value
       = SingleValue
@@ -177,10 +178,10 @@ export const g = ohm.grammar(String.raw`
     Curly
       = "{" CurlyBody "}" Seed?
     CurlyBody
-      = number hspaces? "?" hspaces? number   -- range
-      | ListOf<CurlyEntry, ",">              -- list
+      = ListOf<CurlyEntry, ",">              -- list
     CurlyEntry
-      = number "/" number  -- frac
+      = Range  -- range
+      | number "/" number  -- frac
       | number  -- num
       | ident   -- ref
 
@@ -197,7 +198,6 @@ export const g = ohm.grammar(String.raw`
 
     specialChar
       = "r"
-      | "?"
 
     ident = (letter | "_") alnum+  -- withChars
           | letter                     -- single
@@ -219,9 +219,6 @@ export const g = ohm.grammar(String.raw`
 
     hspace = " " | "\t"
     hspaces = hspace+
-    
-    // Ellipsis marker for pad semantics inside Mot
-    ellipsis = "..."
 
     // Line comments
     comment = "//" (~nl any)*

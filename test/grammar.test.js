@@ -200,17 +200,8 @@ test('constraint keeps where mask nonzero (no special x tag)', () => {
   assert.equal(evalToString('[0, 1, 2, 3] c [1, 0, 1, 0]'), '[0, 2]');
 });
 
-test('random tag bare ? uses default range [-7,7]', () => {
-  const out = evalToString('[0, ?, 2]');
-  // Expect shape [0, rnd, 2] where rnd integer and |rnd| <= 7
-  const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
-  assert.ok(m, 'Output shape mismatch: ' + out);
-  const rnd = parseInt(m[2], 10);
-  assert.ok(Number.isInteger(rnd) && rnd >= -7 && rnd <= 7, 'rnd out of range: ' + rnd);
-});
-
-test('random ranged a ? b bounds the integer range', () => {
-  const out = evalToString('[0, {-2 ? 2}, 3]');
+test('random ranged a -> b bounds the integer range', () => {
+  const out = evalToString('[0, {-2 -> 2}, 3]');
   const m = out.match(/^\[(\-?\d+), (\-?\d+), (\-?\d+)\]$/);
   assert.ok(m, 'Output shape mismatch: ' + out);
   const rnd = parseInt(m[2], 10);
@@ -492,8 +483,8 @@ test('curly in division position creates fractional timescales', () => {
 });
 
 test('random range step with random choice timescale', () => {
-  // Test {-2 ? 2} | {2,1,3} - random step from -2 to 2, with random timescale from {2,1,3}
-  const out = evalToString('[{-2 ? 2} | {2,1,3}]');
+  // Test {-2 -> 2} | {2,1,3} - random step from -2 to 2, with random timescale from {2,1,3}
+  const out = evalToString('[{-2 -> 2} | {2,1,3}]');
   // Should produce a pip with step in [-2, 2] and timescale from {2, 1, 3}
   // When timescale is 1, it's omitted, so patterns like [-1], [0 | 2], [1 | 3] are all valid
   assert.match(out, /^\[([-]?[012]) (\| ([123]))?\]$/);
@@ -501,7 +492,7 @@ test('random range step with random choice timescale', () => {
   // Verify we see multiple different outputs over runs
   const results = new Set();
   for (let i = 0; i < 30; i++) {
-    results.add(evalToString('[{-2 ? 2} | {2,1,3}]'));
+    results.add(evalToString('[{-2 -> 2} | {2,1,3}]'));
   }
   // Should have at least 3 unique outputs given the randomness
   assert.ok(results.size >= 3, `Expected at least 3 unique outputs, got ${results.size}: ${[...results].join(', ')}`);
@@ -526,14 +517,34 @@ test('dot with bare nested mot (new default: unit duration)', () => {
 });
 
 test('dot with interior pad value repeats middle and right-aligns tail', () => {
-  const program = '[0,1,2,3,4,5,6] . [7, 0..., 7]';
+  const program = '[0,1,2,3,4,5,6] . [7, 0:, 7]';
   assert.equal(evalToString(program), '[7, 1, 2, 3, 4, 5, 13]');
 });
 
-test('fan ops ignore ellipsis (treated as single value)', () => {
-  const program = '[0,1,2] * [2, 3...]';
+test('fan ops ignore padding (treated as single value)', () => {
+  const program = '[0,1,2] * [2, 3:]';
   const baseline = '[0,1,2] * [2,3]';
   assert.equal(evalToString(program), evalToString(baseline));
+});
+
+test('pip-level repetition with : N', () => {
+  assert.equal(evalToString('[0: 3]'), '[0, 0, 0]');
+  assert.equal(evalToString('[1: 2, 2]'), '[1, 1, 2]');
+  assert.equal(evalToString('[0, 1: 2, 2]'), '[0, 1, 1, 2]');
+});
+
+test('pip-level repetition with timescales', () => {
+  assert.equal(evalToString('[-2|/2 : 4, 1]'), '[-2 | /2, -2 | /2, -2 | /2, -2 | /2, 1]');
+  assert.equal(evalToString('[0|*2 : 3]'), '[0 | 2, 0 | 2, 0 | 2]');
+});
+
+test('pip-level repetition with random count', () => {
+  const out = evalToString('[5: {2 -> 4}]');
+  const m = out.match(/^\[5(?:, 5)*\]$/);
+  assert.ok(m, 'Output should be repeated 5s: ' + out);
+  // Count how many 5s
+  const count = (out.match(/5/g) || []).length;
+  assert.ok(count >= 2 && count <= 4, `Expected 2-4 repetitions, got ${count}`);
 });
 
 test('dot nested subdivision carries timescales from RHS nested pips', () => {
@@ -802,7 +813,7 @@ aun = [1, 0]
 
 haydn = [-5] * [0 | 3/2, 1 | /2, 2, 1, 3, 2, 1 | /2, -1 | /2, 0, 5 -> 1, 2 | /2, 0 | /2, 4]
 
-haydn2 = [-5] * [0 -> 2, 1, 2, nug ,5 -> 1, nug2  ] . [0 | 3/2,0 | /2,0,0,aun,0...]`;
+haydn2 = [-5] * [0 -> 2, 1, 2, nug ,5 -> 1, nug2  ] . [0 | 3/2,0 | /2,0,0,aun,0:]`;
 
   const indices = findAllTimescaleIndices(source);
   assert.ok(Array.isArray(indices));

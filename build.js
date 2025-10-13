@@ -19,6 +19,7 @@ let indexContent = fs.readFileSync(indexPath, 'utf8');
 // Remove ES6 imports since we'll use require or global ohm
 grammarContent = grammarContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
 grammarContent = grammarContent.replace(/^export \{ g \};?\s*\n?/m, '');
+grammarContent = grammarContent.replace(/^export const g = /m, 'const g = ');
 
 indexContent = indexContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
 indexContent = indexContent.replace(/^import \{ g \} from ['"]\.\/grammar\.js['"];?\s*\n/m, '');

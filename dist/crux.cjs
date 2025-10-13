@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-12T05:57:17.126Z
+// Generated: 2025-10-12T23:12:50.655Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -11,7 +11,7 @@ if (!ohm) {
 }
 
 // === Grammar ===
-export const g = ohm.grammar(String.raw`
+const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
@@ -131,8 +131,9 @@ export const g = ohm.grammar(String.raw`
       = ListOf<Entry, ",">            -- absolute
 
     Entry
-      = Value ellipsis                  -- withPad
-      | Value                           -- plain
+      = Value hspaces? ":" hspaces? RandNum  -- repeatPip
+      | Value hspaces? ":"                    -- padPip
+      | Value                                 -- plain
 
     Value
       = SingleValue
@@ -188,10 +189,10 @@ export const g = ohm.grammar(String.raw`
     Curly
       = "{" CurlyBody "}" Seed?
     CurlyBody
-      = number hspaces? "?" hspaces? number   -- range
-      | ListOf<CurlyEntry, ",">              -- list
+      = ListOf<CurlyEntry, ",">              -- list
     CurlyEntry
-      = number "/" number  -- frac
+      = Range  -- range
+      | number "/" number  -- frac
       | number  -- num
       | ident   -- ref
 
@@ -208,7 +209,6 @@ export const g = ohm.grammar(String.raw`
 
     specialChar
       = "r"
-      | "?"
 
     ident = (letter | "_") alnum+  -- withChars
           | letter                     -- single
@@ -230,9 +230,6 @@ export const g = ohm.grammar(String.raw`
 
     hspace = " " | "\t"
     hspaces = hspace+
-    
-    // Ellipsis marker for pad semantics inside Mot
-    ellipsis = "..."
 
     // Line comments
     comment = "//" (~nl any)*
@@ -524,7 +521,13 @@ const s = g.createSemantics().addOperation('parse', {
   
   
 
-  Entry_withPad(value, _dots) {
+  Entry_repeatPip(value, _h1, _colon, _h2, count) {
+    // Pip-level repetition: [0: 3] or [0|/2 : 4]
+    return new RepeatPip(value.parse(), count.parse());
+  },
+
+  Entry_padPip(value, _h1, _colon) {
+    // Padding marker: [0, 1:]
     return new PadValue(value.parse());
   },
 
@@ -595,15 +598,12 @@ const s = g.createSemantics().addOperation('parse', {
     return stringToSeed(chars.sourceString);
   },
 
-  CurlyBody_range(a, _h1, _q, _h2, b) {
-    // Capture positions of endpoints inside {a ? b}
-    const startPos = a.source.startIdx;
-    const endPos = b.source.startIdx;
-    return new RandomRange(a.parse(), b.parse(), startPos, endPos);
-  },
-
   CurlyBody_list(entries) {
     const items = entries.parse();
+    // If single RandomRange entry, return it directly
+    if (items.length === 1 && items[0] instanceof RandomRange) {
+      return items[0];
+    }
     const allNumLits = items.every(x => x && typeof x === 'object' && x.__kind === 'numLit');
     const allRefs = items.every(x => x instanceof Ref);
     if (allNumLits) {
@@ -616,6 +616,13 @@ const s = g.createSemantics().addOperation('parse', {
     const allNums = items.every(x => typeof x === 'number');
     if (allNums) return new RandomChoice(items);
     throw new Error('Curly list must be all numbers or all identifiers');
+  },
+
+  CurlyEntry_range(range) {
+    // Parse the range (e.g., -2 -> 2) and convert to RandomRange
+    const r = range.parse(); // returns a Range object
+    // Convert Range to RandomRange for random selection
+    return new RandomRange(r.start, r.end, r.startPos, r.endPos);
   },
 
   CurlyEntry_num(n) {
@@ -1136,14 +1143,18 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   RandNum(node) { return node.collectTs(); },
   Curly(_o, body, _c, _seedOpt) { return body.collectTs(); },
   CurlyBody_list(entries) { return entries.collectTs(); },
+  CurlyEntry_range(range) { return range.collectTs(); },
   CurlyEntry_num(n) { return [n.source.startIdx]; },
+  CurlyEntry_frac(n, _slash, _d) { return [n.source.startIdx]; },
   CurlyEntry_ref(_name) { return []; },
   // Curly-of-pips: collect timescale indices from each contained pip
   CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
-  CurlyBody_range(a, _h1, _q, _h2, b) { return [a.source.startIdx, b.source.startIdx]; },
 
-  // Entry with pad (ellipsis notation like "0...")
-  Entry_withPad(value, _dots) { return value.collectTs(); },
+  // Entry with repetition or padding
+  Entry_repeatPip(value, _h1, _colon, _h2, count) {
+    return [...value.collectTs(), ...count.collectTs()];
+  },
+  Entry_padPip(value, _h1, _colon) { return value.collectTs(); },
   Entry_plain(value) { return value.collectTs(); },
 
   number(_sign, _wholeDigits, _point, _fracDigits) { return []; },
@@ -2322,7 +2333,7 @@ class RandomRange {
     this.start = start;
     this.end = end;
     this.seed = null;
-    // Source indices of endpoints inside {a ? b} when numeric
+    // Source indices of endpoints inside {a -> b} when numeric
     this.startPos = startPos;
     this.endPos = endPos;
   }
@@ -2402,6 +2413,13 @@ class RangePipe {
 class PadValue {
   constructor(inner) {
     this.inner = inner; // Value node to repeat as needed
+  }
+}
+
+class RepeatPip {
+  constructor(value, count) {
+    this.value = value; // Value node to repeat (Pip, Range, etc.)
+    this.count = count; // number or RandNum (RandomRange | RandomChoice)
   }
 }
 
@@ -2593,10 +2611,21 @@ class Mot {
         const pips = value.expandToPips(rng);
         for (const p of pips) { resolved.push(p); }
       } else if (value instanceof PadValue) {
-        // In fan contexts, ignore ellipsis semantics by resolving the inner value as-is
+        // In fan contexts, ignore padding semantics by resolving the inner value as-is
         const inner = value.inner;
         const mv = new Mot([inner]).eval(env);
         for (const p of mv.values) { resolved.push(p); }
+      } else if (value instanceof RepeatPip) {
+        // Pip-level repetition: expand the value N times
+        const countRaw = value.count;
+        const count = Math.max(0, Math.trunc(resolveRandNumToNumber(countRaw, rng)));
+        for (let i = 0; i < count; i++) {
+          // Evaluate the inner value and clone results
+          const innerMot = new Mot([value.value]).eval(env);
+          for (const p of innerMot.values) {
+            resolved.push(p);
+          }
+        }
       } else if (value instanceof RandomPip) {
         // Resolve the step from the contained randnum using its seed if present
         const step = resolveRandNumToNumber(value.randnum, rng);

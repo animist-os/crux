@@ -63,28 +63,30 @@ test('height from leaves: chain has height 2', () => {
 });
 
 test('indices at depth: numeric-only detection with concat returns source starts', () => {
-  const src = '[0, 1] * [2], [r, 3, ?]';
+  const src = '[0, 1] * [2], [r, 3, 4]';
   // Compute expected starts by direct string search
   const pos0 = src.indexOf('0');
   const pos1 = src.indexOf('1');
   const pos2 = src.indexOf('2]'); // use the digit 2 in the second mot
   const pos3 = src.indexOf('3');
-  assert.ok(pos0 >= 0 && pos1 > pos0 && pos2 > pos1 && pos3 > pos2);
+  const pos4 = src.indexOf('4');
+  assert.ok(pos0 >= 0 && pos1 > pos0 && pos2 > pos1 && pos3 > pos2 && pos4 > pos3);
   // Depth 1: flattened indices from both mots
   assert.deepEqual(findNumericValueIndicesAtDepth(src, 1), [pos0, pos1, pos2]);
   // Depth 0: flattened indices from trailing mot
-  assert.deepEqual(findNumericValueIndicesAtDepth(src, 0), [pos3]);
+  assert.deepEqual(findNumericValueIndicesAtDepth(src, 0), [pos3, pos4]);
 });
 
 test('indices at depth or above: aggregates depth 1 and 0 layers', () => {
-  const src = '[0, 1] * [2], [r, 3, ?]';
+  const src = '[0, 1] * [2], [r, 3, 4]';
   const pos0 = src.indexOf('0');
   const pos1 = src.indexOf('1');
   const pos2 = src.indexOf('2]') - 0;
   const pos3 = src.indexOf('3');
+  const pos4 = src.indexOf('4');
   const out = findNumericValueIndicesAtDepthOrAbove(src, 1);
   // Should include all indices: first two mots (depth 1) and last (depth 0)
-  assert.deepEqual(out, [pos0, pos1, pos2, pos3]);
+  assert.deepEqual(out, [pos0, pos1, pos2, pos3, pos4]);
 });
 
 test('indices include endpoints of a range inside a mot', () => {

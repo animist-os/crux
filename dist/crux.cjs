@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-12T23:12:50.655Z
+// Generated: 2025-10-13T04:50:04.319Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -15,7 +15,9 @@ const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Section, SectionSep> nls?
+      = nls? ListOf<Section, SectionSep> trailingSpace
+
+    trailingSpace = (nl | hspace | comment)*
 
     Section
       = nls* ListOf<Stmt, nls+>

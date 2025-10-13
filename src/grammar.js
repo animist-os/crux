@@ -4,7 +4,9 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Section, SectionSep> nls?
+      = nls? ListOf<Section, SectionSep> trailingSpace
+
+    trailingSpace = (nl | hspace | comment)*
 
     Section
       = nls* ListOf<Stmt, nls+>

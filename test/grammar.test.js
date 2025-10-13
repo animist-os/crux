@@ -121,6 +121,16 @@ test('trailing blank line is ignored', () => {
   assert.equal(evalToString(program), '[0, r, 1, 2]');
 });
 
+test('trailing comments are allowed at end of file', () => {
+  const program = 'x = [0, 1]\ny = [2, 3]\nx * y\n// trailing comment';
+  assert.equal(evalToString(program), '[2, 3, 3, 4]');
+});
+
+test('multiple trailing comments with blank lines', () => {
+  const program = '[1, 2, 3]\n\n// comment 1\n// comment 2\n  // comment 3';
+  assert.equal(evalToString(program), '[1, 2, 3]');
+});
+
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
   assert.equal(evalToString('[1, 2, 3] * [0 | -1]'), '[3, 2, 1]');
 });

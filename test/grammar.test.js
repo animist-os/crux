@@ -385,11 +385,7 @@ test('chained :N on simple Mot replicates then replicates again', () => {
   assert.equal(result, expected);
 });
 
-// roman degrees removed
-
-test.skip('degree mul via ^ with numeric', () => {
-  assert.equal(evalToString('[ii] ^ [2]'), '[iv]');
-});
+// roman degrees removed (feature and test removed)
 
 // delta form removed; mixed case adjusted accordingly (no semicolons)
 

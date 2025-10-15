@@ -8,6 +8,8 @@ const {
   findNumericValueIndicesAtDepthOrAbove,
   computeMotDepthsFromRoot,
   computeHeightFromLeaves,
+  findPipAtPosition,
+  findAllPipsWithPositions,
 } = golden;
 
 // ===================================================================
@@ -405,4 +407,162 @@ test('semicolon: trailing whitespace and semicolon', () => {
   const indices = findAllTimescaleIndices(src);
   assert.equal(indices.length, 2);
   assert.deepEqual(indices.map(i => src[i]), ['2', '4']);
+});
+
+// ===================================================================
+// Tests for findPipAtPosition
+// ===================================================================
+
+test('findPipAtPosition: finds exact pip position', () => {
+  const src = '[1, 2, 3]';
+  const result = findPipAtPosition(src, src.indexOf('2'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 2);
+  assert.equal(result.position, src.indexOf('2'));
+});
+
+test('findPipAtPosition: finds pip in simple mot', () => {
+  const src = '[5, 10, 15]';
+  const result = findPipAtPosition(src, src.indexOf('10'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 10);
+  assert.equal(src[result.position], '1'); // First char of '10'
+});
+
+test('findPipAtPosition: finds closest pip before position', () => {
+  const src = '[1, 2, 3]';
+  // Position between '2' and ','
+  const pos = src.indexOf('2') + 1;
+  const result = findPipAtPosition(src, pos);
+  assert.ok(result);
+  assert.equal(result.pip.step, 2);
+});
+
+test('findPipAtPosition: handles negative numbers', () => {
+  const src = '[-5, 1, 3]';
+  const result = findPipAtPosition(src, src.indexOf('-5'));
+  assert.ok(result);
+  assert.equal(result.pip.step, -5);
+});
+
+test('findPipAtPosition: handles ranges', () => {
+  const src = '[1->5]';
+  const result = findPipAtPosition(src, src.indexOf('1'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 1);
+});
+
+test('findPipAtPosition: handles whitespace and comments', () => {
+  const src = '  [1, 2] // comment';
+  const result = findPipAtPosition(src, src.indexOf('2'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 2);
+});
+
+test('findPipAtPosition: handles semicolons', () => {
+  const src = 'x = [1, 2]; y = [3, 4]';
+  const result = findPipAtPosition(src, src.indexOf('3'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 3);
+});
+
+test('findPipAtPosition: returns null when no pip at position', () => {
+  const src = '[1, 2, 3]';
+  const result = findPipAtPosition(src, 0); // Before first pip
+  assert.equal(result, null);
+});
+
+test('findPipAtPosition: handles section separators with comments', () => {
+  const src = 'x = [1, 2]\n// comment\n!\ny = [3, 4]';
+  const result = findPipAtPosition(src, src.indexOf('3'));
+  assert.ok(result);
+  assert.equal(result.pip.step, 3);
+});
+
+// ===================================================================
+// Tests for findAllPipsWithPositions
+// ===================================================================
+
+test('findAllPipsWithPositions: returns all pips with positions', () => {
+  const src = '[1, 2, 3]';
+  const results = findAllPipsWithPositions(src);
+  assert.equal(results.length, 3);
+  assert.equal(results[0].pip.step, 1);
+  assert.equal(results[1].pip.step, 2);
+  assert.equal(results[2].pip.step, 3);
+  assert.equal(results[0].position, src.indexOf('1'));
+  assert.equal(results[1].position, src.indexOf('2'));
+  assert.equal(results[2].position, src.indexOf('3'));
+});
+
+test('findAllPipsWithPositions: includes depth information', () => {
+  const src = '[1, 2] g [3, 4]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.every(r => typeof r.depth === 'number'));
+  // All pips at same depth in this case
+  assert.ok(results.every(r => r.depth === results[0].depth));
+});
+
+test('findAllPipsWithPositions: includes motPath for structural tracking', () => {
+  const src = '[1, 2, 3]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.every(r => typeof r.motPath === 'string'));
+  assert.ok(results[0].motPath.includes('values[0]'));
+  assert.ok(results[1].motPath.includes('values[1]'));
+  assert.ok(results[2].motPath.includes('values[2]'));
+});
+
+test('findAllPipsWithPositions: handles ranges', () => {
+  const src = '[1->3]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.length >= 2); // At least start and end positions
+  assert.ok(results.some(r => r.rangeStart));
+  assert.ok(results.some(r => r.rangeEnd));
+});
+
+test('findAllPipsWithPositions: handles negative numbers', () => {
+  const src = '[-5, 1, 3]';
+  const results = findAllPipsWithPositions(src);
+  assert.equal(results[0].pip.step, -5);
+  assert.equal(results[0].position, src.indexOf('-5'));
+});
+
+test('findAllPipsWithPositions: handles whitespace', () => {
+  const src = '  [1, 2, 3]  ';
+  const results = findAllPipsWithPositions(src);
+  assert.equal(results.length, 3);
+  assert.equal(results[0].position, src.indexOf('1'));
+});
+
+test('findAllPipsWithPositions: handles comments', () => {
+  const src = '[1, 2] // comment\n!\n[3, 4]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.length >= 4);
+  assert.ok(results.some(r => r.pip && r.pip.step === 1));
+  assert.ok(results.some(r => r.pip && r.pip.step === 3));
+});
+
+test('findAllPipsWithPositions: handles semicolons', () => {
+  const src = 'x = [1, 2]; y = [3, 4]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.length >= 4);
+  const positions = results.map(r => r.position);
+  assert.ok(positions.includes(src.indexOf('1')));
+  assert.ok(positions.includes(src.indexOf('3')));
+});
+
+test('findAllPipsWithPositions: results are sorted by position', () => {
+  const src = '[5, 1, 10, 2]';
+  const results = findAllPipsWithPositions(src);
+  for (let i = 1; i < results.length; i++) {
+    assert.ok(results[i].position >= results[i-1].position);
+  }
+});
+
+test('findAllPipsWithPositions: handles multiple sections', () => {
+  const src = '[1, 2]\n!\n[3, 4]';
+  const results = findAllPipsWithPositions(src);
+  assert.ok(results.length >= 4);
+  assert.ok(results.some(r => r.pip && r.pip.step === 1));
+  assert.ok(results.some(r => r.pip && r.pip.step === 4));
 });

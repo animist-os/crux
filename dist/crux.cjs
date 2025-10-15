@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-15T13:56:15.549Z
+// Generated: 2025-10-15T14:23:13.749Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -435,7 +435,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
   PriExpr_numAsMot(n) {
-    return new Mot([new Pip(n.parse(), 1, null)]);
+    return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
   },
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
@@ -689,52 +689,52 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_noTimeScale(n) {
-    return new Pip(n.parse(), 1, null);
+    return new Pip(n.parse(), 1, null, n.source.startIdx);
   },
 
   Pip_special(sym) {
-    return new Pip(0, 1, sym.sourceString);
+    return new Pip(0, 1, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(0, m.parse(), sym.sourceString);
+    return new Pip(0, m.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString);
+      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString, sym.source.startIdx);
     }
-    return new Pip(0, 1 / divisor, sym.sourceString);
+    return new Pip(0, 1 / divisor, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(n.parse(), m.parse(), null);
+    return new Pip(n.parse(), m.parse(), null, n.source.startIdx);
   },
 
   Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null);
+      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null, n.source.startIdx);
     }
-    return new Pip(n.parse(), 1 / divisor, null);
+    return new Pip(n.parse(), 1 / divisor, null, n.source.startIdx);
   },
 
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
-    return new Pip(n.parse(), ts.parse(), null);
+    return new Pip(n.parse(), ts.parse(), null, n.source.startIdx);
   },
 
   Pip_withPipeNoTs(n, _h1, _pipe) {
-    const p = new Pip(n.parse(), 1, null);
+    const p = new Pip(n.parse(), 1, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'ts'; // override step with RHS, preserve LHS timeScale
     return p;
   },
 
   Pip_pipeOnlyTs(_pipe, _h1, ts) {
-    const p = new Pip(0, ts.parse(), null);
+    const p = new Pip(0, ts.parse(), null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS
     return p;
@@ -742,7 +742,7 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
     // treat as override to provided factor; allow RandNum
-    const p = new Pip(0, m.parse(), null);
+    const p = new Pip(0, m.parse(), null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
@@ -757,14 +757,14 @@ const s = g.createSemantics().addOperation('parse', {
     } else {
       ts = 1 / divisor;
     }
-    const p = new Pip(0, ts, null);
+    const p = new Pip(0, ts, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
   },
 
   Pip_pipeBare(_pipe) {
-    const p = new Pip(0, 1, null);
+    const p = new Pip(0, 1, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS (defaults to 1)
     return p;
@@ -784,7 +784,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString);
+    return new Pip(0, ts.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   // Curly pip with pipe scaling
@@ -2318,8 +2318,10 @@ class Range {
     const start = resolveRandNumToNumber(this.start, rng);
     const end = resolveRandNumToNumber(this.end, rng);
     const step = start <= end ? 1 : -1;
+    // Use startPos for all pips in the range (they're generated from this source location)
+    const pos = this.startPos;
     for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
-      result.push(new Pip(n, 1));
+      result.push(new Pip(n, 1, null, pos));
     }
     return result;
   }
@@ -2504,21 +2506,24 @@ function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
 }
 
 class Pip {
-  constructor(step, timeScale = 1, tag = null) {
+  constructor(step, timeScale = 1, tag = null, sourcePos = null) {
     this.step = step;
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
+    this.sourcePos = sourcePos; // character position in source (for UI tracking)
   }
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    // Preserve source position from the left operand (primary contributor)
+    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
     return out;
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    // Preserve source position from the left operand (primary contributor)
+    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
     return out;
   }
 
@@ -2639,7 +2644,9 @@ class Mot {
           else if (spec.kind === 'div') ts = 1 / rhsVal;
           else ts = 1;
         }
-        const np = new Pip(step, ts);
+        // Get position from the randnum
+        const pos = value.randnum.startPos || (value.randnum.positions && value.randnum.positions[0]) || null;
+        const np = new Pip(step, ts, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomPipChoiceFromPips) {
         // Choose an option using seed if present
@@ -2683,11 +2690,14 @@ class Mot {
         }
       } else if (value instanceof RandomRange) {
         const num = resolveRandNumToNumber(value, rng);
-        const np = new Pip(num, 1);
+        const pos = value.startPos;
+        const np = new Pip(num, 1, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomChoice) {
         const num = resolveRandNumToNumber(value, rng);
-        const np = new Pip(num, 1);
+        // Use position of first option as representative position
+        const pos = (value.positions && value.positions.length > 0) ? value.positions[0] : null;
+        const np = new Pip(num, 1, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomRefChoice) {
         // Choose a referenced mot and inline its values

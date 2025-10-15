@@ -187,7 +187,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
   PriExpr_numAsMot(n) {
-    return new Mot([new Pip(n.parse(), 1, null)]);
+    return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
   },
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
@@ -441,52 +441,52 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_noTimeScale(n) {
-    return new Pip(n.parse(), 1, null);
+    return new Pip(n.parse(), 1, null, n.source.startIdx);
   },
 
   Pip_special(sym) {
-    return new Pip(0, 1, sym.sourceString);
+    return new Pip(0, 1, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(0, m.parse(), sym.sourceString);
+    return new Pip(0, m.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString);
+      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString, sym.source.startIdx);
     }
-    return new Pip(0, 1 / divisor, sym.sourceString);
+    return new Pip(0, 1 / divisor, sym.sourceString, sym.source.startIdx);
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(n.parse(), m.parse(), null);
+    return new Pip(n.parse(), m.parse(), null, n.source.startIdx);
   },
 
   Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null);
+      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null, n.source.startIdx);
     }
-    return new Pip(n.parse(), 1 / divisor, null);
+    return new Pip(n.parse(), 1 / divisor, null, n.source.startIdx);
   },
 
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
-    return new Pip(n.parse(), ts.parse(), null);
+    return new Pip(n.parse(), ts.parse(), null, n.source.startIdx);
   },
 
   Pip_withPipeNoTs(n, _h1, _pipe) {
-    const p = new Pip(n.parse(), 1, null);
+    const p = new Pip(n.parse(), 1, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'ts'; // override step with RHS, preserve LHS timeScale
     return p;
   },
 
   Pip_pipeOnlyTs(_pipe, _h1, ts) {
-    const p = new Pip(0, ts.parse(), null);
+    const p = new Pip(0, ts.parse(), null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS
     return p;
@@ -494,7 +494,7 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
     // treat as override to provided factor; allow RandNum
-    const p = new Pip(0, m.parse(), null);
+    const p = new Pip(0, m.parse(), null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
@@ -509,14 +509,14 @@ const s = g.createSemantics().addOperation('parse', {
     } else {
       ts = 1 / divisor;
     }
-    const p = new Pip(0, ts, null);
+    const p = new Pip(0, ts, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
   },
 
   Pip_pipeBare(_pipe) {
-    const p = new Pip(0, 1, null);
+    const p = new Pip(0, 1, null, _pipe.source.startIdx);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS (defaults to 1)
     return p;
@@ -536,7 +536,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString);
+    return new Pip(0, ts.parse(), sym.sourceString, sym.source.startIdx);
   },
 
   // Curly pip with pipe scaling
@@ -2070,8 +2070,10 @@ class Range {
     const start = resolveRandNumToNumber(this.start, rng);
     const end = resolveRandNumToNumber(this.end, rng);
     const step = start <= end ? 1 : -1;
+    // Use startPos for all pips in the range (they're generated from this source location)
+    const pos = this.startPos;
     for (let n = start; step > 0 ? n <= end : n >= end; n += step) {
-      result.push(new Pip(n, 1));
+      result.push(new Pip(n, 1, null, pos));
     }
     return result;
   }
@@ -2256,21 +2258,24 @@ function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
 }
 
 class Pip {
-  constructor(step, timeScale = 1, tag = null) {
+  constructor(step, timeScale = 1, tag = null, sourcePos = null) {
     this.step = step;
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
+    this.sourcePos = sourcePos; // character position in source (for UI tracking)
   }
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag);
+    // Preserve source position from the left operand (primary contributor)
+    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
     return out;
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag);
+    // Preserve source position from the left operand (primary contributor)
+    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
     return out;
   }
 
@@ -2391,7 +2396,9 @@ class Mot {
           else if (spec.kind === 'div') ts = 1 / rhsVal;
           else ts = 1;
         }
-        const np = new Pip(step, ts);
+        // Get position from the randnum
+        const pos = value.randnum.startPos || (value.randnum.positions && value.randnum.positions[0]) || null;
+        const np = new Pip(step, ts, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomPipChoiceFromPips) {
         // Choose an option using seed if present
@@ -2435,11 +2442,14 @@ class Mot {
         }
       } else if (value instanceof RandomRange) {
         const num = resolveRandNumToNumber(value, rng);
-        const np = new Pip(num, 1);
+        const pos = value.startPos;
+        const np = new Pip(num, 1, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomChoice) {
         const num = resolveRandNumToNumber(value, rng);
-        const np = new Pip(num, 1);
+        // Use position of first option as representative position
+        const pos = (value.positions && value.positions.length > 0) ? value.positions[0] : null;
+        const np = new Pip(num, 1, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomRefChoice) {
         // Choose a referenced mot and inline its values
@@ -3070,6 +3080,134 @@ golden.crux_interp = function (input) {
   const prog = parse(input);
   const value = prog.interp();
   return value;
+}
+
+// Find the pip at a specific character position in the source code.
+// Returns { pip, mot, motPath } or null if no pip found at that position.
+// motPath is a string like "sections[0].values[2]" for structural tracking.
+golden.findPipAtPosition = function(source, position) {
+  // Reuse findAllPipsWithPositions and find the closest match
+  const allPips = golden.findAllPipsWithPositions(source);
+
+  // Find the pip at or nearest to the requested position
+  // For exact match, return immediately
+  const exactMatch = allPips.find(item => item.position === position);
+  if (exactMatch) return exactMatch;
+
+  // Otherwise find the closest pip before this position
+  const before = allPips.filter(item => item.position <= position);
+  if (before.length === 0) return null;
+
+  before.sort((a, b) => b.position - a.position);
+  return before[0];
+}
+
+// Get all pips with their positions and structural paths.
+// Returns array of { pip, mot, motPath, position, depth } objects.
+// Useful for building UI registries that track pips across edits.
+// This function walks the raw AST before evaluation to capture source positions.
+golden.findAllPipsWithPositions = function(source) {
+  const { ast, positionMap } = parseRaw(source);
+  const result = [];
+
+  function collectPipsFromMot(mot, path, depth = 0) {
+    if (!mot || !mot.values) return;
+    for (let i = 0; i < mot.values.length; i++) {
+      const v = mot.values[i];
+      const pipPath = `${path}.values[${i}]`;
+
+      if (v instanceof Pip && typeof v.sourcePos === 'number') {
+        const origPos = positionMap ? positionMap[v.sourcePos] : v.sourcePos;
+        result.push({ pip: v, mot, motPath: pipPath, position: origPos, depth });
+      } else if (v instanceof Range) {
+        // For ranges, include both start and end positions
+        if (typeof v.startPos === 'number') {
+          const origPos = positionMap ? positionMap[v.startPos] : v.startPos;
+          const expanded = v.expandToPips();
+          if (expanded.length > 0) {
+            result.push({ pip: expanded[0], mot, motPath: `${pipPath}[start]`, position: origPos, depth, rangeStart: true });
+          }
+        }
+        if (typeof v.endPos === 'number') {
+          const origPos = positionMap ? positionMap[v.endPos] : v.endPos;
+          const expanded = v.expandToPips();
+          if (expanded.length > 0) {
+            result.push({ pip: expanded[expanded.length - 1], mot, motPath: `${pipPath}[end]`, position: origPos, depth, rangeEnd: true });
+          }
+        }
+      } else if (v instanceof RandomChoice && Array.isArray(v.positions)) {
+        for (let j = 0; j < v.positions.length; j++) {
+          if (typeof v.positions[j] === 'number') {
+            const origPos = positionMap ? positionMap[v.positions[j]] : v.positions[j];
+            result.push({ pip: null, mot, motPath: `${pipPath}.choices[${j}]`, position: origPos, depth, randomChoice: j });
+          }
+        }
+      } else if (v instanceof RandomRange) {
+        if (typeof v.startPos === 'number') {
+          const origPos = positionMap ? positionMap[v.startPos] : v.startPos;
+          result.push({ pip: null, mot, motPath: `${pipPath}[start]`, position: origPos, depth, randomRangeStart: true });
+        }
+        if (typeof v.endPos === 'number') {
+          const origPos = positionMap ? positionMap[v.endPos] : v.endPos;
+          result.push({ pip: null, mot, motPath: `${pipPath}[end]`, position: origPos, depth, randomRangeEnd: true });
+        }
+      } else if (v instanceof RandomPip) {
+        const rnd = v.randnum;
+        if (rnd instanceof RandomChoice && Array.isArray(rnd.positions)) {
+          for (let j = 0; j < rnd.positions.length; j++) {
+            if (typeof rnd.positions[j] === 'number') {
+              const origPos = positionMap ? positionMap[rnd.positions[j]] : rnd.positions[j];
+              result.push({ pip: null, mot, motPath: `${pipPath}.choices[${j}]`, position: origPos, depth, randomChoice: j });
+            }
+          }
+        } else if (rnd instanceof RandomRange) {
+          if (typeof rnd.startPos === 'number') {
+            const origPos = positionMap ? positionMap[rnd.startPos] : rnd.startPos;
+            result.push({ pip: null, mot, motPath: `${pipPath}[start]`, position: origPos, depth, randomRangeStart: true });
+          }
+          if (typeof rnd.endPos === 'number') {
+            const origPos = positionMap ? positionMap[rnd.endPos] : rnd.endPos;
+            result.push({ pip: null, mot, motPath: `${pipPath}[end]`, position: origPos, depth, randomRangeEnd: true });
+          }
+        }
+      }
+    }
+  }
+
+  function walkExpr(expr, path, depth = 0) {
+    if (!expr) return;
+
+    if (expr instanceof Mot) {
+      collectPipsFromMot(expr, path, depth);
+    } else if (isBinaryTransformNode(expr)) {
+      walkExpr(expr.x, `${path}.x`, depth + 1);
+      walkExpr(expr.y, `${path}.y`, depth + 1);
+    } else if (expr instanceof FollowedBy) {
+      walkExpr(expr.x, `${path}.x`, depth);
+      walkExpr(expr.y, `${path}.y`, depth);
+    }
+  }
+
+  // Walk all sections
+  if (ast && ast.sections) {
+    for (let i = 0; i < ast.sections.length; i++) {
+      const stmts = ast.sections[i]; // Array of statements
+      for (let j = 0; j < stmts.length; j++) {
+        const stmt = stmts[j];
+        if (stmt instanceof Assign) {
+          // Walk assignment expression
+          walkExpr(stmt.expr, `sections[${i}][${j}].${stmt.name}`, 0);
+        } else {
+          // Walk statement expression directly
+          walkExpr(stmt, `sections[${i}][${j}]`, 0);
+        }
+      }
+    }
+  }
+
+  // Sort by position for easier consumption
+  result.sort((a, b) => a.position - b.position);
+  return result;
 }
 
 

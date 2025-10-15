@@ -566,3 +566,102 @@ test('findAllPipsWithPositions: handles multiple sections', () => {
   assert.ok(results.some(r => r.pip && r.pip.step === 1));
   assert.ok(results.some(r => r.pip && r.pip.step === 4));
 });
+
+// ===================================================================
+// Tests for plain numeric pip position tracking
+// ===================================================================
+
+test('findNumericValueIndicesAtDepth: includes plain numeric pips', () => {
+  const src = '[1, 2, 3]';
+  const indices = findNumericValueIndicesAtDepth(src, 0);
+  assert.equal(indices.length, 3);
+  assert.deepEqual(indices, [src.indexOf('1'), src.indexOf('2'), src.indexOf('3')]);
+  assert.deepEqual(indices.map(i => src[i]), ['1', '2', '3']);
+});
+
+test('findNumericValueIndicesAtDepth: includes negative plain numeric pips', () => {
+  const src = '[-5, 1, 3, 1]';
+  const indices = findNumericValueIndicesAtDepth(src, 0);
+  assert.equal(indices.length, 4);
+  assert.ok(indices.includes(src.indexOf('-5')));
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('3')));
+});
+
+test('findNumericValueIndicesAtDepth: plain pips in complex expression', () => {
+  const src = 'A = [-3, 1, 7, 1] g [2, 10]';
+  const indices = findNumericValueIndicesAtDepth(src, 1);
+  // Should find all numeric pips at depth 1 (children of g operation)
+  assert.ok(indices.length >= 4);
+  assert.ok(indices.includes(src.indexOf('-3')));
+  assert.ok(indices.includes(src.indexOf('7')));
+});
+
+test('findNumericValueIndicesAtDepth: plain pips with operations', () => {
+  const src = 'A = [-3, 1, 7, 1] g [2, 10] j [| 1, | /2, | /2]';
+  // The g and j operations create depth 2 (two binary transforms)
+  const indices = findNumericValueIndicesAtDepth(src, 2);
+  assert.ok(indices.length >= 4);
+  // Check that plain numeric pips from the first mot are found
+  assert.ok(indices.includes(src.indexOf('-3')));
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('7')));
+});
+
+test('findNumericValueIndicesAtDepth: user example case', () => {
+  const src = `A = [-3, 1, 7, 1] g [2, 10] j [| 1, | /2, | /2] .j [| 1, | /2, | /2]
+A * [0, 0, 0, 0, 0]
+!
+[r,r,r,r,r,r], A * [7] * [0, 0, 0]`;
+
+  // Should find pips in the final section
+  const indices = findNumericValueIndicesAtDepth(src, 2);
+  assert.ok(indices.length > 0, 'Should find some numeric pips at depth 2');
+
+  // Should find the 7 in "A * [7]"
+  const sevenPos = src.lastIndexOf('7'); // Last 7 in the string
+  assert.ok(indices.includes(sevenPos), 'Should include position of 7 in [7]');
+});
+
+test('findNumericValueIndicesAtDepth: excludes tagged pips like r', () => {
+  const src = '[r, 1, 2, r, 3]';
+  const indices = findNumericValueIndicesAtDepth(src, 0);
+  // Should only find 1, 2, 3 (not r)
+  assert.equal(indices.length, 3);
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('2')));
+  assert.ok(indices.includes(src.indexOf('3')));
+  assert.ok(!indices.some(i => src[i] === 'r'));
+});
+
+test('findNumericValueIndicesAtDepthOrAbove: includes plain numeric pips', () => {
+  const src = '[1, 2] g [3, 4]';
+  const indices = findNumericValueIndicesAtDepthOrAbove(src, 1);
+  // Should find pips at depth 0 and 1
+  assert.ok(indices.length >= 4);
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('2')));
+  assert.ok(indices.includes(src.indexOf('3')));
+  assert.ok(indices.includes(src.indexOf('4')));
+});
+
+test('findNumericValueIndicesAtDepth: plain pips mixed with ranges', () => {
+  const src = '[1, 2->5, 7]';
+  const indices = findNumericValueIndicesAtDepth(src, 0);
+  // Should find plain pip 1, 7, and range endpoints 2, 5
+  assert.equal(indices.length, 4);
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('2')));
+  assert.ok(indices.includes(src.indexOf('5')));
+  assert.ok(indices.includes(src.indexOf('7')));
+});
+
+test('findNumericValueIndicesAtDepth: plain pips with timescales', () => {
+  const src = '[1|2, 3|4, 5]';
+  const indices = findNumericValueIndicesAtDepth(src, 0);
+  // Should find the step values (1, 3, 5) not the timescales
+  assert.equal(indices.length, 3);
+  assert.ok(indices.includes(src.indexOf('1')));
+  assert.ok(indices.includes(src.indexOf('3')));
+  assert.ok(indices.includes(src.indexOf('5')));
+});

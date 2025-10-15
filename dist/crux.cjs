@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-15T14:23:13.749Z
+// Generated: 2025-10-15T14:46:33.395Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -3127,8 +3127,12 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Include plain numeric Pips with source positions (excludes tagged pips like 'r')
+      if (v instanceof Pip && typeof v.sourcePos === 'number' && !v.tag) {
+        idxs.push(v.sourcePos);
+      }
       // Include explicit range endpoint literals
-      if (v instanceof Range) {
+      else if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }
@@ -3177,8 +3181,12 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Include plain numeric Pips with source positions (excludes tagged pips like 'r')
+      if (v instanceof Pip && typeof v.sourcePos === 'number' && !v.tag) {
+        idxs.push(v.sourcePos);
+      }
       // Include explicit range endpoints
-      if (v instanceof Range) {
+      else if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }
@@ -3328,6 +3336,134 @@ golden.crux_interp = function (input) {
   const prog = parse(input);
   const value = prog.interp();
   return value;
+}
+
+// Find the pip at a specific character position in the source code.
+// Returns { pip, mot, motPath } or null if no pip found at that position.
+// motPath is a string like "sections[0].values[2]" for structural tracking.
+golden.findPipAtPosition = function(source, position) {
+  // Reuse findAllPipsWithPositions and find the closest match
+  const allPips = golden.findAllPipsWithPositions(source);
+
+  // Find the pip at or nearest to the requested position
+  // For exact match, return immediately
+  const exactMatch = allPips.find(item => item.position === position);
+  if (exactMatch) return exactMatch;
+
+  // Otherwise find the closest pip before this position
+  const before = allPips.filter(item => item.position <= position);
+  if (before.length === 0) return null;
+
+  before.sort((a, b) => b.position - a.position);
+  return before[0];
+}
+
+// Get all pips with their positions and structural paths.
+// Returns array of { pip, mot, motPath, position, depth } objects.
+// Useful for building UI registries that track pips across edits.
+// This function walks the raw AST before evaluation to capture source positions.
+golden.findAllPipsWithPositions = function(source) {
+  const { ast, positionMap } = parseRaw(source);
+  const result = [];
+
+  function collectPipsFromMot(mot, path, depth = 0) {
+    if (!mot || !mot.values) return;
+    for (let i = 0; i < mot.values.length; i++) {
+      const v = mot.values[i];
+      const pipPath = `${path}.values[${i}]`;
+
+      if (v instanceof Pip && typeof v.sourcePos === 'number') {
+        const origPos = positionMap ? positionMap[v.sourcePos] : v.sourcePos;
+        result.push({ pip: v, mot, motPath: pipPath, position: origPos, depth });
+      } else if (v instanceof Range) {
+        // For ranges, include both start and end positions
+        if (typeof v.startPos === 'number') {
+          const origPos = positionMap ? positionMap[v.startPos] : v.startPos;
+          const expanded = v.expandToPips();
+          if (expanded.length > 0) {
+            result.push({ pip: expanded[0], mot, motPath: `${pipPath}[start]`, position: origPos, depth, rangeStart: true });
+          }
+        }
+        if (typeof v.endPos === 'number') {
+          const origPos = positionMap ? positionMap[v.endPos] : v.endPos;
+          const expanded = v.expandToPips();
+          if (expanded.length > 0) {
+            result.push({ pip: expanded[expanded.length - 1], mot, motPath: `${pipPath}[end]`, position: origPos, depth, rangeEnd: true });
+          }
+        }
+      } else if (v instanceof RandomChoice && Array.isArray(v.positions)) {
+        for (let j = 0; j < v.positions.length; j++) {
+          if (typeof v.positions[j] === 'number') {
+            const origPos = positionMap ? positionMap[v.positions[j]] : v.positions[j];
+            result.push({ pip: null, mot, motPath: `${pipPath}.choices[${j}]`, position: origPos, depth, randomChoice: j });
+          }
+        }
+      } else if (v instanceof RandomRange) {
+        if (typeof v.startPos === 'number') {
+          const origPos = positionMap ? positionMap[v.startPos] : v.startPos;
+          result.push({ pip: null, mot, motPath: `${pipPath}[start]`, position: origPos, depth, randomRangeStart: true });
+        }
+        if (typeof v.endPos === 'number') {
+          const origPos = positionMap ? positionMap[v.endPos] : v.endPos;
+          result.push({ pip: null, mot, motPath: `${pipPath}[end]`, position: origPos, depth, randomRangeEnd: true });
+        }
+      } else if (v instanceof RandomPip) {
+        const rnd = v.randnum;
+        if (rnd instanceof RandomChoice && Array.isArray(rnd.positions)) {
+          for (let j = 0; j < rnd.positions.length; j++) {
+            if (typeof rnd.positions[j] === 'number') {
+              const origPos = positionMap ? positionMap[rnd.positions[j]] : rnd.positions[j];
+              result.push({ pip: null, mot, motPath: `${pipPath}.choices[${j}]`, position: origPos, depth, randomChoice: j });
+            }
+          }
+        } else if (rnd instanceof RandomRange) {
+          if (typeof rnd.startPos === 'number') {
+            const origPos = positionMap ? positionMap[rnd.startPos] : rnd.startPos;
+            result.push({ pip: null, mot, motPath: `${pipPath}[start]`, position: origPos, depth, randomRangeStart: true });
+          }
+          if (typeof rnd.endPos === 'number') {
+            const origPos = positionMap ? positionMap[rnd.endPos] : rnd.endPos;
+            result.push({ pip: null, mot, motPath: `${pipPath}[end]`, position: origPos, depth, randomRangeEnd: true });
+          }
+        }
+      }
+    }
+  }
+
+  function walkExpr(expr, path, depth = 0) {
+    if (!expr) return;
+
+    if (expr instanceof Mot) {
+      collectPipsFromMot(expr, path, depth);
+    } else if (isBinaryTransformNode(expr)) {
+      walkExpr(expr.x, `${path}.x`, depth + 1);
+      walkExpr(expr.y, `${path}.y`, depth + 1);
+    } else if (expr instanceof FollowedBy) {
+      walkExpr(expr.x, `${path}.x`, depth);
+      walkExpr(expr.y, `${path}.y`, depth);
+    }
+  }
+
+  // Walk all sections
+  if (ast && ast.sections) {
+    for (let i = 0; i < ast.sections.length; i++) {
+      const stmts = ast.sections[i]; // Array of statements
+      for (let j = 0; j < stmts.length; j++) {
+        const stmt = stmts[j];
+        if (stmt instanceof Assign) {
+          // Walk assignment expression
+          walkExpr(stmt.expr, `sections[${i}][${j}].${stmt.name}`, 0);
+        } else {
+          // Walk statement expression directly
+          walkExpr(stmt, `sections[${i}][${j}]`, 0);
+        }
+      }
+    }
+  }
+
+  // Sort by position for easier consumption
+  result.sort((a, b) => a.position - b.position);
+  return result;
 }
 
 

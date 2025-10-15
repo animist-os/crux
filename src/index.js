@@ -2879,8 +2879,12 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Include plain numeric Pips with source positions (excludes tagged pips like 'r')
+      if (v instanceof Pip && typeof v.sourcePos === 'number' && !v.tag) {
+        idxs.push(v.sourcePos);
+      }
       // Include explicit range endpoint literals
-      if (v instanceof Range) {
+      else if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }
@@ -2929,8 +2933,12 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
+      // Include plain numeric Pips with source positions (excludes tagged pips like 'r')
+      if (v instanceof Pip && typeof v.sourcePos === 'number' && !v.tag) {
+        idxs.push(v.sourcePos);
+      }
       // Include explicit range endpoints
-      if (v instanceof Range) {
+      else if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }

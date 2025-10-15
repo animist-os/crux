@@ -767,9 +767,8 @@ test('findNumericValueIndicesAtDepth finds range endpoints at correct depth', ()
 test('findNumericValueIndicesAtDepth includes range endpoints', () => {
   const source = '[0->3, 5]';
   const indices = golden.findNumericValueIndicesAtDepth(source, 0);
-  // Should include both endpoints of the range (0 and 3)
-  // Plain pips like 5 are no longer tracked
-  assert.deepEqual(indices, [1, 4]);
+  // Should include both endpoints of the range (0 and 3) and plain pips (5)
+  assert.deepEqual(indices, [1, 4, 7]);
 });
 
 test('findNumericValueIndicesAtDepth includes curly choice positions', () => {

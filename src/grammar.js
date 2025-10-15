@@ -12,7 +12,7 @@ export const g = ohm.grammar(String.raw`
       = nls* ListOf<Stmt, nls+>
 
     SectionSep
-      = nls? "!" nls?
+      = (nls | hspace | comment)* "!" (nls | hspace | comment)*
 
     Stmt
       = AssignStmt

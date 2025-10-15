@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-13T04:54:08.258Z
+// Generated: 2025-10-15T13:56:15.549Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -23,7 +23,7 @@ const g = ohm.grammar(String.raw`
       = nls* ListOf<Stmt, nls+>
 
     SectionSep
-      = nls? "!" nls?
+      = (nls | hspace | comment)* "!" (nls | hspace | comment)*
 
     Stmt
       = AssignStmt
@@ -435,7 +435,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
   PriExpr_numAsMot(n) {
-    return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
+    return new Mot([new Pip(n.parse(), 1, null)]);
   },
 
   PriExpr_mot(_openBracket, body, _closeBracket) {
@@ -689,57 +689,52 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_noTimeScale(n) {
-    const start = n.source.startIdx;
-    return new Pip(n.parse(), 1, null, start);
+    return new Pip(n.parse(), 1, null);
   },
 
   Pip_special(sym) {
-    return new Pip(0, 1, sym.sourceString, sym.source.startIdx);
+    return new Pip(0, 1, sym.sourceString);
   },
 
   Pip_specialWithTimeMulPipe(sym, _h1, _pipe, _h2, _star, _h3, m) {
-    return new Pip(0, m.parse(), sym.sourceString, sym.source.startIdx);
+    return new Pip(0, m.parse(), sym.sourceString);
   },
 
   Pip_specialWithTimeDivPipe(sym, _h1, _pipe, _h2, _slash, _h3, d) {
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString, sym.source.startIdx);
+      return new Pip(0, { _frac: true, num: 1, den: divisor }, sym.sourceString);
     }
-    return new Pip(0, 1 / divisor, sym.sourceString, sym.source.startIdx);
+    return new Pip(0, 1 / divisor, sym.sourceString);
   },
 
   Pip_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
-    const start = n.source.startIdx;
-    return new Pip(n.parse(), m.parse(), null, start);
+    return new Pip(n.parse(), m.parse(), null);
   },
 
   Pip_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
-    const start = n.source.startIdx;
     const divisor = d.parse();
     // If divisor is a random choice/range, create fractional timescale object
     if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
-      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null, start);
+      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null);
     }
-    return new Pip(n.parse(), 1 / divisor, null, start);
+    return new Pip(n.parse(), 1 / divisor, null);
   },
 
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
-    const start = n.source.startIdx;
-    return new Pip(n.parse(), ts.parse(), null, start);
+    return new Pip(n.parse(), ts.parse(), null);
   },
 
   Pip_withPipeNoTs(n, _h1, _pipe) {
-    const start = n.source.startIdx;
-    const p = new Pip(n.parse(), 1, null, start);
+    const p = new Pip(n.parse(), 1, null);
     p._pipeOnly = true;
     p._jamPass = 'ts'; // override step with RHS, preserve LHS timeScale
     return p;
   },
 
   Pip_pipeOnlyTs(_pipe, _h1, ts) {
-    const p = new Pip(0, ts.parse(), null, _pipe.source.startIdx);
+    const p = new Pip(0, ts.parse(), null);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS
     return p;
@@ -747,7 +742,7 @@ const s = g.createSemantics().addOperation('parse', {
 
   Pip_pipeOnlyMul(_pipe, _h1, _star, _h2, m) {
     // treat as override to provided factor; allow RandNum
-    const p = new Pip(0, m.parse(), null, _pipe.source.startIdx);
+    const p = new Pip(0, m.parse(), null);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
@@ -762,14 +757,14 @@ const s = g.createSemantics().addOperation('parse', {
     } else {
       ts = 1 / divisor;
     }
-    const p = new Pip(0, ts, null, _pipe.source.startIdx);
+    const p = new Pip(0, ts, null);
     p._pipeOnly = true;
     p._jamPass = 'step';
     return p;
   },
 
   Pip_pipeBare(_pipe) {
-    const p = new Pip(0, 1, null, _pipe.source.startIdx);
+    const p = new Pip(0, 1, null);
     p._pipeOnly = true;
     p._jamPass = 'step'; // preserve LHS step, override timeScale with RHS (defaults to 1)
     return p;
@@ -789,7 +784,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
-    return new Pip(0, ts.parse(), sym.sourceString, sym.source.startIdx);
+    return new Pip(0, ts.parse(), sym.sourceString);
   },
 
   // Curly pip with pipe scaling
@@ -2121,7 +2116,7 @@ class Subdivide {
     const N = mot.values.length;
     if (N === 0) return new Mot([]);
     const factor = 1 / N;
-    const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag, pip.sourceStart));
+    const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag));
     return new Mot(out);
   }
 }
@@ -2134,7 +2129,7 @@ function subdivide(motOrNested) {
     const factor = 1 / N;
     const out = motOrNested.values.map(pip => {
       if (pip instanceof Pip) {
-        return new Pip(pip.step, pip.timeScale * factor, pip.tag, pip.sourceStart);
+        return new Pip(pip.step, pip.timeScale * factor, pip.tag);
       }
       return pip;
     });
@@ -2146,7 +2141,7 @@ function subdivide(motOrNested) {
     const factor = 1 / N;
     const out = motOrNested.values.map(v => {
       if (v instanceof Pip) {
-        return new Pip(v.step, v.timeScale * factor, v.tag, v.sourceStart);
+        return new Pip(v.step, v.timeScale * factor, v.tag);
       }
       return v;
     });
@@ -2169,8 +2164,8 @@ class TieOp {
     for (let i = 1; i < values.length; i++) {
       const cur = values[i];
       if (acc.step === cur.step && acc.tag === cur.tag) {
-        // merge durations (sum timeScales), preserve first sourceStart
-        acc = new Pip(acc.step, acc.timeScale + cur.timeScale, acc.tag, acc.sourceStart);
+        // merge durations (sum timeScales)
+        acc = new Pip(acc.step, acc.timeScale + cur.timeScale, acc.tag);
       } else {
         out.push(acc);
         acc = cur;
@@ -2202,7 +2197,7 @@ class DotTie {
         const mask = right.values[j % right.values.length];
         const next = values[j + 1];
         if (mask.step !== 0 && acc.step === next.step && acc.tag === next.tag) {
-          acc = new Pip(acc.step, acc.timeScale + next.timeScale, acc.tag, acc.sourceStart);
+          acc = new Pip(acc.step, acc.timeScale + next.timeScale, acc.tag);
           j++;
         } else {
           break;
@@ -2233,7 +2228,7 @@ class ConstraintOp {
       // keep when r.step != 0
       const omit = r.step === 0;
       if (!omit) {
-        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag, a.sourceStart));
+        out.push(new Pip(a.step, a.timeScale * r.timeScale, a.tag));
       }
     }
     return new Mot(out);
@@ -2509,11 +2504,10 @@ function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
 }
 
 class Pip {
-  constructor(step, timeScale = 1, tag = null, sourceStart = null) {
+  constructor(step, timeScale = 1, tag = null) {
     this.step = step;
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
-    this.sourceStart = sourceStart; // start character offset in source (when available)
   }
 
   mul(that) {
@@ -2604,7 +2598,7 @@ class Mot {
           ts = num / den;
         }
         if (ts !== value.timeScale) {
-          const np = new Pip(value.step, ts, value.tag, value.sourceStart);
+          const np = new Pip(value.step, ts, value.tag);
           resolved.push(np);
         } else {
           resolved.push(value);
@@ -3040,15 +3034,15 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
 
 // Convenience: compute Mot depths from the final statement's root.
 golden.computeMotDepthsFromRoot = function(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   return golden.collectMotLeavesWithDepth(root, env, options);
 }
 
 // Convenience: compute expression height from the final statement's root.
 golden.computeHeightFromLeaves = function(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   return golden.computeExprHeight(root, env, options);
 }
 
@@ -3088,12 +3082,15 @@ golden.CruxProgramInfo = function(code) {
 
 // Find all source indices where a timescale literal appears in the source program.
 golden.findAllTimescaleIndices = function(source) {
-  // Don't strip comments - the grammar handles them and we need correct source positions
-  const matchResult = g.match(source);
+  // Preprocess to handle semicolons, but keep position mapping
+  const { source: processed, positionMap } = preprocessSource(source);
+  const matchResult = g.match(processed);
   if (matchResult.failed()) return [];
   const idxs = tsSemantics(matchResult).collectTs();
+  // Map back to original positions
+  const mapped = mapIndicesToOriginal(idxs, positionMap);
   // Deduplicate and sort for stability
-  const uniq = Array.from(new Set(idxs)).sort((a, b) => a - b);
+  const uniq = Array.from(new Set(mapped)).sort((a, b) => a - b);
   return uniq;
 }
 
@@ -3101,11 +3098,17 @@ golden.findAllTimescaleIndices = function(source) {
 
 
 
+// Helper: Map processed indices back to original source positions
+function mapIndicesToOriginal(indices, positionMap) {
+  if (!positionMap) return indices;
+  return indices.map(idx => positionMap[idx] !== undefined ? positionMap[idx] : idx);
+}
+
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is exactly targetDepth from the root.
 // Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
 golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast, positionMap } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
@@ -3114,12 +3117,8 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
-      // Plain numeric pip
-      if (v instanceof Pip && v.tag == null) {
-        if (typeof v.sourceStart === 'number') idxs.push(v.sourceStart);
-      }
       // Include explicit range endpoint literals
-      else if (v instanceof Range) {
+      if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }
@@ -3151,14 +3150,14 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
     }
     result.push(idxs);
   }
-  return result.flat();
+  return mapIndicesToOriginal(result.flat(), positionMap);
 }
 
 
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
 golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast, positionMap } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
@@ -3168,12 +3167,8 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
     const idxs = [];
     for (let i = 0; i < mot.values.length; i++) {
       const v = mot.values[i];
-      // Plain numeric pip
-      if (v instanceof Pip && v.tag == null) {
-        if (typeof v.sourceStart === 'number') idxs.push(v.sourceStart);
-      }
       // Include explicit range endpoints
-      else if (v instanceof Range) {
+      if (v instanceof Range) {
         if (typeof v.startPos === 'number') idxs.push(v.startPos);
         if (typeof v.endPos === 'number') idxs.push(v.endPos);
       }
@@ -3205,7 +3200,7 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
     }
     result.push(idxs);
   }
-  return result.flat();
+  return mapIndicesToOriginal(result.flat(), positionMap);
 }
 
 
@@ -3239,13 +3234,82 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 
-function parse(input) {
-  const processed = input.replace(/\s*;\s*/g, '\n').trim();
-  const matchResult = g.match(processed);
+// Preprocess source for parsing: replace semicolons with newlines and trim.
+// Returns { source, positionMap } where positionMap[processedIdx] = originalIdx
+function preprocessSource(input) {
+  // Track how much we trim from the start
+  const trimmed = input.trim();
+  const trimStart = input.indexOf(trimmed);
+
+  // Replace semicolons: "\s*;\s*" becomes "\n"
+  // We need to track position changes character by character
+  let processed = '';
+  const positionMap = [];
+
+  const regex = /\s*;\s*/g;
+  let lastIndex = 0;
+  let match;
+
+  // Process trimmed input
+  const source = trimmed;
+  regex.lastIndex = 0;
+
+  while ((match = regex.exec(source)) !== null) {
+    // Copy unchanged portion before the match
+    const beforeMatch = source.substring(lastIndex, match.index);
+    for (let i = 0; i < beforeMatch.length; i++) {
+      positionMap.push(trimStart + lastIndex + i);
+      processed += beforeMatch[i];
+    }
+
+    // Replace the semicolon pattern with a single newline
+    // Map the newline back to the position of the semicolon
+    const semiPos = source.indexOf(';', match.index);
+    positionMap.push(trimStart + semiPos);
+    processed += '\n';
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Copy remaining portion
+  const remaining = source.substring(lastIndex);
+  for (let i = 0; i < remaining.length; i++) {
+    positionMap.push(trimStart + lastIndex + i);
+    processed += remaining[i];
+  }
+
+  return { source: processed, positionMap };
+}
+
+// Internal helper: parse with optional preprocessing
+function parseInternal(input, preprocess = true) {
+  if (!preprocess) {
+    const matchResult = g.match(input);
+    if (matchResult.failed()) {
+      throw new Error(matchResult.message);
+    }
+    return { ast: s(matchResult).parse(), positionMap: null };
+  }
+
+  const { source, positionMap } = preprocessSource(input);
+  const matchResult = g.match(source);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);
   }
-  return s(matchResult).parse();
+  return { ast: s(matchResult).parse(), positionMap };
+}
+
+// Parse raw source with semicolon support - preserves source positions for utility functions.
+// Returns { ast, positionMap } where positionMap can translate processed -> original positions
+function parseRaw(input) {
+  return parseInternal(input, true);
+}
+
+// Public parse function with preprocessing for convenience (semicolons, trim).
+// Returns just the AST for backward compatibility
+function parse(input) {
+  const { ast } = parseInternal(input, true);
+  return ast;
 }
 
 golden.parse = parse;

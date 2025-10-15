@@ -164,6 +164,21 @@ test('multiple trailing comments with blank lines', () => {
   assert.equal(evalToString(program), '[1, 2, 3]');
 });
 
+test('comments before section separator are allowed', () => {
+  const program = 'x = [1, 2]\n// comment\n!\ny = [3, 4]';
+  assert.equal(evalToString(program), '[3, 4]');
+});
+
+test('multiple comments and blank lines before section separator', () => {
+  const program = '[0, 1]\n\n// comment 1\n// comment 2\n\n!\n[2, 3]';
+  assert.equal(evalToString(program), '[2, 3]');
+});
+
+test('comments after section separator are allowed', () => {
+  const program = 'x = [1, 2]\n!\n// comment\ny = [3, 4]';
+  assert.equal(evalToString(program), '[3, 4]');
+});
+
 test('mul combines steps and respects reverse when right has negative timeScale', () => {
   assert.equal(evalToString('[1, 2, 3] * [0 | -1]'), '[3, 2, 1]');
 });

@@ -2786,15 +2786,15 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
 
 // Convenience: compute Mot depths from the final statement's root.
 golden.computeMotDepthsFromRoot = function(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   return golden.collectMotLeavesWithDepth(root, env, options);
 }
 
 // Convenience: compute expression height from the final statement's root.
 golden.computeHeightFromLeaves = function(source, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   return golden.computeExprHeight(root, env, options);
 }
 
@@ -2834,12 +2834,15 @@ golden.CruxProgramInfo = function(code) {
 
 // Find all source indices where a timescale literal appears in the source program.
 golden.findAllTimescaleIndices = function(source) {
-  // Don't strip comments - the grammar handles them and we need correct source positions
-  const matchResult = g.match(source);
+  // Preprocess to handle semicolons, but keep position mapping
+  const { source: processed, positionMap } = preprocessSource(source);
+  const matchResult = g.match(processed);
   if (matchResult.failed()) return [];
   const idxs = tsSemantics(matchResult).collectTs();
+  // Map back to original positions
+  const mapped = mapIndicesToOriginal(idxs, positionMap);
   // Deduplicate and sort for stability
-  const uniq = Array.from(new Set(idxs)).sort((a, b) => a - b);
+  const uniq = Array.from(new Set(mapped)).sort((a, b) => a - b);
   return uniq;
 }
 
@@ -2847,11 +2850,17 @@ golden.findAllTimescaleIndices = function(source) {
 
 
 
+// Helper: Map processed indices back to original source positions
+function mapIndicesToOriginal(indices, positionMap) {
+  if (!positionMap) return indices;
+  return indices.map(idx => positionMap[idx] !== undefined ? positionMap[idx] : idx);
+}
+
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot is exactly targetDepth from the root.
 // Numeric pip = Pip with no tag (excludes special/tagged, random, range, etc.).
 golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast, positionMap } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
@@ -2893,14 +2902,14 @@ golden.findNumericValueIndicesAtDepth = function(source, targetDepth, options = 
     }
     result.push(idxs);
   }
-  return result.flat();
+  return mapIndicesToOriginal(result.flat(), positionMap);
 }
 
 
 // Return arrays of indices (per Mot, left-to-right) of numeric pips whose Mot depth >= minDepth.
 golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, options = {}) {
-  const prog = parse(source);
-  const { root, env } = getFinalRootAstAndEnv(prog);
+  const { ast, positionMap } = parseRaw(source);  // Use parseRaw with semicolon support
+  const { root, env } = getFinalRootAstAndEnv(ast);
   const leaves = golden.collectMotLeavesWithDepth(root, env, options);
   const result = [];
 
@@ -2943,7 +2952,7 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
     }
     result.push(idxs);
   }
-  return result.flat();
+  return mapIndicesToOriginal(result.flat(), positionMap);
 }
 
 
@@ -2977,13 +2986,82 @@ golden.CruxDesugarRepeats = function(input) {
 
 
 
-function parse(input) {
-  const processed = input.replace(/\s*;\s*/g, '\n').trim();
-  const matchResult = g.match(processed);
+// Preprocess source for parsing: replace semicolons with newlines and trim.
+// Returns { source, positionMap } where positionMap[processedIdx] = originalIdx
+function preprocessSource(input) {
+  // Track how much we trim from the start
+  const trimmed = input.trim();
+  const trimStart = input.indexOf(trimmed);
+
+  // Replace semicolons: "\s*;\s*" becomes "\n"
+  // We need to track position changes character by character
+  let processed = '';
+  const positionMap = [];
+
+  const regex = /\s*;\s*/g;
+  let lastIndex = 0;
+  let match;
+
+  // Process trimmed input
+  const source = trimmed;
+  regex.lastIndex = 0;
+
+  while ((match = regex.exec(source)) !== null) {
+    // Copy unchanged portion before the match
+    const beforeMatch = source.substring(lastIndex, match.index);
+    for (let i = 0; i < beforeMatch.length; i++) {
+      positionMap.push(trimStart + lastIndex + i);
+      processed += beforeMatch[i];
+    }
+
+    // Replace the semicolon pattern with a single newline
+    // Map the newline back to the position of the semicolon
+    const semiPos = source.indexOf(';', match.index);
+    positionMap.push(trimStart + semiPos);
+    processed += '\n';
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Copy remaining portion
+  const remaining = source.substring(lastIndex);
+  for (let i = 0; i < remaining.length; i++) {
+    positionMap.push(trimStart + lastIndex + i);
+    processed += remaining[i];
+  }
+
+  return { source: processed, positionMap };
+}
+
+// Internal helper: parse with optional preprocessing
+function parseInternal(input, preprocess = true) {
+  if (!preprocess) {
+    const matchResult = g.match(input);
+    if (matchResult.failed()) {
+      throw new Error(matchResult.message);
+    }
+    return { ast: s(matchResult).parse(), positionMap: null };
+  }
+
+  const { source, positionMap } = preprocessSource(input);
+  const matchResult = g.match(source);
   if (matchResult.failed()) {
     throw new Error(matchResult.message);
   }
-  return s(matchResult).parse();
+  return { ast: s(matchResult).parse(), positionMap };
+}
+
+// Parse raw source with semicolon support - preserves source positions for utility functions.
+// Returns { ast, positionMap } where positionMap can translate processed -> original positions
+function parseRaw(input) {
+  return parseInternal(input, true);
+}
+
+// Public parse function with preprocessing for convenience (semicolons, trim).
+// Returns just the AST for backward compatibility
+function parse(input) {
+  const { ast } = parseInternal(input, true);
+  return ast;
 }
 
 golden.parse = parse;

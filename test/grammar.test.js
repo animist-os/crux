@@ -136,6 +136,14 @@ test('repeat postfix Expr : N multiplies zero-mot (with and without spaces)', ()
   assert.equal(evalToString('[1]  :  4'), evalToString('[1] * [0,0,0,0]'));
 });
 
+test('postfix :N has higher precedence than binary operators', () => {
+  // : binds tighter than m, so [0,1] : 3 m [1] parses as ([0,1] : 3) m [1]
+  const withoutParens = evalToString('[0,1] : 3 m [1]');
+  const withParens = evalToString('([0,1] : 3) m [1]');
+  assert.equal(withoutParens, withParens);
+  assert.equal(withoutParens, '[2, 1, 2, 1, 2, 1]');
+});
+
 test('followed-by concat via comma between Expr', () => {
   assert.equal(evalToString('[0, 1], [2, 3]'), '[0, 1, 2, 3]');
 });

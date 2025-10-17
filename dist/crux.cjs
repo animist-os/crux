@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-15T14:46:33.395Z
+// Generated: 2025-10-15T23:23:53.146Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -46,11 +46,41 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," PostfixExpr   -- fby
+      = FollowedByExpr "," MulExpr   -- fby
+      | MulExpr
+
+  // Binary operators at lower precedence than postfix operators
+  MulExpr
+      = MulExpr ".*" PostfixExpr -- dotStar
+      | MulExpr ".^" PostfixExpr -- dotExpand
+      | MulExpr ".->" PostfixExpr -- dotSteps
+      | MulExpr ".j" PostfixExpr -- dotJam
+      | MulExpr ".m" PostfixExpr  -- dotMirror
+      | MulExpr ".l" PostfixExpr  -- dotLens
+      | MulExpr ".t" PostfixExpr  -- dotTie
+      | MulExpr ".c" PostfixExpr  -- dotConstraint
+      | MulExpr ".," PostfixExpr  -- dotZip
+      | MulExpr ".g" PostfixExpr  -- dotGlass
+      | MulExpr ".r" PostfixExpr  -- dotReich
+      | MulExpr "->" PostfixExpr  -- steps
+
+      | MulExpr "j" PostfixExpr   -- jam
+      | MulExpr "m" PostfixExpr   -- mirror
+      | MulExpr "l" PostfixExpr   -- lens
+      | MulExpr "c" PostfixExpr   -- constraint
+      | MulExpr "g" PostfixExpr   -- glass
+      | MulExpr "r" PostfixExpr   -- reich
+      | MulExpr "p" PostfixExpr   -- paert
+      | MulExpr "*" PostfixExpr  -- mul
+      | MulExpr "^" PostfixExpr  -- expand
+      | MulExpr "." PostfixExpr  -- dot
+      | MulExpr "~" PostfixExpr  -- rotate
+      | MulExpr ".~" PostfixExpr  -- dotRotate
+      | MulExpr ident PostfixExpr -- aliasOp
       | PostfixExpr
 
-  // Postfix operators (tie, repeat, slice) at lower precedence than binary operators
-  // These apply to "everything to the left" by default
+  // Postfix operators (tie, repeat, slice) at higher precedence than binary operators
+  // These apply to their immediate left operand
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
       | PostfixExpr "z"                          -- zipColumns
@@ -58,39 +88,7 @@ const g = ohm.grammar(String.raw`
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
       | PostfixExpr hspaces? SliceOp                 -- slice
-      | MulExpr
-
-  MulExpr
-      = MulExpr ".*" AppendExpr -- dotStar
-      | MulExpr ".^" AppendExpr -- dotExpand
-      | MulExpr ".->" AppendExpr -- dotSteps
-      | MulExpr ".j" AppendExpr -- dotJam
-      | MulExpr ".m" AppendExpr  -- dotMirror
-      | MulExpr ".l" AppendExpr  -- dotLens
-      | MulExpr ".t" AppendExpr  -- dotTie
-      | MulExpr ".c" AppendExpr  -- dotConstraint
-      | MulExpr ".," AppendExpr  -- dotZip
-      | MulExpr ".g" AppendExpr  -- dotGlass
-      | MulExpr ".r" AppendExpr  -- dotReich
-      | MulExpr "->" AppendExpr  -- steps
-
-      | MulExpr "j" AppendExpr   -- jam
-      | MulExpr "m" AppendExpr   -- mirror
-      | MulExpr "l" AppendExpr   -- lens
-      | MulExpr "c" AppendExpr   -- constraint
-      | MulExpr "g" AppendExpr   -- glass
-      | MulExpr "r" AppendExpr   -- reich
-      | MulExpr "p" AppendExpr   -- paert
-      | MulExpr "*" AppendExpr  -- mul
-      | MulExpr "^" AppendExpr  -- expand
-      | MulExpr "." AppendExpr  -- dot
-      | MulExpr "~" AppendExpr  -- rotate
-      | MulExpr ".~" AppendExpr  -- dotRotate
-      | MulExpr ident AppendExpr -- aliasOp
-      | AppendExpr
-
-  AppendExpr
-      = PriExpr
+      | PriExpr
 
   PriExpr
       = ident                          -- ref

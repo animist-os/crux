@@ -973,7 +973,7 @@ class Prog {
       sections,
       pip_count,
       pip_depth,
-      duration
+      quanta_count:duration
     };
   }
 }
@@ -2839,7 +2839,7 @@ golden.CruxProgramInfo = function(code) {
     }
   }
 
-  return { pip_count, pip_depth, duration };
+  return { pip_count, pip_depth, quanta_count:duration };
 }
 
 // Find all source indices where a timescale literal appears in the source program.

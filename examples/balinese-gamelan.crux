@@ -1,0 +1,125 @@
+// Balinese Gamelan-style Composition
+// Demonstrates endemic polyrhythms and interlocking patterns (kotekan)
+
+// ===== Section 1: Basic Kotekan Pattern =====
+// Polos (lower) and Sangsih (upper) interlocking parts
+// Using pelog scale (0, 1, 3, 5, 7, 8, 10)
+
+polos = [0, 3, 5, 3]
+sangsih = [5, 7, 8, 7]
+
+// Interleave using zip
+(polos, sangsih)z
+
+!
+
+// ===== Section 2: Polyrhythmic Layers =====
+// Gong cycle (slowest layer) - every 8 beats
+gong = [0|*8]
+
+// Kempur (mid-tempo punctuation) - every 4 beats
+kempur = [5|*4, 0|*4]
+
+// Fast gangsa (metallophone) pattern with subdivision
+gangsa = [[0, 3, 5, 7]]/
+
+// Combine layers using cog operator
+gong . [kempur, gangsa, gangsa, gangsa]
+
+!
+
+// ===== Section 3: Asymmetric Cycles =====
+// 3 against 4 polyrhythm
+melody_3 = [0, 5, 7] : 4
+melody_4 = [0, 3, 5, 8] : 3
+
+// Play simultaneously (they align every 12 beats)
+(melody_3, melody_4)z
+
+!
+
+// ===== Section 4: Traditional Gilak Pattern =====
+// Fast, syncopated interlocking pattern
+polos_gilak = [0, r, 5, r, 3, r, 5, r]
+sangsih_gilak = [r, 5, r, 8, r, 5, r, 7]
+
+// Interleave with time compression
+(polos_gilak, sangsih_gilak)z * [0|/2]
+
+!
+
+// ===== Section 5: Ostinato with Variation =====
+// Core ostinato pattern
+ostinato = [0, 3, 5, 8]
+
+// Create variations using rotation and steps
+basic = ostinato : 2
+rotation = ostinato ~ [2]
+transposed = ostinato * [2, 0]
+
+basic, rotation, transposed
+
+!
+
+// ===== Section 6: Kempli (Time Keeper) =====
+// Steady pulse with syncopation overlaid
+kempli = [0] : 16
+syncopation = [0, r, 3, r, 5, r, 3, r, 0, r, r, 5, r, 3, r, r]
+
+// Use cog-add to overlay
+kempli . syncopation
+
+!
+
+// ===== Section 7: Gong Kebyar Style =====
+// Explosive opening (kebyar = "to flare up")
+explosion = [0, 3, 5, 7, 8, 10, 12] . [[0, 3, 5]/, [0, 5]/, [0, 7]/, [0]/, [0]/, [0]/, [0]/]
+
+// Sudden rhythmic shift
+steady = [5, 5, 5, 5] * [0|*2]
+
+explosion, steady
+
+!
+
+// ===== Section 8: 5-against-7 Polyrhythm =====
+// Advanced polyrhythm common in gamelan
+cycle_5 = [0, 3, 5, 7, 10]|*7 : 7
+cycle_7 = [0, 2, 5, 7, 9, 11, 14]|*5 : 5
+
+(cycle_5, cycle_7)z
+
+!
+
+// ===== Section 9: Call and Response =====
+// Leader pattern with echo
+leader = [0, 5, 7, 8, 7, 5]
+response = leader * [0|*2, -2|*2]
+
+leader, response
+
+!
+
+// ===== Section 10: Complete Gamelan Texture =====
+// Combining multiple layers with different time scales
+
+// Gong (every 16 beats)
+gong_layer = [0|*16]
+
+// Kempur (every 8 beats)
+kempur_layer = [5|*8, 0|*8]
+
+// Kempli (every 2 beats)
+kempli_layer = [0|*2] : 8
+
+// Gangsa polos (interlocking low part)
+gangsa_p = [0, 3, 5, 3, 0, 3, 5, 3, 7, 5, 3, 5, 7, 5, 3, 5]
+
+// Gangsa sangsih (interlocking high part)
+gangsa_s = [r, 5, r, 7, r, 5, r, 8, r, 8, r, 7, r, 8, r, 10]
+
+// Interleave the interlocking parts
+interlocking = (gangsa_p, gangsa_s)z
+
+// Layer everything (using concatenation since they're independent lines)
+gong_layer, kempur_layer, kempli_layer, interlocking

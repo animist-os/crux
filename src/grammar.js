@@ -199,8 +199,8 @@ export const g = ohm.grammar(String.raw`
     specialChar
       = "r"
 
-    ident = (letter | "_") alnum+  -- withChars
-          | letter                     -- single
+    ident = (letter | "_") (alnum | "_")+  -- withChars
+          | letter                             -- single
 
     // Set of binary operator symbols that can be aliased
     OpSym

@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-15T23:23:53.146Z
+// Generated: 2025-10-18T20:54:25.964Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -210,8 +210,8 @@ const g = ohm.grammar(String.raw`
     specialChar
       = "r"
 
-    ident = (letter | "_") alnum+  -- withChars
-          | letter                     -- single
+    ident = (letter | "_") (alnum | "_")+  -- withChars
+          | letter                             -- single
 
     // Set of binary operator symbols that can be aliased
     OpSym

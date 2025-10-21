@@ -2,13 +2,8 @@ import * as ohm from 'ohm-js';
 import { g } from './grammar.js';
 
 // this just makes the code portable to golden
-const golden = {};
+const golden = globalThis.golden || {};
 globalThis.golden = golden;
-
-
-
-
-
 
 
 golden._crux_uuid_cnt = 1;

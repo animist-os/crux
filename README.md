@@ -9,25 +9,7 @@ A tiny language for algorithmic music. Build phrases ("mots") from relative pitc
 
 # Install
 
-Right now, to install into golden:
+Inside disrupterbox:
 
-```
-npm run build:test
-```
-
-which can be invoked from the build button in Cursor.
-
-This procudes dist/crux.cjs.   Copy the contents of this, starting at:
-
-// === Grammar ===
-
-and ending before the export at the bottom.
-
-Change export const g    to     const g
-
-And comment out:
-
-const golden = {};
-globalThis.golden = golden;
-
+git clone https://github.com/animist-os/crux.git
 

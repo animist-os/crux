@@ -95,37 +95,57 @@ function extractDependencies(expr) {
 function visualizeCruxProgram(sourceCode, golden, outputPath, title = "Crux Visualization") {
   console.log('Parsing and evaluating Crux program...');
 
-  // Parse the program to get AST
-  const prog = golden.parse(sourceCode);
+  try {
+    // Parse the program to get AST
+    const prog = golden.parse(sourceCode);
 
-  // Evaluate to get final result
-  const result = golden.crux_interp(sourceCode);
+    // Evaluate to get final result
+    const result = golden.crux_interp(sourceCode);
 
-  // Extract the final mot from the last section
-  const finalMot = result.sections && result.sections.length > 0
-    ? result.sections[result.sections.length - 1]
-    : result;
+    // Extract the final mot from the last section
+    const finalMot = result.sections && result.sections.length > 0
+      ? result.sections[result.sections.length - 1]
+      : result;
 
-  // Extract environment from AST (variable names and their expressions)
-  const environment = extractEnvironmentFromProg(prog);
+    // Extract environment from AST (variable names and their expressions)
+    const environment = extractEnvironmentFromProg(prog);
 
-  console.log(`Program evaluated successfully. Final mot has ${finalMot && finalMot.values ? finalMot.values.length : 0} values.`);
-  console.log(`Environment has ${environment.size} variables.`);
+    console.log(`Program evaluated successfully. Final mot has ${finalMot && finalMot.values ? finalMot.values.length : 0} values.`);
+    console.log(`Environment has ${environment.size} variables.`);
 
-  // Generate interactive visualization with source code
-  const visualizer = new InteractiveVisualizer(environment, finalMot, title, sourceCode);
-  const html = visualizer.generateHTML();
+    // Generate interactive visualization with source code
+    const visualizer = new InteractiveVisualizer(environment, finalMot, title, sourceCode);
+    const html = visualizer.generateHTML();
 
-  // Write to file
-  fs.writeFileSync(outputPath, html, 'utf8');
-  console.log(`Visualization written to ${outputPath}`);
+    // Write to file
+    fs.writeFileSync(outputPath, html, 'utf8');
+    console.log(`Visualization written to ${outputPath}`);
 
-  return {
-    htmlPath: outputPath,
-    environment: environment,
-    finalMot,
-    pipCount: finalMot.values ? finalMot.values.filter(v => v.step !== undefined).length : 0
-  };
+    return {
+      htmlPath: outputPath,
+      environment: environment,
+      finalMot,
+      pipCount: finalMot.values ? finalMot.values.filter(v => v.step !== undefined).length : 0
+    };
+  } catch (error) {
+    console.error(`\n❌ Error generating visualization:`);
+    console.error(error.message);
+
+    // Provide helpful hints for common errors
+    if (error.message.includes('Expected end of input') || error.message.includes('#')) {
+      console.error('\n💡 Hint: Crux uses // for comments, not #');
+      console.error('   Change: base = [0, 2, 4]  # comment');
+      console.error('   To:     base = [0, 2, 4]  // comment');
+    }
+    if (error.message.includes('Expected a letter') && error.message.includes('/')) {
+      console.error('\n💡 Hint: Timescales need the format step|timescale');
+      console.error('   Change: rhythm = [1, /2]');
+      console.error('   To:     rhythm = [1|1, 1|/2]');
+    }
+
+    console.error(`\nSkipping ${title}\n`);
+    return null;
+  }
 }
 
 /**

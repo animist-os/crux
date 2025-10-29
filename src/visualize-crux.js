@@ -26,6 +26,66 @@ import {
 global.Provenance = Provenance;
 
 /**
+ * Extract environment (variable assignments) from a parsed Prog AST
+ */
+function extractEnvironmentFromProg(prog) {
+  const env = new Map();
+
+  if (!prog || !prog.sections) return env;
+
+  // Walk through all sections and statements
+  for (const stmts of prog.sections) {
+    for (const stmt of stmts) {
+      // Check if this is an Assign statement (has name and expr properties)
+      if (stmt && stmt.name && stmt.expr) {
+        // Store the variable name and its expression AST
+        env.set(stmt.name, {
+          name: stmt.name,
+          expr: stmt.expr,
+          dependencies: extractDependencies(stmt.expr)
+        });
+      }
+    }
+  }
+
+  return env;
+}
+
+/**
+ * Extract variable references from an expression AST
+ */
+function extractDependencies(expr) {
+  const deps = new Set();
+
+  if (!expr) return deps;
+
+  // If it's a Ref (variable reference), add it
+  if (expr.constructor && expr.constructor.name === 'Ref' && expr.name) {
+    deps.add(expr.name);
+  }
+
+  // Recursively check binary operators
+  if (expr.x) {
+    const xDeps = extractDependencies(expr.x);
+    xDeps.forEach(d => deps.add(d));
+  }
+  if (expr.y) {
+    const yDeps = extractDependencies(expr.y);
+    yDeps.forEach(d => deps.add(d));
+  }
+
+  // Check for nested expressions in arrays
+  if (expr.values && Array.isArray(expr.values)) {
+    for (const v of expr.values) {
+      const vDeps = extractDependencies(v);
+      vDeps.forEach(d => deps.add(d));
+    }
+  }
+
+  return deps;
+}
+
+/**
  * Generate a complete interactive HTML visualization from a Crux program
  * @param {string} sourceCode - The Crux source code
  * @param {object} golden - The Crux golden object (from import golden from './index.js')
@@ -35,7 +95,10 @@ global.Provenance = Provenance;
 function visualizeCruxProgram(sourceCode, golden, outputPath, title = "Crux Visualization") {
   console.log('Parsing and evaluating Crux program...');
 
-  // Parse and evaluate the program
+  // Parse the program to get AST
+  const prog = golden.parse(sourceCode);
+
+  // Evaluate to get final result
   const result = golden.crux_interp(sourceCode);
 
   // Extract the final mot from the last section
@@ -43,9 +106,11 @@ function visualizeCruxProgram(sourceCode, golden, outputPath, title = "Crux Visu
     ? result.sections[result.sections.length - 1]
     : result;
 
-  const environment = new Map(); // Environment not directly accessible from result
+  // Extract environment from AST (variable names and their expressions)
+  const environment = extractEnvironmentFromProg(prog);
 
   console.log(`Program evaluated successfully. Final mot has ${finalMot && finalMot.values ? finalMot.values.length : 0} values.`);
+  console.log(`Environment has ${environment.size} variables.`);
 
   // Generate interactive visualization
   const visualizer = new InteractiveVisualizer(environment, finalMot, title);
@@ -57,7 +122,7 @@ function visualizeCruxProgram(sourceCode, golden, outputPath, title = "Crux Visu
 
   return {
     htmlPath: outputPath,
-    environment,
+    environment: environment,
     finalMot,
     pipCount: finalMot.values ? finalMot.values.filter(v => v.step !== undefined).length : 0
   };
@@ -92,10 +157,12 @@ function generateProvenanceTreeSVG(pip, index) {
  */
 function visualizeComparison(programs, golden, outputPath, title = "Crux Comparison") {
   const results = programs.map((prog, idx) => {
+    const parsed = golden.parse(prog.code);
     const result = golden.crux_interp(prog.code);
     const mot = result.sections && result.sections.length > 0
       ? result.sections[result.sections.length - 1]
       : result;
+    const env = extractEnvironmentFromProg(parsed);
     return {
       name: prog.name || `Program ${idx + 1}`,
       code: prog.code,

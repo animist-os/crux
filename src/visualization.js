@@ -115,26 +115,15 @@ class DependencyGraphVisualizer {
     const nodes = [];
     const env = this.environment;
 
-    // Extract all variable assignments
-    if (env && env.bindings) {
-      for (const [name, value] of env.bindings.entries()) {
+    // Extract all variable assignments from the new environment structure
+    if (env && env.size > 0) {
+      for (const [name, varInfo] of env.entries()) {
         nodes.push({
           id: name,
           type: 'variable',
           name: name,
-          value: value,
-          pipCount: value && value.values ? value.values.length : 0
-        });
-      }
-    } else if (env && env.size > 0) {
-      // Handle plain Map
-      for (const [name, value] of env.entries()) {
-        nodes.push({
-          id: name,
-          type: 'variable',
-          name: name,
-          value: value,
-          pipCount: value && value.values ? value.values.length : 0
+          varInfo: varInfo,
+          dependencies: varInfo.dependencies || new Set()
         });
       }
     }
@@ -143,17 +132,34 @@ class DependencyGraphVisualizer {
   }
 
   extractEdges(nodes) {
-    // TODO: Parse AST to determine which variables reference which others
-    // For now, return empty array
-    return [];
+    const edges = [];
+
+    // Build edges based on dependencies
+    for (const node of nodes) {
+      if (node.dependencies && node.dependencies.size > 0) {
+        for (const depName of node.dependencies) {
+          // Check if the dependency exists as a node
+          if (nodes.find(n => n.id === depName)) {
+            edges.push({
+              from: depName,  // Dependency is the source
+              to: node.id,    // Current variable is the target
+              type: 'derives'
+            });
+          }
+        }
+      }
+    }
+
+    return edges;
   }
 
   computeLayout(nodes, edges) {
-    // Simple hierarchical layout
-    const layout = {};
+    // Build dependency levels (topological sort)
     const levels = this.assignLevels(nodes, edges);
+    const layout = {};
 
-    Object.keys(levels).forEach((level, levelIdx) => {
+    // Position nodes by level
+    Object.keys(levels).sort((a, b) => parseInt(a) - parseInt(b)).forEach((level, levelIdx) => {
       const nodesInLevel = levels[level];
       const y = 100 + levelIdx * 150;
       const spacing = this.width / (nodesInLevel.length + 1);
@@ -170,8 +176,45 @@ class DependencyGraphVisualizer {
   }
 
   assignLevels(nodes, edges) {
-    // Assign nodes to levels (0 = no dependencies, 1 = depends on level 0, etc.)
-    const levels = { 0: nodes.map(n => n) };
+    // Calculate the level for each node based on dependencies
+    const levels = {};
+    const nodeLevel = new Map();
+
+    // Build adjacency list
+    const incomingEdges = new Map();
+    for (const node of nodes) {
+      incomingEdges.set(node.id, []);
+    }
+    for (const edge of edges) {
+      if (incomingEdges.has(edge.to)) {
+        incomingEdges.get(edge.to).push(edge.from);
+      }
+    }
+
+    // Calculate levels using BFS
+    const calculateLevel = (nodeId, visited = new Set()) => {
+      if (visited.has(nodeId)) return 0; // Cycle detection
+      visited.add(nodeId);
+
+      const deps = incomingEdges.get(nodeId) || [];
+      if (deps.length === 0) return 0;
+
+      let maxLevel = 0;
+      for (const depId of deps) {
+        maxLevel = Math.max(maxLevel, calculateLevel(depId, visited) + 1);
+      }
+      return maxLevel;
+    };
+
+    // Assign each node to its level
+    for (const node of nodes) {
+      const level = calculateLevel(node.id);
+      nodeLevel.set(node.id, level);
+
+      if (!levels[level]) levels[level] = [];
+      levels[level].push(node);
+    }
+
     return levels;
   }
 
@@ -179,10 +222,20 @@ class DependencyGraphVisualizer {
     const pos = layout[node.id] || { x: 100, y: 100 };
     const r = 40;
 
+    // Determine node color based on dependencies
+    const depCount = node.dependencies ? node.dependencies.size : 0;
+    const colorClass = depCount === 0 ? 'source-node' : 'derived-node';
+
     let svg = `<g class="node" data-node-id="${node.id}">`;
-    svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${r}" class="node-circle variable-node"/>`;
+    svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${r}" class="node-circle ${colorClass}"/>`;
     svg += `<text x="${pos.x}" y="${pos.y}" class="node-label" text-anchor="middle" dominant-baseline="middle">${node.name}</text>`;
-    svg += `<text x="${pos.x}" y="${pos.y + r + 15}" class="node-info" text-anchor="middle">${node.pipCount} pips</text>`;
+
+    // Show dependency count
+    if (depCount > 0) {
+      svg += `<text x="${pos.x}" y="${pos.y + r + 15}" class="node-info" text-anchor="middle">depends on ${depCount}</text>`;
+    } else {
+      svg += `<text x="${pos.x}" y="${pos.y + r + 15}" class="node-info" text-anchor="middle">source</text>`;
+    }
     svg += '</g>';
 
     return svg;
@@ -207,15 +260,20 @@ class DependencyGraphVisualizer {
   getStyles() {
     return `
       .node-circle {
-        fill: #667eea;
         stroke: #764ba2;
         stroke-width: 3;
         filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         transition: all 0.3s;
       }
       .node-circle:hover {
-        fill: #764ba2;
-        r: 45;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+        stroke-width: 4;
+      }
+      .source-node {
+        fill: #4CAF50;
+      }
+      .derived-node {
+        fill: #667eea;
       }
       .node-label {
         fill: white;
@@ -232,9 +290,6 @@ class DependencyGraphVisualizer {
         stroke: #888;
         stroke-width: 2;
         fill: none;
-      }
-      .variable-node {
-        fill: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       }
     `;
   }

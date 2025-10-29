@@ -98,6 +98,9 @@ class PerNoteDerivationVisualizer {
   generateHTML() {
     const pips = this.finalMot.values.filter(v => v.step !== undefined);
 
+    // Serialize derivation data to JSON for embedding
+    const derivationJSON = this.derivationData ? JSON.stringify(this.derivationData.pipDerivations) : 'null';
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -276,6 +279,9 @@ class PerNoteDerivationVisualizer {
   </div>
 
   <script>
+    // Embedded derivation data
+    const DERIVATION_DATA = ${derivationJSON};
+
     let selectedNote = null;
 
     function selectNote(index) {
@@ -299,34 +305,164 @@ class PerNoteDerivationVisualizer {
 
       const dagCanvas = document.getElementById('dag-canvas');
 
-      // TODO: Implement actual DAG visualization
-      // For now, show a placeholder
-      dagCanvas.innerHTML = \`
-        <div style="text-align: center; padding: 40px;">
-          <h3 style="color: #667eea; margin-bottom: 20px;">Note \${index} Derivation</h3>
-          <p style="color: #666; margin-bottom: 10px;">This note was derived from:</p>
-          <div style="margin: 20px 0;">
-            <div style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; border-radius: 5px; margin: 5px;">
-              Source Pip A
-            </div>
-            <div style="display: inline-block; color: #667eea; font-size: 20px; margin: 0 10px;">
-              ×
-            </div>
-            <div style="display: inline-block; background: #4CAF50; color: white; padding: 10px 20px; border-radius: 5px; margin: 5px;">
-              Source Pip B
-            </div>
-            <div style="display: inline-block; color: #667eea; font-size: 20px; margin: 0 10px;">
-              =
-            </div>
-            <div style="display: inline-block; background: #667eea; color: white; padding: 10px 20px; border-radius: 5px; margin: 5px;">
-              Final Note \${index}
-            </div>
-          </div>
-          <p style="color: #999; font-size: 12px; margin-top: 20px;">
-            (Full DAG visualization coming soon - provenance tracking needs enhancement)
-          </p>
-        </div>
+      if (!DERIVATION_DATA || !DERIVATION_DATA[index]) {
+        dagCanvas.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No derivation data available</div>';
+        return;
+      }
+
+      const derivation = DERIVATION_DATA[index].derivation;
+      const pip = DERIVATION_DATA[index].pip;
+
+      // Render the DAG
+      const svg = renderDAG(derivation, pip, index);
+      dagCanvas.innerHTML = svg;
+    }
+
+    function renderDAG(node, finalPip, noteIndex) {
+      if (!node) return '<p>No derivation</p>';
+
+      // Layout parameters
+      const nodeWidth = 120;
+      const nodeHeight = 50;
+      const levelHeight = 100;
+      const nodeGap = 20;
+
+      // Compute layout (simple tree layout)
+      const layout = computeTreeLayout(node, nodeWidth, nodeHeight, levelHeight, nodeGap);
+
+      // Find bounds
+      let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+      layout.nodes.forEach(n => {
+        minX = Math.min(minX, n.x);
+        maxX = Math.max(maxX, n.x + nodeWidth);
+        maxY = Math.max(maxY, n.y + nodeHeight);
+      });
+
+      const padding = 40;
+      const width = (maxX - minX) + padding * 2;
+      const height = maxY + padding * 2;
+
+      // Render SVG
+      let svg = \`<svg width="\${width}" height="\${height}" xmlns="http://www.w3.org/2000/svg">\`;
+
+      // Render edges first
+      svg += '<g class="edges">';
+      layout.edges.forEach(edge => {
+        const fromNode = layout.nodes.find(n => n.id === edge.from);
+        const toNode = layout.nodes.find(n => n.id === edge.to);
+        if (fromNode && toNode) {
+          const x1 = fromNode.x - minX + padding + nodeWidth/2;
+          const y1 = fromNode.y + padding + nodeHeight;
+          const x2 = toNode.x - minX + padding + nodeWidth/2;
+          const y2 = toNode.y + padding;
+          svg += \`<line x1="\${x1}" y1="\${y1}" x2="\${x2}" y2="\${y2}"
+                       stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>\`;
+        }
+      });
+      svg += '</g>';
+
+      // Arrow marker
+      svg += \`
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#999" />
+          </marker>
+        </defs>
       \`;
+
+      // Render nodes
+      svg += '<g class="nodes">';
+      layout.nodes.forEach(n => {
+        const x = n.x - minX + padding;
+        const y = n.y + padding;
+
+        let fillColor = '#e0e0e0';
+        let label = '';
+
+        if (n.type === 'source-pip') {
+          fillColor = '#4CAF50';
+          label = \`[\${n.data.step}|\${n.data.timeScale}]\`;
+        } else if (n.type === 'operator') {
+          fillColor = '#FF9800';
+          label = n.data.operation || n.data.symbol || '?';
+        } else if (n.type === 'ref') {
+          fillColor = '#2196F3';
+          label = n.data.varName;
+        }
+
+        svg += \`
+          <rect x="\${x}" y="\${y}" width="\${nodeWidth}" height="\${nodeHeight}"
+                fill="\${fillColor}" stroke="#333" stroke-width="2" rx="5"/>
+          <text x="\${x + nodeWidth/2}" y="\${y + nodeHeight/2 + 5}"
+                text-anchor="middle" fill="white" font-weight="bold" font-size="14">\${label}</text>
+        \`;
+      });
+      svg += '</g>';
+
+      // Add final note at top
+      svg += \`
+        <rect x="\${(width - nodeWidth)/2}" y="10" width="\${nodeWidth}" height="\${nodeHeight}"
+              fill="#667eea" stroke="#333" stroke-width="3" rx="5"/>
+        <text x="\${width/2}" y="45" text-anchor="middle" fill="white" font-weight="bold" font-size="16">
+          Note \${noteIndex}: \${finalPip.step}|\${finalPip.timeScale}
+        </text>
+      \`;
+
+      svg += '</svg>';
+      return svg;
+    }
+
+    function computeTreeLayout(node, nodeWidth, nodeHeight, levelHeight, nodeGap) {
+      const nodes = [];
+      const edges = [];
+      const positions = new Map();
+
+      // Assign levels (depth-first)
+      function assignLevels(n, level = 0) {
+        if (!n || positions.has(n.id)) return;
+        positions.set(n.id, { level, node: n });
+        if (n.children) {
+          n.children.forEach(child => assignLevels(child, level + 1));
+        }
+      }
+      assignLevels(node);
+
+      // Group by level
+      const levels = new Map();
+      for (const [id, {level, node}] of positions.entries()) {
+        if (!levels.has(level)) levels.set(level, []);
+        levels.get(level).push({ id, node });
+      }
+
+      // Compute positions
+      let currentX = 0;
+      for (const [level, levelNodes] of Array.from(levels.entries()).sort((a,b) => b[0] - a[0])) {
+        const y = level * levelHeight + 60;
+        let x = currentX;
+
+        levelNodes.forEach(({id, node: n}) => {
+          nodes.push({
+            id: id,
+            type: n.type,
+            data: n.data,
+            x: x,
+            y: y
+          });
+
+          // Add edges to children
+          if (n.children) {
+            n.children.forEach(child => {
+              edges.push({ from: id, to: child.id });
+            });
+          }
+
+          x += nodeWidth + nodeGap;
+        });
+
+        currentX = 0;
+      }
+
+      return { nodes, edges };
     }
 
     // Auto-select first note

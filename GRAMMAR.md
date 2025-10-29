@@ -1,4 +1,5 @@
 ## Crux
+https://github.com/animist-os/crux
 
 This document describes the Crux grammar used to build and transform musical mots as sequences of "pips" (step, timeScale, optional tag). The pips within a mot represent a linear series of conriguous events. You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "fan" approach or a "cog" one.  
 

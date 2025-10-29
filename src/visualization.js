@@ -621,10 +621,20 @@ class ProvenanceTreeVisualizer {
  * Generate an interactive HTML page with all visualizations
  */
 class InteractiveVisualizer {
-  constructor(environment, finalMot, title = "Crux Visualization") {
+  constructor(environment, finalMot, title = "Crux Visualization", sourceCode = "") {
     this.environment = environment;
     this.finalMot = finalMot;
     this.title = title;
+    this.sourceCode = sourceCode;
+  }
+
+  escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   generateHTML() {
@@ -754,6 +764,39 @@ class InteractiveVisualizer {
       color: #666;
       margin-top: 5px;
     }
+    .source-code-panel {
+      background: #2d2d2d;
+      padding: 20px;
+      margin: 0;
+      border-bottom: 3px solid #667eea;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .source-code-panel h3 {
+      color: #667eea;
+      margin: 0 0 15px 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .source-code {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #f8f8f2;
+      white-space: pre;
+      margin: 0;
+    }
+    .source-code-panel::-webkit-scrollbar {
+      width: 10px;
+    }
+    .source-code-panel::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+    .source-code-panel::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
@@ -762,6 +805,11 @@ class InteractiveVisualizer {
       <h1>${this.title}</h1>
       <p class="subtitle">Interactive visualization of note derivation and composition</p>
     </header>
+
+    ${this.sourceCode ? `<div class="source-code-panel">
+      <h3>Source Code</h3>
+      <pre class="source-code">${this.escapeHtml(this.sourceCode)}</pre>
+    </div>` : ''}
 
     <div class="tabs">
       <button class="tab active" onclick="showTab('timeline')">Timeline View</button>

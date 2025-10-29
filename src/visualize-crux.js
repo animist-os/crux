@@ -112,8 +112,8 @@ function visualizeCruxProgram(sourceCode, golden, outputPath, title = "Crux Visu
   console.log(`Program evaluated successfully. Final mot has ${finalMot && finalMot.values ? finalMot.values.length : 0} values.`);
   console.log(`Environment has ${environment.size} variables.`);
 
-  // Generate interactive visualization
-  const visualizer = new InteractiveVisualizer(environment, finalMot, title);
+  // Generate interactive visualization with source code
+  const visualizer = new InteractiveVisualizer(environment, finalMot, title, sourceCode);
   const html = visualizer.generateHTML();
 
   // Write to file

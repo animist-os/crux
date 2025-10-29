@@ -88,6 +88,11 @@ class PerNoteDerivationVisualizer {
     this.sourceCode = sourceCode;
     this.width = 1400;
     this.height = 900;
+    this.derivationData = null; // Set via setDerivationData()
+  }
+
+  setDerivationData(graphData) {
+    this.derivationData = graphData;
   }
 
   generateHTML() {

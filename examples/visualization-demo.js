@@ -31,10 +31,10 @@ const demo1 = `
 // Simple Melody Multiplication
 // Shows how the * operator creates multiple versions
 
-base = [0, 2, 4]        # C major triad
-transpositions = [0, 5] # Root and 5th above
+base = [0, 2, 4]        // C major triad
+transpositions = [0, 5] // Root and 5th above
 
-base * transpositions   # Fan mul: apply each transposition to entire base
+base * transpositions   // Fan mul: apply each transposition to entire base
 // Result: [0,2,4, 5,7,9] - two versions of the triad
 `;
 
@@ -57,9 +57,9 @@ const demo2 = `
 // Shows how .* tiles and pairs elements
 
 melody = [0, 2, 4, 5, 7]
-rhythm = [1, 2]          # Half note, whole note
+rhythm = [1|1, 1|2]      // Half note, whole note
 
-melody .* rhythm         # Tile rhythm to match melody length
+melody .* rhythm         // Tile rhythm to match melody length
 // Result: Each note gets alternating durations
 // [0|1, 2|2, 4|1, 5|2, 7|1]
 `;
@@ -68,7 +68,7 @@ console.log('Demo 2: Cog/Elementwise Operations (.*)');
 console.log('----------------------------------------');
 visualizeCruxProgram(
   demo2,
-  crux,
+  golden,
   path.join(__dirname, 'demo2-cog-operations.html'),
   'Demo 2: Cog Operations - Tiling and Pairing'
 );
@@ -83,27 +83,27 @@ const demo3 = `
 // Demonstrates multiple inheritance from different sources
 
 // Source mots
-A = [0, 2, 4]           # Root motif
-B = [1, 2]              # Transposition pattern
-C = [1, /2, /4]         # Rhythm pattern
+A = [0, 2, 4]           // Root motif
+B = [1, 2]              // Transposition pattern
+C = [1|1, 1|/2, 1|/4]   // Rhythm pattern
 
 // Layer 1: Apply transpositions
-D = A * B               # Creates 6 notes: A transposed by each B
+D = A * B               // Creates 6 notes: A transposed by each B
 
 // Layer 2: Apply rhythms
-E = D .* C              # Apply tiled rhythm pattern
+E = D .* C              // Apply tiled rhythm pattern
 
 // Layer 3: Add variation
-F = E * [0, 7]          # Create two versions (root + 5th)
+F = E * [0, 7]          // Create two versions (root + 5th)
 
-F                       # Final result shows complex derivation
+F                       // Final result shows complex derivation
 `;
 
 console.log('Demo 3: Complex Multiple Inheritance');
 console.log('------------------------------------');
 visualizeCruxProgram(
   demo3,
-  crux,
+  golden,
   path.join(__dirname, 'demo3-multiple-inheritance.html'),
   'Demo 3: Multiple Inheritance - Complex Derivation Trees'
 );
@@ -134,7 +134,7 @@ console.log('Demo 4: Nested Structures and Subdivision');
 console.log('------------------------------------------');
 visualizeCruxProgram(
   demo4,
-  crux,
+  golden,
   path.join(__dirname, 'demo4-nested-structures.html'),
   'Demo 4: Nested Structures - Hierarchical Composition'
 );
@@ -175,7 +175,7 @@ console.log('Demo 5: Operator Comparison');
 console.log('----------------------------');
 visualizeComparison(
   comparisonPrograms,
-  crux,
+  golden,
   path.join(__dirname, 'demo5-operator-comparison.html'),
   'Demo 5: Operator Comparison - How Different Operators Transform Mots'
 );
@@ -193,11 +193,11 @@ const demo6 = `
 scale = [0, 2, 4, 5, 7, 9, 11]
 
 // Ascending and descending patterns
-up = [0->4]              # Steps from 0 to 4
-down = [4->0] m 0        # Mirror of up
+up = [0->4]              // Steps from 0 to 4
+down = [4->0] m 0        // Mirror of up
 
 // Create phrase with rhythm
-phrase = [[up], [down]] / .* [1, /2]
+phrase = [[up], [down]] / .* [1|1, 1|/2]
 
 // Harmonize: add thirds
 harmonized = phrase * [0, 2]
@@ -210,7 +210,7 @@ console.log('Demo 6: Musical Composition Example');
 console.log('-----------------------------------');
 visualizeCruxProgram(
   demo6,
-  crux,
+  golden,
   path.join(__dirname, 'demo6-musical-composition.html'),
   'Demo 6: Musical Composition - Bach-inspired Sequence'
 );
@@ -225,19 +225,19 @@ const demo7 = `
 // Shows how derivation depth affects visualization
 
 A = [0, 1, 2]
-B = A * [0, 2]           # Depth 1
-C = B * [0, 3]           # Depth 2
-D = C .* [1, /2]         # Depth 3
-E = D * [0, 5]           # Depth 4
+B = A * [0, 2]           // Depth 1
+C = B * [0, 3]           // Depth 2
+D = C .* [1|1, 1|/2]     // Depth 3
+E = D * [0, 5]           // Depth 4
 
-E                        # Final: 4 levels of derivation
+E                        // Final: 4 levels of derivation
 `;
 
 console.log('Demo 7: Deep Derivation Chain');
 console.log('-----------------------------');
 visualizeCruxProgram(
   demo7,
-  crux,
+  golden,
   path.join(__dirname, 'demo7-deep-derivation.html'),
   'Demo 7: Deep Derivation - Multiple Levels of Transformation'
 );

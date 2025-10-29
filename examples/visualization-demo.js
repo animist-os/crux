@@ -268,8 +268,8 @@ const rl = readline.createInterface({
 rl.question('Start a live visualization server? (y/n): ', async (answer) => {
   if (answer.toLowerCase() === 'y') {
     const { createVisualizationServer } = await import('../src/visualize-crux.js');
-    const server = createVisualizationServer(3000);
-    console.log('\nVisualization server started!');
+    const server = createVisualizationServer(3005);
+    console.log('\nVisualization server started on http://localhost:3005');
     console.log('Press Ctrl+C to stop the server.');
   } else {
     console.log('\nDone! Enjoy exploring the visualizations.');

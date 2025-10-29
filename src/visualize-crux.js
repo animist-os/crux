@@ -284,7 +284,7 @@ function visualizeComparison(programs, golden, outputPath, title = "Crux Compari
 /**
  * Create a development server for live visualization updates
  */
-function createVisualizationServer(port = 3000) {
+function createVisualizationServer(port = 3005) {
   import('http').then(http => {
     let cachedHTML = '<html><body><h1>Waiting for Crux program...</h1></body></html>';
 

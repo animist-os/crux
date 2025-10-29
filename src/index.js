@@ -2253,24 +2253,37 @@ function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
 }
 
 class Pip {
-  constructor(step, timeScale = 1, tag = null, sourcePos = null) {
+  constructor(step, timeScale = 1, tag = null, sourcePos = null, provenance = null) {
     this.step = step;
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
     this.sourcePos = sourcePos; // character position in source (for UI tracking)
+    this.provenance = provenance; // Provenance object tracking derivation (for visualization)
   }
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
     // Preserve source position from the left operand (primary contributor)
-    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
+    // Create provenance record tracking this multiplication
+    const provenance = this._createProvenance('mul', [this.provenance, that.provenance], {
+      operation: 'add steps, multiply timeScales',
+      leftStep: this.step,
+      rightStep: that.step
+    });
+    const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos, provenance);
     return out;
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
     // Preserve source position from the left operand (primary contributor)
-    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
+    // Create provenance record tracking this expansion
+    const provenance = this._createProvenance('expand', [this.provenance, that.provenance], {
+      operation: 'multiply steps, multiply timeScales',
+      leftStep: this.step,
+      rightStep: that.step
+    });
+    const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos, provenance);
     return out;
   }
 
@@ -2305,6 +2318,14 @@ class Pip {
 
   hasTag(tag) {
     return this.tag === tag;
+  }
+
+  _createProvenance(origin, parents = [], metadata = {}) {
+    // Lazy-load Provenance class if visualization is enabled
+    if (typeof Provenance !== 'undefined') {
+      return new Provenance(origin, parents.filter(p => p != null), metadata);
+    }
+    return null;
   }
 }
 
@@ -3213,7 +3234,7 @@ golden.findAllPipsWithPositions = function(source) {
   return result;
 }
 
-
-
-
+// Export golden for ES module compatibility
+export { golden };
+export default golden;
 

@@ -3,3 +3,6 @@ crux.code-workspace
 CLAUDE.md
 
 # Note: dist/crux.cjs is the only build output and should be committed
+
+# Generated visualization HTML files
+examples/*.html

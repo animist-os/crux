@@ -98,6 +98,9 @@ class PerNoteDerivationVisualizer {
   generateHTML() {
     const pips = this.finalMot.values.filter(v => v.step !== undefined);
 
+    // Version number for debugging
+    const VERSION = 'v1.0.0-alpha-' + Date.now();
+
     // Serialize derivation data to JSON for embedding
     const derivationJSON = this.derivationData ? JSON.stringify(this.derivationData.pipDerivations) : 'null';
 
@@ -106,7 +109,7 @@ class PerNoteDerivationVisualizer {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Per-Note Derivation - Crux Visualization</title>
+  <title>Per-Note Derivation - Crux Visualization ${VERSION}</title>
   <style>
     * {
       margin: 0;
@@ -251,6 +254,7 @@ class PerNoteDerivationVisualizer {
     <header>
       <h1>Per-Note Derivation Visualization</h1>
       <p class="subtitle">Click any note to see how it was derived from source pips</p>
+      <p style="font-size: 11px; opacity: 0.7; margin-top: 10px;">Version: ${VERSION}</p>
     </header>
 
     <div class="info-panel" style="margin: 20px 30px;">
@@ -272,6 +276,7 @@ class PerNoteDerivationVisualizer {
 
     <div class="derivation-section">
       <div class="derivation-title" id="dag-title">Select a note above to see its derivation</div>
+      <div id="debug-info" style="background: #fff3cd; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 12px;"></div>
       <div class="dag-canvas" id="dag-canvas">
         <svg id="dag-svg" width="100%" height="500"></svg>
       </div>
@@ -281,6 +286,20 @@ class PerNoteDerivationVisualizer {
   <script>
     // Embedded derivation data
     const DERIVATION_DATA = ${derivationJSON};
+
+    console.log('VERSION: ${VERSION}');
+    console.log('Derivation data loaded:', DERIVATION_DATA ? DERIVATION_DATA.length + ' notes' : 'null');
+    if (DERIVATION_DATA && DERIVATION_DATA.length > 0) {
+      console.log('First note derivation:', DERIVATION_DATA[0]);
+    }
+
+    // Show debug info on page
+    const debugPanel = document.getElementById('debug-info');
+    if (debugPanel) {
+      debugPanel.innerHTML =
+        'Debug: Derivation data: ' + (DERIVATION_DATA ? DERIVATION_DATA.length + ' notes loaded' : 'NO DATA') +
+        ' | Version: ${VERSION}';
+    }
 
     let selectedNote = null;
 

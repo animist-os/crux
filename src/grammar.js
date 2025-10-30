@@ -170,6 +170,28 @@ export const g = ohm.grammar(String.raw`
 
     RandNum
       = Curly
+      | ParenArithExpr
+      | MemberAccess
+      | number
+
+    // Parenthesized arithmetic expressions for use in numeric contexts
+    // Require parens to avoid ambiguity with other uses of operators
+    ParenArithExpr
+      = "(" hspaces? ArithExpr hspaces? ")"
+
+    ArithExpr
+      = ArithExpr hspaces? "+" hspaces? ArithMulExpr  -- add
+      | ArithExpr hspaces? "-" hspaces? ArithMulExpr  -- sub
+      | ArithMulExpr
+
+    ArithMulExpr
+      = ArithMulExpr hspaces? "*" hspaces? ArithPrimary  -- mul
+      | ArithMulExpr hspaces? "/" hspaces? ArithPrimary  -- div
+      | ArithPrimary
+
+    ArithPrimary
+      = "(" hspaces? ArithExpr hspaces? ")"  -- parens
+      | MemberAccess
       | number
 
   // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)
@@ -183,7 +205,11 @@ export const g = ohm.grammar(String.raw`
       = Range  -- range
       | number "/" number  -- frac
       | number  -- num
+      | MemberAccess  -- member
       | ident   -- ref
+
+    MemberAccess
+      = ident "." ident  -- prop
 
     Seed = "@" SeedChars
     SeedChars = seedChar+

@@ -978,4 +978,53 @@ test('findAllTimescaleIndices with NestedMotLiteral', () => {
   assert.equal(source[indices[1]], '4');
 });
 
+test('.length operator on mot', () => {
+  // Simple case: use mot length in timescale
+  const result = evalToString('p = [0, 1, 2, 3]\np2 = p * [-7 | 1/p.length]');
+  assert.match(result, /\[-7 \| \/4, -6 \| \/4, -5 \| \/4, -4 \| \/4\]/);
+});
+
+test('.length operator with computed timescale', () => {
+  // Use length directly as denominator
+  const result = evalToString('p = [0->47]\npa = p * [-7 | 47/p.length]');
+  // p.length = 48, so 47/48
+  assert.match(result, /\[-7 \| 0\.9791/); // 47/48 ≈ 0.979167
+});
+
+test('.length operator with repeat', () => {
+  // Use length to control repetition
+  const result = evalToString('p = [1, 2, 3]\nq = [0] : p.length');
+  assert.equal(result, '[0, 0, 0]');
+});
+
+test('arithmetic expression - addition', () => {
+  const result = evalToString('p = [0, 1, 2]\nq = [5] : (p.length + 2)');
+  // p.length = 3, so 3 + 2 = 5 repetitions
+  assert.equal(result, '[5, 5, 5, 5, 5]');
+});
+
+test('arithmetic expression - subtraction', () => {
+  const result = evalToString('p = [0->9]\nq = p * [7 | (p.length - 1)/p.length]');
+  // p.length = 10, so (10-1)/10 = 9/10 = 0.9
+  assert.match(result, /\[7 \| 0\.9,/);
+});
+
+test('arithmetic expression - multiplication', () => {
+  const result = evalToString('p = [0, 1, 2, 3]\nq = [5] : (p.length * 2)');
+  // p.length = 4, so 4 * 2 = 8 repetitions
+  assert.equal(result, '[5, 5, 5, 5, 5, 5, 5, 5]');
+});
+
+test('arithmetic expression - division', () => {
+  const result = evalToString('p = [0->7]\nq = p * [1 | 1/(p.length / 2)]');
+  // p.length = 8, so 8 / 2 = 4, then 1/4 = 0.25 (displays as /4)
+  assert.match(result, /\[1 \| \/4,/);
+});
+
+test('arithmetic expression - complex nested', () => {
+  const result = evalToString('p = [0->11]\nq = p * [3 | (p.length - 4)/(p.length + 12)]');
+  // p.length = 12, so (12-4)/(12+12) = 8/24 = 1/3 (displays as /3)
+  assert.match(result, /\[3 \| \/3,/);
+});
+
 

@@ -1,80 +1,106 @@
-# Crux Examples
+# Per-Note Derivation Visualization Demo
 
-This directory contains example Crux compositions demonstrating various musical techniques and styles.
+This demo shows how each musical note in a Crux composition derives from source pips through operators.
 
-## Balinese Gamelan (balinese-gamelan.crux)
+## Quick Start
 
-A multi-section composition demonstrating the polyrhythmic and interlocking patterns characteristic of Balinese gamelan music.
+### 1. Generate the Visualization
 
-### Key Concepts Demonstrated
-
-#### 1. Kotekan (Interlocking Patterns)
-Gamelan uses two complementary parts:
-- **Polos**: The lower, "on-beat" pattern
-- **Sangsih**: The upper, "off-beat" pattern
-
-These interlock to create a single, complex melodic line. Example:
-```crux
-polos = [0, 3, 5, 3]
-sangsih = [5, 7, 8, 7]
-(polos, sangsih)z  // Interleave using zip operator
+```bash
+cd /home/user/crux
+node examples/per-note-demo.js
 ```
 
-#### 2. Colotomic Structure
-Gamelan uses gongs of different sizes to mark time:
-- **Gong**: Largest, marks major cycles (every 8-16 beats)
-- **Kempur**: Medium, marks mid-cycles (every 4-8 beats)
-- **Kempli**: Small, steady time-keeper (every 1-2 beats)
+This creates `examples/per-note-derivation.html`
 
-#### 3. Polyrhythms
-Multiple simultaneous rhythmic cycles of different lengths:
-```crux
-// 3 against 4 polyrhythm
-melody_3 = [0, 5, 7] : 4    // Pattern of 3, repeated 4 times = 12 beats
-melody_4 = [0, 3, 5, 8] : 3  // Pattern of 4, repeated 3 times = 12 beats
+### 2. Open in Browser
+
+**On Linux:**
+```bash
+xdg-open examples/per-note-derivation.html
 ```
 
-#### 4. Scale
-Traditional pelog scale approximated as: `[0, 1, 3, 5, 7, 8, 10]`
+**Or manually:**
+- Navigate to `/home/user/crux/examples/`
+- Double-click `per-note-derivation.html`
+- Or drag the file into your browser
 
-#### 5. Gilak
-Fast, syncopated pattern using rests (`r`) and interlocking:
-```crux
-polos_gilak = [0, r, 5, r, 3, r, 5, r]
-sangsih_gilak = [r, 5, r, 8, r, 5, r, 7]
+### 3. What You Should See
+
+✅ **Version number** displayed in the header (format: `v1.0.0-alpha-[timestamp]`)
+✅ **Source code** at the top showing the Crux program
+✅ **Piano roll** showing all notes as colored bars
+✅ **Debug panel** at bottom showing "X notes loaded"
+
+### 4. How to Use
+
+1. **Click any note** in the piano roll
+2. **See the derivation DAG** appear below showing:
+   - 🟢 Green boxes = Source pips (from original motifs like A, B)
+   - 🟠 Orange boxes = Operators (*, .*, ^, etc.)
+   - 🔵 Blue boxes = Variable references
+   - 🟣 Purple boxes = Final note
+
+Arrows show how source pips combine through operators to create each final note.
+
+## Example Output
+
+```
+Program:
+// Source motifs
+A = [0, 2, 4]
+B = [1, 3]
+
+// Each final note derives from combinations of A and B
+result = A * B
+
+result
+
+Final composition has 6 notes
+
+Derivation examples:
+  Note 0 (step=1, time=1):
+    operator (mul)
+      ref → A
+        source-pip [0|1]
+      ref → B
+        source-pip [1|1]
 ```
 
-#### 6. Kebyar
-"To flare up" - explosive, dramatic opening style with sudden dynamic shifts.
+## Troubleshooting
 
-### Running the Examples
+### "Page is blank" or "Old version showing"
 
-Each section is separated by `!` and produces independent output. To run:
+1. **Check version number** in the header
+2. **Hard refresh** your browser:
+   - Chrome/Firefox: `Ctrl+Shift+R` (Linux) or `Cmd+Shift+R` (Mac)
+   - Or clear cache and reload
 
-```javascript
-import { parseAndEvaluate } from './dist/index.js';
+3. **Regenerate the HTML**:
+   ```bash
+   rm examples/per-note-derivation.html
+   node examples/per-note-demo.js
+   ```
 
-const code = fs.readFileSync('examples/balinese-gamelan.crux', 'utf8');
-const result = parseAndEvaluate(code);
+### "Debug panel says NO DATA"
 
-// result is an array of outputs, one per section
-result.forEach((section, i) => {
-  console.log(`Section ${i + 1}:`, section.map(pip => pip.toString()));
-});
-```
+- The derivation data didn't load properly
+- Check browser console (F12) for JavaScript errors
+- Regenerate the HTML file
 
-### Musical Notes
+### "Graph doesn't appear when clicking notes"
 
-- Time scales use `|*n` (multiply) or `|/n` (divide) notation
-- The `z` operator zips columns (round-robin interleaving)
-- The `.` operator does element-wise (cog) operations
-- The `*` operator does fan/cartesian operations
-- Rests are indicated with `r`
+1. Open browser console (F12)
+2. Click a note
+3. Look for console messages showing which note was clicked
+4. Report any error messages
 
-### Further Exploration
+## Technical Details
 
-Try modifying:
-- Scale degrees to explore different pelog or slendro tunings
-- Time scales to speed up or slow down patterns
-- Interlocking patterns to create new kotekan
-- Polyrhythmic ratios (try 5:7, 4:9, etc.)
+This visualization uses:
+- **AST-based analysis** (no core library modifications)
+- **DerivationGraphBuilder** to trace each note back through the expression tree
+- **SVG rendering** in the browser for the DAG
+- **Piano roll layout** for note display
+
+See `/home/user/crux/docs/VISUALIZATION.md` for complete documentation.

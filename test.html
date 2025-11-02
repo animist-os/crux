@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crux Test Page</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #4a9eff;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        textarea {
+            width: 100%;
+            height: 400px;
+            padding: 10px;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #3a8eef;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        #output {
+            padding: 15px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            min-height: 400px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #51cf66;
+        }
+        .info {
+            color: #74c0fc;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #2a3a4a;
+            border-radius: 4px;
+        }
+        .example {
+            margin-top: 10px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-left: 3px solid #4a9eff;
+            cursor: pointer;
+        }
+        .example:hover {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Crux + Strudel Test Page</h1>
+    <div class="info">
+        <strong>Status:</strong> <span id="status">Loading libraries...</span>
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <label>
+            <input type="radio" name="mode" value="crux" checked onchange="switchMode()">
+            Crux Only
+        </label>
+        <label style="margin-left: 20px;">
+            <input type="radio" name="mode" value="strudel" onchange="switchMode()">
+            Strudel with Crux
+        </label>
+    </div>
+    
+    <div class="container">
+        <div>
+            <h2 id="inputLabel">Input (Crux Code)</h2>
+            <textarea id="input" placeholder="Enter Crux code here...">[0, 2, 4]</textarea>
+            <button id="runBtn" onclick="runCode()">Run</button>
+            <button id="stopBtn" onclick="stopAudio()" style="margin-left: 10px; background: #ff6b6b;">Stop</button>
+            <div id="examples"></div>
+        </div>
+        <div>
+            <h2>Output</h2>
+            <div id="output">Results will appear here...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        let strudelLoaded = false;
+        let cruxToStrudelFn = null;
+        
+        // Load ohm-js first
+        async function loadLibraries() {
+            const statusEl = document.getElementById('status');
+            const runBtn = document.getElementById('runBtn');
+            
+            try {
+                statusEl.textContent = 'Loading ohm-js...';
+                // Load ohm-js from CDN
+                await import('https://cdn.jsdelivr.net/npm/ohm-js@17/dist/ohm.min.js');
+                
+                statusEl.textContent = 'Loading Crux...';
+                // Load crux.cjs
+                await import('./dist/crux.cjs');
+                
+                statusEl.textContent = 'Loading integration...';
+                // Load integration
+                const integration = await import('./strudel-integration.js');
+                cruxToStrudelFn = integration.cruxToStrudel || window.cruxStrudel?.cruxToStrudel;
+                
+                // Check if golden is available
+                const goldenObj = typeof golden !== 'undefined' ? golden : globalThis.golden;
+                if (!goldenObj) {
+                    throw new Error('golden object not found after loading');
+                }
+                
+                statusEl.textContent = 'Loading Strudel...';
+                // Load Strudel from CDN using script tag (as per Strudel docs)
+                try {
+                    // Load Strudel web package as a script tag
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://unpkg.com/@strudel/web@latest';
+                        script.onload = () => {
+                            // Initialize Strudel after loading
+                            if (typeof initStrudel === 'function') {
+                                initStrudel();
+                                strudelLoaded = true;
+                                
+                                // Register crux hook with Strudel
+                                if (typeof register === 'function') {
+                                    register({
+                                        crux: (code, options = {}) => {
+                                            const result = goldenObj.crux_interp(code);
+                                            return cruxToStrudelFn ? cruxToStrudelFn(result, options) : result.toString();
+                                        }
+                                    });
+                                }
+                                
+                                statusEl.innerHTML = '<span class="success">✅ Ready! All libraries loaded successfully.</span>';
+                                resolve();
+                            } else {
+                                reject(new Error('initStrudel not found after loading'));
+                            }
+                        };
+                        script.onerror = (err) => {
+                            reject(new Error('Failed to load Strudel script'));
+                        };
+                        document.head.appendChild(script);
+                    });
+                } catch (strudelError) {
+                    console.warn('Strudel loading failed, continuing with Crux only:', strudelError);
+                    statusEl.innerHTML = '<span class="success">✅ Crux loaded. Strudel not available (Crux-only mode).</span>';
+                }
+                
+                runBtn.disabled = false;
+                
+                // Set up examples
+                setupExamples();
+            } catch (error) {
+                statusEl.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+                console.error('Loading error:', error);
+            }
+        }
+        
+        function setupExamples() {
+            const cruxExamples = [
+                { code: '[0, 2, 4]', desc: 'Simple ascending pattern' },
+                { code: '[0, 3] -> [4]', desc: 'Steps operator' },
+                { code: '[0, r, 2, r]', desc: 'Pattern with rests' },
+                { code: '[0, 2, 4] * [0, 1]', desc: 'Multiplication' },
+                { code: '[0, 1, 2], [3, 4, 5]', desc: 'Concatenation' },
+                { code: '[0, 2, 4] : 3', desc: 'Repeat 3 times' },
+            ];
+            
+            const strudelExamples = [
+                { code: 'note(crux("[0, 2, 4]")).s("piano").play()', desc: 'Crux pattern with piano (playing)' },
+                { code: 'note(crux("[0, 3] -> [4]")).s("sawtooth").play()', desc: 'Crux steps with sawtooth' },
+                { code: 'note(crux("[0, r, 2, r]")).s("piano").play()', desc: 'Crux with rests' },
+                { code: 'note(crux("[0, 2, 4] * [0, 1]")).slow(2).s("piano").play()', desc: 'Crux pattern slowed down' },
+                { code: 'note(crux("[0, 2, 4]", { rootNote: 48 })).s("piano").play()', desc: 'Custom root note' },
+            ];
+            
+            const examplesDiv = document.getElementById('examples');
+            examplesDiv.innerHTML = '<h3>Examples (click to load):</h3>';
+            
+            const examples = document.querySelector('input[name="mode"]:checked').value === 'strudel' ? strudelExamples : cruxExamples;
+            
+            examples.forEach(ex => {
+                const div = document.createElement('div');
+                div.className = 'example';
+                div.innerHTML = `<strong>${ex.desc}</strong><br><code>${ex.code}</code>`;
+                div.onclick = () => {
+                    document.getElementById('input').value = ex.code;
+                    runCode();
+                };
+                examplesDiv.appendChild(div);
+            });
+        }
+        
+        window.switchMode = function() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            const inputLabel = document.getElementById('inputLabel');
+            const input = document.getElementById('input');
+            
+            if (mode === 'strudel') {
+                inputLabel.textContent = 'Input (Strudel Code with Crux)';
+                input.placeholder = 'Enter Strudel code with crux() calls here...';
+                if (!input.value.includes('crux(')) {
+                    input.value = 'crux("[0, 2, 4]").s("piano")';
+                }
+            } else {
+                inputLabel.textContent = 'Input (Crux Code)';
+                input.placeholder = 'Enter Crux code here...';
+                if (input.value.includes('crux(')) {
+                    input.value = '[0, 2, 4]';
+                }
+            }
+            
+            setupExamples();
+        };
+        
+        // Make runCode available globally
+        window.runCode = async function() {
+            const input = document.getElementById('input').value;
+            const output = document.getElementById('output');
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            
+            if (!input.trim()) {
+                output.innerHTML = '<span class="error">Please enter some code.</span>';
+                return;
+            }
+            
+            const goldenObj = typeof golden !== 'undefined' ? golden : globalThis.golden;
+            
+            if (!goldenObj) {
+                output.innerHTML = '<span class="error">Crux library not loaded. Please refresh the page.</span>';
+                return;
+            }
+            
+            // Resume audio context on user interaction (required by browsers)
+            if (strudelLoaded) {
+                try {
+                    // Try to resume audio context if Strudel provides it
+                    if (typeof getAudioContext === 'function') {
+                        const ctx = getAudioContext();
+                        if (ctx && ctx.state === 'suspended') {
+                            await ctx.resume();
+                            console.log('Audio context resumed');
+                        }
+                    }
+                    // Also try Strudel's resume function if available
+                    if (typeof resume === 'function') {
+                        await resume();
+                    }
+                } catch (audioError) {
+                    console.warn('Audio context resume failed:', audioError);
+                }
+            }
+            
+            try {
+                output.innerHTML = '<span class="info">Evaluating...</span>';
+                
+                // Auto-detect Strudel mode if code contains crux() calls
+                const inputCode = input.trim();
+                const hasCruxCall = /crux\(/.test(inputCode);
+                const effectiveMode = mode === 'strudel' || hasCruxCall ? 'strudel' : 'crux';
+                
+                // Debug: log the mode
+                console.log('Mode:', mode, 'Effective mode:', effectiveMode, 'Has crux call:', hasCruxCall);
+                
+                if (effectiveMode === 'strudel') {
+                    // Strudel mode - transpile Strudel code
+                    try {
+                        const code = inputCode;
+                        
+                        // Replace crux() calls with their evaluated patterns
+                        const processedCode = code.replace(/crux\(["']([^"']+)["'](?:,\s*({[^}]+}))?\)/g, (match, cruxCode, optionsStr) => {
+                            try {
+                                const result = goldenObj.crux_interp(cruxCode);
+                                const options = optionsStr ? eval(`(${optionsStr})`) : {};
+                                const pattern = cruxToStrudelFn ? cruxToStrudelFn(result, options) : result.toString();
+                                return `"${pattern}"`; // Return as string pattern
+                            } catch (e) {
+                                console.error('Error processing crux call:', e);
+                                return match; // Return original if error
+                            }
+                        });
+                        
+                        let html = '<div class="success">✅ Strudel Code Processed</div><br>';
+                        html += '<strong>Original Code:</strong><br>';
+                        html += `<code style="color: #888;">${code}</code><br><br>`;
+                        
+                        html += '<strong>Transpiled Code:</strong><br>';
+                        html += `<code style="color: #51cf66;">${processedCode}</code><br><br>`;
+                        
+                        // Show extracted Crux patterns
+                        const cruxMatches = code.matchAll(/crux\(["']([^"']+)["'](?:,\s*({[^}]+}))?\)/g);
+                        const cruxPatterns = Array.from(cruxMatches);
+                        if (cruxPatterns.length > 0) {
+                            html += '<strong>Extracted Crux Patterns:</strong><br>';
+                            cruxPatterns.forEach((match, i) => {
+                                try {
+                                    const cruxCode = match[1];
+                                    const optionsStr = match[2];
+                                    const result = goldenObj.crux_interp(cruxCode);
+                                    const options = optionsStr ? eval(`(${optionsStr})`) : {};
+                                    const strudelPattern = cruxToStrudelFn ? cruxToStrudelFn(result, options) : result.toString();
+                                    html += `<div style="margin: 5px 0;">`;
+                                    html += `<code style="color: #74c0fc;">crux("${cruxCode}")</code> → <code style="color: #51cf66;">"${strudelPattern}"</code>`;
+                                    html += `</div>`;
+                                } catch (e) {
+                                    html += `<div style="color: #ff6b6b;">Error processing: ${match[0]}</div>`;
+                                }
+                            });
+                            html += '<br>';
+                        }
+                        
+                        // Try to evaluate with Strudel if available
+                        if (strudelLoaded && (typeof register === 'function' || typeof note === 'function')) {
+                            html += '<strong>Strudel Status:</strong><br>';
+                            html += '<span style="color: #51cf66;">✅ Strudel library loaded</span><br><br>';
+                            
+                            // Try to actually evaluate and play the code
+                            try {
+                                html += '<strong>Evaluation:</strong><br>';
+                                
+                                // Use eval to execute the transpiled Strudel code
+                                // Note: The pattern needs .play() to actually start playing
+                                const evalResult = eval(processedCode);
+                                
+                                // If result is a pattern and doesn't have .play() called, try to play it
+                                if (evalResult && typeof evalResult.play === 'function') {
+                                    evalResult.play();
+                                    html += `<span style="color: #51cf66;">✅ Pattern playing!</span><br>`;
+                                } else if (processedCode.includes('.play()')) {
+                                    // If .play() was in the code, it should have started
+                                    html += `<span style="color: #51cf66;">✅ Pattern should be playing!</span><br>`;
+                                    html += `<span style="color: #888;">If you don't hear anything, check browser console for audio errors.</span>`;
+                                } else {
+                                    html += `<span style="color: #51cf66;">✅ Code executed successfully</span><br>`;
+                                    html += `<span style="color: #888;">Result: ${evalResult}</span><br>`;
+                                    html += `<span style="color: #ffaa00;">⚠️ Note: Pattern needs .play() to start audio. Add .play() at the end of your code.</span>`;
+                                }
+                            } catch (evalError) {
+                                html += `<span style="color: #ffaa00;">⚠️ Evaluation error: ${evalError.message}</span><br>`;
+                                html += `<pre style="color: #888; font-size: 12px;">${evalError.stack}</pre>`;
+                                html += `<span style="color: #888;">You can still copy the transpiled code to use in Strudel.</span>`;
+                            }
+                        } else {
+                            html += '<strong>Strudel Status:</strong><br>';
+                            html += '<span style="color: #ffaa00;">⚠️ Strudel not loaded - showing transpiled code only</span><br><br>';
+                            html += '<strong>How to use:</strong><br>';
+                            html += '<div style="background: #2a3a4a; padding: 10px; border-radius: 4px; margin-top: 10px;">';
+                            html += '<p style="margin: 5px 0;">Copy the transpiled code above and paste it into <a href="https://nudel.cc" target="_blank" style="color: #4a9eff;">nudel.cc</a> or your Strudel environment:</p>';
+                            html += `<code style="display: block; padding: 10px; background: #1a1a1a; margin: 10px 0; border-radius: 4px; color: #51cf66;">${processedCode}</code>`;
+                            html += '<p style="margin: 5px 0; color: #888;">In Strudel, you can also use the original code with the crux() hook registered.</p>';
+                            html += '</div>';
+                        }
+                        
+                        output.innerHTML = html;
+                    } catch (error) {
+                        output.innerHTML = `<span class="error">❌ Strudel Transpilation Error: ${error.message}</span><br><br>`;
+                        output.innerHTML += `<pre style="color: #ff6b6b;">${error.stack || error.toString()}</pre>`;
+                    }
+                } else {
+                    // Crux-only mode
+                    const result = goldenObj.crux_interp(inputCode);
+                    
+                    // Format output
+                    let html = '<div class="success">✅ Success!</div><br>';
+                    html += '<strong>Result:</strong><br>';
+                    
+                    // Show sections
+                    if (result.sections && result.sections.length > 0) {
+                        result.sections.forEach((section, i) => {
+                            html += `<div style="margin-top: 10px;"><strong>Section ${i + 1}:</strong><br>`;
+                            if (section.values && section.values.length > 0) {
+                                html += '<code>';
+                                html += section.values.map(pip => {
+                                    if (pip.tag === 'r' || pip.hasTag('r')) {
+                                        return `r`;
+                                    }
+                                    return `${pip.step}${pip.timeScale !== 1 ? `|${pip.timeScale}` : ''}`;
+                                }).join(' ');
+                                html += '</code>';
+                                
+                                // Also show as string
+                                html += `<br><span style="color: #888;">As string: ${section.toString()}</span>`;
+                            } else {
+                                html += '<span style="color: #888;">(empty)</span>';
+                            }
+                            html += '</div>';
+                        });
+                    }
+                    
+                    // Show Strudel conversion if available
+                    if (cruxToStrudelFn) {
+                        try {
+                            const strudelPattern = cruxToStrudelFn(result, { rootNote: 60 });
+                            html += `<br><div style="margin-top: 15px;"><strong>Strudel Pattern:</strong><br>`;
+                            html += `<code style="color: #51cf66;">${strudelPattern}</code></div>`;
+                        } catch (e) {
+                            html += `<br><span class="error">Strudel conversion error: ${e.message}</span>`;
+                        }
+                    }
+                    
+                    // Show program info
+                    if (result.pip_count !== undefined) {
+                        html += `<br><div style="margin-top: 15px;"><strong>Program Info:</strong><br>`;
+                        html += `Pips: ${result.pip_count}, Depth: ${result.pip_depth}, Duration: ${result.quanta_count}</div>`;
+                    }
+                    
+                    output.innerHTML = html;
+                }
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error: ${error.message}</span><br><br>`;
+                output.innerHTML += `<pre style="color: #ff6b6b;">${error.stack || error.toString()}</pre>`;
+            }
+        };
+        
+        // Stop audio function
+        window.stopAudio = function() {
+            try {
+                if (typeof hush === 'function') {
+                    hush();
+                    document.getElementById('output').innerHTML += '<br><span style="color: #ffaa00;">🔇 Audio stopped</span>';
+                } else {
+                    console.log('hush() function not available');
+                }
+            } catch (error) {
+                console.error('Error stopping audio:', error);
+            }
+        };
+        
+        // Initialize
+        document.getElementById('runBtn').disabled = true;
+        loadLibraries();
+        
+        // Allow Enter+Ctrl/Cmd to run
+        document.getElementById('input').addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                runCode();
+            }
+        });
+    </script>
+</body>
+</html>
+

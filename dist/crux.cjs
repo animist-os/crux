@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-10-18T20:54:25.964Z
+// Generated: 2025-11-01T22:54:41.828Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -181,6 +181,28 @@ const g = ohm.grammar(String.raw`
 
     RandNum
       = Curly
+      | ParenArithExpr
+      | MemberAccess
+      | number
+
+    // Parenthesized arithmetic expressions for use in numeric contexts
+    // Require parens to avoid ambiguity with other uses of operators
+    ParenArithExpr
+      = "(" hspaces? ArithExpr hspaces? ")"
+
+    ArithExpr
+      = ArithExpr hspaces? "+" hspaces? ArithMulExpr  -- add
+      | ArithExpr hspaces? "-" hspaces? ArithMulExpr  -- sub
+      | ArithMulExpr
+
+    ArithMulExpr
+      = ArithMulExpr hspaces? "*" hspaces? ArithPrimary  -- mul
+      | ArithMulExpr hspaces? "/" hspaces? ArithPrimary  -- div
+      | ArithPrimary
+
+    ArithPrimary
+      = "(" hspaces? ArithExpr hspaces? ")"  -- parens
+      | MemberAccess
       | number
 
   // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)
@@ -194,7 +216,11 @@ const g = ohm.grammar(String.raw`
       = Range  -- range
       | number "/" number  -- frac
       | number  -- num
+      | MemberAccess  -- member
       | ident   -- ref
+
+    MemberAccess
+      = ident "." ident  -- prop
 
     Seed = "@" SeedChars
     SeedChars = seedChar+
@@ -248,13 +274,8 @@ const g = ohm.grammar(String.raw`
 
 // === Main Implementation ===
 // this just makes the code portable to golden
-const golden = {};
+const golden = globalThis.golden || {};
 globalThis.golden = golden;
-
-
-
-
-
 
 
 golden._crux_uuid_cnt = 1;
@@ -264,6 +285,14 @@ golden.getCruxUUID = function() {
 
 
 // Grammar is now imported from grammar.js
+
+// Helper to wrap primitive values for arithmetic expressions
+function wrapArithNode(node) {
+  if (typeof node === 'number') {
+    return new ArithNumber(node);
+  }
+  return node;
+}
 
 const s = g.createSemantics().addOperation('parse', {
   Prog(_leadingNls, sections, _trailingNls) {
@@ -606,12 +635,14 @@ const s = g.createSemantics().addOperation('parse', {
     }
     const allNumLits = items.every(x => x && typeof x === 'object' && x.__kind === 'numLit');
     const allRefs = items.every(x => x instanceof Ref);
+    const allMemberAccess = items.every(x => x instanceof MemberAccess);
     if (allNumLits) {
       const positions = items.map(x => x.pos);
       const options = items.map(x => x.value);
       return new RandomChoice(options, positions);
     }
     if (allRefs) return new RandomRefChoice(items);
+    if (allMemberAccess) return new RandomMemberChoice(items);
     // Backward-compat: plain numbers (without position data)
     const allNums = items.every(x => typeof x === 'number');
     if (allNums) return new RandomChoice(items);
@@ -639,6 +670,39 @@ const s = g.createSemantics().addOperation('parse', {
     return new Ref(name.sourceString);
   },
 
+  CurlyEntry_member(ma) {
+    return ma.parse();
+  },
+
+  MemberAccess_prop(obj, _dot, prop) {
+    return new MemberAccess(obj.sourceString, prop.sourceString);
+  },
+
+  // Parenthesized arithmetic expression
+  ParenArithExpr(_openParen, _h1, expr, _h2, _closeParen) {
+    return expr.parse();
+  },
+
+  // Arithmetic operations
+  ArithExpr_add(left, _h1, _plus, _h2, right) {
+    return new ArithAdd(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+
+  ArithExpr_sub(left, _h1, _minus, _h2, right) {
+    return new ArithSub(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+
+  ArithMulExpr_mul(left, _h1, _star, _h2, right) {
+    return new ArithMul(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+
+  ArithMulExpr_div(left, _h1, _slash, _h2, right) {
+    return new ArithDiv(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+
+  ArithPrimary_parens(_openParen, _h1, expr, _h2, _closeParen) {
+    return expr.parse();
+  },
 
   Range_inclusive(start, _dots, end) {
     // Record source positions for the range endpoints so tools can locate them in source
@@ -831,9 +895,11 @@ const s = g.createSemantics().addOperation('parse', {
   TimeScale_frac(n, _slash, d) {
     const num = n.parse();
     const den = d.parse();
-    // If either is a RandNum, return a special object for later resolution
-    if (num instanceof RandomRange || num instanceof RandomChoice ||
-        den instanceof RandomRange || den instanceof RandomChoice) {
+    // If either is a RandNum, MemberAccess, or ArithExpr, return a special object for later resolution
+    if (num instanceof RandomRange || num instanceof RandomChoice || num instanceof MemberAccess ||
+        num instanceof ArithAdd || num instanceof ArithSub || num instanceof ArithMul || num instanceof ArithDiv ||
+        den instanceof RandomRange || den instanceof RandomChoice || den instanceof MemberAccess ||
+        den instanceof ArithAdd || den instanceof ArithSub || den instanceof ArithMul || den instanceof ArithDiv) {
       return { _frac: true, num: num, den: den };
     }
     return num / den;
@@ -1219,7 +1285,7 @@ class Prog {
       sections,
       pip_count,
       pip_depth,
-      duration
+      quanta_count:duration
     };
   }
 }
@@ -1334,7 +1400,7 @@ class RepeatByCount {
     // Evaluate left to get its Mot (for RNG continuity)
     const leftMot = requireMot(this.expr.eval(env));
     const rng = leftMot._rng || Math.random;
-    const count = resolveRandNumToNumber(this.randSpec, rng);
+    const count = resolveRandNumToNumber(this.randSpec, rng, env);
     const zeroMot = new Mot(Array(count).fill(new Pip(0, 1)));
     // Multiply the realized leftMot by zeroMot
     return new Mul(new Mot(leftMot.values, leftMot.rng_seed), zeroMot).eval(env);
@@ -2301,6 +2367,84 @@ class Ref {
   }
 }
 
+class MemberAccess {
+  constructor(objName, propName) {
+    this.objName = objName;
+    this.propName = propName;
+  }
+
+  eval(env) {
+    if (!env.has(this.objName)) {
+      throw new Error('undeclared identifier: ' + this.objName);
+    }
+    const obj = env.get(this.objName);
+
+    // Handle .length property
+    if (this.propName === 'length') {
+      // If it's a Mot, return the number of pips after evaluation
+      if (obj instanceof Mot) {
+        const evaluated = obj.eval(env);
+        return evaluated.values.length;
+      }
+      throw new Error(`Property 'length' not supported on ${this.objName}`);
+    }
+
+    throw new Error(`Unknown property: ${this.propName}`);
+  }
+}
+
+// Arithmetic expression nodes
+class ArithAdd {
+  constructor(left, right) {
+    this.left = left;
+    this.right = right;
+  }
+  eval(env) {
+    return this.left.eval(env) + this.right.eval(env);
+  }
+}
+
+class ArithSub {
+  constructor(left, right) {
+    this.left = left;
+    this.right = right;
+  }
+  eval(env) {
+    return this.left.eval(env) - this.right.eval(env);
+  }
+}
+
+class ArithMul {
+  constructor(left, right) {
+    this.left = left;
+    this.right = right;
+  }
+  eval(env) {
+    return this.left.eval(env) * this.right.eval(env);
+  }
+}
+
+class ArithDiv {
+  constructor(left, right) {
+    this.left = left;
+    this.right = right;
+  }
+  eval(env) {
+    const denominator = this.right.eval(env);
+    if (denominator === 0) throw new Error('Division by zero');
+    return this.left.eval(env) / denominator;
+  }
+}
+
+class ArithNumber {
+  constructor(value) {
+    this.value = value;
+  }
+  eval(env) {
+    return this.value;
+  }
+}
+
 class Range {
   constructor(start, end, startPos = null, endPos = null) {
     this.start = start;
@@ -2311,10 +2455,10 @@ class Range {
   }
 
   // expands to a sequence of integer steps inclusive
-  expandToPips(rng = Math.random) {
+  expandToPips(rng = Math.random, env = null) {
     const result = [];
-    const start = resolveRandNumToNumber(this.start, rng);
-    const end = resolveRandNumToNumber(this.end, rng);
+    const start = resolveRandNumToNumber(this.start, rng, env);
+    const end = resolveRandNumToNumber(this.end, rng, env);
     const step = start <= end ? 1 : -1;
     // Use startPos for all pips in the range (they're generated from this source location)
     const pos = this.startPos;
@@ -2350,6 +2494,15 @@ class RandomChoice {
 class RandomRefChoice {
   constructor(refs) {
     this.refs = refs; // array of Ref
+    this.seed = null;
+  }
+}
+
+// Random choice among member access expressions (e.g., {p.length, q.length})
+// At evaluation, pick one member access uniformly and evaluate it to get a number.
+class RandomMemberChoice {
+  constructor(members) {
+    this.members = members; // array of MemberAccess
     this.seed = null;
   }
 }
@@ -2420,8 +2573,18 @@ class RepeatPip {
   }
 }
 
-function resolveRandNumToNumber(value, rng) {
+function resolveRandNumToNumber(value, rng, env = null) {
   if (typeof value === 'number') return value;
+  if (value instanceof MemberAccess) {
+    if (!env) throw new Error('Environment required to evaluate member access');
+    return value.eval(env);
+  }
+  // Handle arithmetic expression nodes
+  if (value instanceof ArithAdd || value instanceof ArithSub ||
+      value instanceof ArithMul || value instanceof ArithDiv) {
+    if (!env) throw new Error('Environment required to evaluate arithmetic expression');
+    return value.eval(env);
+  }
   if (value instanceof RandomRange) {
     const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
     if (value.seed != null) {
@@ -2439,6 +2602,16 @@ function resolveRandNumToNumber(value, rng) {
     }
     const idx = Math.floor(localRng() * value.options.length);
     return value.options[idx];
+  }
+  if (value instanceof RandomMemberChoice) {
+    if (!env) throw new Error('Environment required to evaluate member choice');
+    if (value.members.length === 0) throw new Error('empty member choice');
+    const localRng = value.seed != null ? createSeededRng(value.seed) : rng;
+    if (value.seed != null) {
+      warmUpRng(localRng, computeWarmupStepsForRandNum(value));
+    }
+    const idx = Math.floor(localRng() * value.members.length);
+    return value.members[idx].eval(env);
   }
   throw new Error('Unsupported RandNum');
 }
@@ -2590,14 +2763,18 @@ class Mot {
         }
         // Resolve random timeScale if present
         let ts = value.timeScale;
-        if (ts instanceof RandomRange || ts instanceof RandomChoice) {
-          ts = resolveRandNumToNumber(ts, rng);
+        const isRandNum = ts instanceof RandomRange || ts instanceof RandomChoice || ts instanceof MemberAccess ||
+                          ts instanceof ArithAdd || ts instanceof ArithSub || ts instanceof ArithMul || ts instanceof ArithDiv;
+        if (isRandNum) {
+          ts = resolveRandNumToNumber(ts, rng, env);
         } else if (ts && typeof ts === 'object' && ts._frac) {
           // Handle fractional timeScales with random components
-          const num = ts.num instanceof RandomRange || ts.num instanceof RandomChoice
-            ? resolveRandNumToNumber(ts.num, rng) : ts.num;
-          const den = ts.den instanceof RandomRange || ts.den instanceof RandomChoice
-            ? resolveRandNumToNumber(ts.den, rng) : ts.den;
+          const numIsRandNum = ts.num instanceof RandomRange || ts.num instanceof RandomChoice || ts.num instanceof MemberAccess ||
+                               ts.num instanceof ArithAdd || ts.num instanceof ArithSub || ts.num instanceof ArithMul || ts.num instanceof ArithDiv;
+          const denIsRandNum = ts.den instanceof RandomRange || ts.den instanceof RandomChoice || ts.den instanceof MemberAccess ||
+                               ts.den instanceof ArithAdd || ts.den instanceof ArithSub || ts.den instanceof ArithMul || ts.den instanceof ArithDiv;
+          const num = numIsRandNum ? resolveRandNumToNumber(ts.num, rng, env) : ts.num;
+          const den = denIsRandNum ? resolveRandNumToNumber(ts.den, rng, env) : ts.den;
           ts = num / den;
         }
         if (ts !== value.timeScale) {
@@ -2607,7 +2784,7 @@ class Mot {
           resolved.push(value);
         }
       } else if (value instanceof Range) {
-        const pips = value.expandToPips(rng);
+        const pips = value.expandToPips(rng, env);
         for (const p of pips) { resolved.push(p); }
       } else if (value instanceof PadValue) {
         // In fan contexts, ignore padding semantics by resolving the inner value as-is
@@ -2617,7 +2794,7 @@ class Mot {
       } else if (value instanceof RepeatPip) {
         // Pip-level repetition: expand the value N times
         const countRaw = value.count;
-        const count = Math.max(0, Math.trunc(resolveRandNumToNumber(countRaw, rng)));
+        const count = Math.max(0, Math.trunc(resolveRandNumToNumber(countRaw, rng, env)));
         for (let i = 0; i < count; i++) {
           // Evaluate the inner value and clone results
           const innerMot = new Mot([value.value]).eval(env);
@@ -2627,17 +2804,18 @@ class Mot {
         }
       } else if (value instanceof RandomPip) {
         // Resolve the step from the contained randnum using its seed if present
-        const step = resolveRandNumToNumber(value.randnum, rng);
+        const step = resolveRandNumToNumber(value.randnum, rng, env);
         let ts = 1;
         const spec = value.timeScale;
         if (typeof spec === 'number') {
           ts = spec;
-        } else if (spec instanceof RandomRange || spec instanceof RandomChoice) {
-          // Direct RandomRange/RandomChoice as timescale
-          ts = resolveRandNumToNumber(spec, rng);
+        } else if (spec instanceof RandomRange || spec instanceof RandomChoice || spec instanceof MemberAccess ||
+                   spec instanceof ArithAdd || spec instanceof ArithSub || spec instanceof ArithMul || spec instanceof ArithDiv) {
+          // Direct RandomRange/RandomChoice/MemberAccess/ArithExpr as timescale
+          ts = resolveRandNumToNumber(spec, rng, env);
         } else if (spec && typeof spec === 'object') {
           const rhsRaw = spec.rhs;
-          const rhsVal = typeof rhsRaw === 'number' ? rhsRaw : resolveRandNumToNumber(rhsRaw, rng);
+          const rhsVal = typeof rhsRaw === 'number' ? rhsRaw : resolveRandNumToNumber(rhsRaw, rng, env);
           if (spec.kind === 'mul') ts = rhsVal;
           else if (spec.kind === 'div') ts = 1 / rhsVal;
           else ts = 1;
@@ -2678,21 +2856,21 @@ class Mot {
         for (const p of mv.values) { resolved.push(p); }
       } else if (value instanceof RangePipe) {
         // Expand range and apply scaling per element
-        const expanded = value.range.expandToPips(rng);
+        const expanded = value.range.expandToPips(rng, env);
         if (value.op.kind === 'mul') {
           for (const p of expanded) { const np = new Pip(p.step, p.timeScale * value.op.factor); resolved.push(np); }
         } else {
           // div by number or RandNum
-          const denom = typeof value.op.rhs === 'number' ? value.op.rhs : resolveRandNumToNumber(value.op.rhs, rng);
+          const denom = typeof value.op.rhs === 'number' ? value.op.rhs : resolveRandNumToNumber(value.op.rhs, rng, env);
           for (const p of expanded) { const np = new Pip(p.step, p.timeScale * (1 / denom)); resolved.push(np); }
         }
       } else if (value instanceof RandomRange) {
-        const num = resolveRandNumToNumber(value, rng);
+        const num = resolveRandNumToNumber(value, rng, env);
         const pos = value.startPos;
         const np = new Pip(num, 1, null, pos);
         resolved.push(np);
       } else if (value instanceof RandomChoice) {
-        const num = resolveRandNumToNumber(value, rng);
+        const num = resolveRandNumToNumber(value, rng, env);
         // Use position of first option as representative position
         const pos = (value.positions && value.positions.length > 0) ? value.positions[0] : null;
         const np = new Pip(num, 1, null, pos);
@@ -3085,7 +3263,7 @@ golden.CruxProgramInfo = function(code) {
     }
   }
 
-  return { pip_count, pip_depth, duration };
+  return { pip_count, pip_depth, quanta_count:duration };
 }
 
 // Find all source indices where a timescale literal appears in the source program.

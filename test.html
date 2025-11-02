@@ -213,11 +213,11 @@
             ];
             
             const strudelExamples = [
-                { code: 'note(crux("[0, 2, 4]")).s("piano").play()', desc: 'Crux pattern with piano (playing)' },
-                { code: 'note(crux("[0, 3] -> [4]")).s("sawtooth").play()', desc: 'Crux steps with sawtooth' },
-                { code: 'note(crux("[0, r, 2, r]")).s("piano").play()', desc: 'Crux with rests' },
-                { code: 'note(crux("[0, 2, 4] * [0, 1]")).slow(2).s("piano").play()', desc: 'Crux pattern slowed down' },
-                { code: 'note(crux("[0, 2, 4]", { rootNote: 48 })).s("piano").play()', desc: 'Custom root note' },
+                { code: 'note(crux("[0, 2, 4]")).s("sawtooth")', desc: 'Crux pattern with sawtooth (playing)' },
+                { code: 'note(crux("[0, 3] -> [4]")).s("sawtooth")', desc: 'Crux steps with sawtooth' },
+                { code: 'note(crux("[0, r, 2, r]")).s("sawtooth")', desc: 'Crux with rests' },
+                { code: 'note(crux("[0, 2, 4] * [0, 1]")).slow(2).s("sawtooth")', desc: 'Crux pattern slowed down' },
+                { code: 'note(crux("[0, 2, 4]", { rootNote: 48 })).s("sawtooth")', desc: 'Custom root note' },
             ];
             
             const examplesDiv = document.getElementById('examples');
@@ -246,7 +246,7 @@
                 inputLabel.textContent = 'Input (Strudel Code with Crux)';
                 input.placeholder = 'Enter Strudel code with crux() calls here...';
                 if (!input.value.includes('crux(')) {
-                    input.value = 'crux("[0, 2, 4]").s("piano")';
+                    input.value = 'note(crux("[0, 2, 4]")).s("sawtooth")';
                 }
             } else {
                 inputLabel.textContent = 'Input (Crux Code)';

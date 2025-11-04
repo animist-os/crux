@@ -132,6 +132,9 @@
         async function loadLibraries() {
             const statusEl = document.getElementById('status');
             const runBtn = document.getElementById('runBtn');
+
+            runBtn.disabled = false;
+            return; // HACK
             
             try {
                 statusEl.textContent = 'Loading ohm-js...';

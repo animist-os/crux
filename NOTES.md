@@ -101,7 +101,7 @@ SCHENKER OPS
 
   A 
   
-  ALT -- in the same way that "_" modifies individual pips, we could have schenker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
+  ALT -- in the same way that "…" modifies individual pips, we could have schenker ops that expand individual pips.    different because they expand them but better to think of them as sugar or compressed expression
 
   [0 ln, 1] === [0, -1, 0, 1]
 
@@ -250,13 +250,13 @@ TODOs:
     [A, B]
     [...A, ...B]
 
-    [0, 1, 2] x [_, 0] ===> [_, _, _, 0, 1, 2]
-    [_, 0] x [0, 1, 2] ===> [_, 0, _, 1, _, 2]
-    [_, 0, 0] x [0, 1, 2] ===> [_, 0, 0, _, 1, 1, _, 2, 2]
+    [0, 1, 2] x […, 0] ===> […, …, …, 0, 1, 2]
+    […, 0] x [0, 1, 2] ===> […, 0, …, 1, …, 2]
+    […, 0, 0] x [0, 1, 2] ===> […, 0, 0, …, 1, 1, …, 2, 2]
 
-    [0, 1, 2] . [_, 0, 0] ===> [_, 1, 2]
-    [0, 1, 2] . [0, _, 0] ===> [0, _, 2]
-    [0, 1, 2] . [0, _] ===> [0, _]
+    [0, 1, 2] . […, 0, 0] ===> […, 1, 2]
+    [0, 1, 2] . [0, …, 0] ===> [0, …, 2]
+    [0, 1, 2] . [0, …] ===> [0, …]
     [0, 1, 2, 3] . [0, 0, 0] => [0, 1, 2]
     [0, 1, 2, 3] . [-1, 1, 3] => [-1, 2, 5]
 
@@ -267,7 +267,7 @@ TODOs:
     shift right operator?
 
 
-    f([0, 1, 2]) ===> [_, 1, 2, 1, _, 2, 1, 2, _]
+    f([0, 1, 2]) ===> […, 1, 2, 1, …, 2, 1, 2, …]
 
     [0, 1, 2] x [X, 0] ===> [0, 1, 2]
 
@@ -278,7 +278,7 @@ TODOs:
     [0, 1, 2] * [X, 0, X, 1, X, 2] ===> [0, 1, 2, 1, 2, 3, 2, 3, 4]
 
 
-    [3, 4] > 1 === [_/8, 3, 4]
+    [3, 4] > 1 === […/8, 3, 4]
     [...xs[...n], ...xs[(n+5)...]
     [1, 2], ([3, 4] > 1)
 

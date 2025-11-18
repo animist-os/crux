@@ -104,10 +104,10 @@ export const g = ohm.grammar(String.raw`
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-      = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
-      | SliceIndex hspaces? "_"                       -- startOnly
-      | "_" hspaces? SliceIndex                       -- endOnly
-      | "_" SliceIndex                                -- endOnlyTight
+      = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
+      | SliceIndex hspaces? "…"                       -- startOnly
+      | "…" hspaces? SliceIndex                       -- endOnly
+      | "…" SliceIndex                                -- endOnlyTight
 
     // Slice indices can be plain numbers or random numbers (curly)
     SliceIndex
@@ -211,7 +211,7 @@ export const g = ohm.grammar(String.raw`
     MemberAccess
       = ident "." ident  -- prop
 
-    Seed = "@" SeedChars
+    Seed = "$" SeedChars
     SeedChars = seedChar+
     seedChar = letter | digit | "_"
 

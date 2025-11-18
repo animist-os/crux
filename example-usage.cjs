@@ -18,8 +18,8 @@ console.log('   Result:', ex2.toString());
 console.log('');
 
 // Example 3: Random with seed (reproducible)
-console.log('3️⃣  Random: [{1 ? 6}@cafe] :8');
-const ex3 = golden.crux_interp('[{1 ? 6}@cafe] :8');
+console.log('3️⃣  Random: [{1 ? 6}$cafe] :8');
+const ex3 = golden.crux_interp('[{1 ? 6}$cafe] :8');
 console.log('   Result:', ex3.toString());
 console.log('');
 

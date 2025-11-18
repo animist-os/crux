@@ -398,16 +398,16 @@ test('chained :N on simple Mot replicates then replicates again', () => {
 // delta form removed; mixed case adjusted accordingly (no semicolons)
 
 // Segment (slice/rotate) tests
-test('slice operator both: start _ end with negatives', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 _ -1'), '[2, 3]');
+test('slice operator both: start … end with negatives', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 … -1'), '[2, 3]');
 });
 
-test('slice operator startOnly: start _', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 _'), '[1, 2, 3, 4]');
+test('slice operator startOnly: start …', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 …'), '[1, 2, 3, 4]');
 });
 
-test('slice operator endOnly: _ end', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] _ 3'), '[0, 1, 2]');
+test('slice operator endOnly: … end', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] … 3'), '[0, 1, 2]');
 });
 
 test('slice end is randomly chosen from curly list', () => {
@@ -416,7 +416,7 @@ test('slice end is randomly chosen from curly list', () => {
   const validOutputs = ['[3, 4]', '[3, 4, 5, 6]'];
 
   for (let i = 0; i < 30; i++) {
-    const out = evalToString('[0 -> 8] 3 _ {5,7}');
+    const out = evalToString('[0 -> 8] 3 … {5,7}');
     assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
     results.add(out);
   }
@@ -836,14 +836,14 @@ test('findNumericValueIndicesAtDepth with subdivide operator (transparent)', () 
 });
 
 test('findAllTimescaleIndices multi-section program with comments and subdivisions', () => {
-  const source = `// @tonic 50
-// @scaleDeformation 1 0 0 0 0 0 1
-// @quanta 2n
-// @octave 1
-// @volume 4
-// @bpm 110
-// @preset ZT_Synth10
-// @filterVerb 0.6
+  const source = `// #tonic 50
+// #scaleDeformation 1 0 0 0 0 0 1
+// #quanta 2n
+// #octave 1
+// #volume 4
+// #bpm 110
+// #preset ZT_Synth10
+// #filterVerb 0.6
 A = [1,-3,0|2]
 B = A . [0,0,[0 | 3/2, 2|/2]/]
 A, B, A, B
@@ -870,14 +870,14 @@ A, B, A, B
 });
 
 test('findNumericValueIndicesAtDepth multi-section program with nested expressions', () => {
-  const source = `// @tonic 50
-// @scaleDeformation 1 0 0 0 0 0 1
-// @quanta 2n
-// @octave 1
-// @volume 4
-// @bpm 110
-// @preset ZT_Synth10
-// @filterVerb 0.6
+  const source = `// #tonic 50
+// #scaleDeformation 1 0 0 0 0 0 1
+// #quanta 2n
+// #octave 1
+// #volume 4
+// #bpm 110
+// #preset ZT_Synth10
+// #filterVerb 0.6
 A = [1->3, {2,4,6}]
 B = A . [{0,1},{2,3},[{5,7} | 3/2, 2|/2]/]
 A, B, A, B
@@ -906,11 +906,11 @@ A, B, A, B
 });
 
 test('findAllTimescaleIndices crash case with complex nested operators', () => {
-  const source = `// @pitchRegime MelodicMinor
-// @preset Mellotron_Flute
-// @reverb 0.5
-// @volume 0.5
-// @bpm 81
+  const source = `// #pitchRegime MelodicMinor
+// #preset Mellotron_Flute
+// #reverb 0.5
+// #volume 0.5
+// #bpm 81
 
 nug =  [1 | /2, -1 | /2, 0]
 nug2 = nug . [1,1,4]

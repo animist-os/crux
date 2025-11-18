@@ -67,7 +67,7 @@ Returns `[[0, 1, 2, 3]]`.
     - `[3->1] -> [3, 2, 1]`
   - **Curly**: `{a, b, c, ...}` picks one option at evaluation time. Example: `[{0, 1, 2}] -> [0]` or `[1]` or `[2]`.
   - **Random Range**: `{a -> b}` picks a random integer between a and b (inclusive). Example: `[{-2 -> 2}] -> [-2]` to `[2]`.
-  - **Seeded Random**: `{a -> b}@seed` provides deterministic randomness. Example: `[{1 -> 6}@c0de]`.
+  - **Seeded Random**: `{a -> b}$seed` provides deterministic randomness. Example: `[{1 -> 6}$c0de]`.
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
@@ -104,15 +104,15 @@ Operators are left-associative unless otherwise noted.
 
 **Postfix slice**: slicing applied to a mot result.
    - Forms:
-     - `start _ end` (spaces optional around `_`)
-     - `start _` (start to end)
-     - `_ end` (from start to end index)
+     - `start … end` (spaces optional around `…`)
+     - `start …` (start to end)
+     - `… end` (from start to end index)
    - Indices are numbers; negative indices count from end. End is exclusive.
    - Examples:
 ```text
-[0, 1, 2, 3, 4] -3 _ -1   -> [2, 3]
-[0, 1, 2, 3, 4] 1 _       -> [1, 2, 3, 4]
-[0, 1, 2, 3, 4] _ 3       -> [0, 1, 2]
+[0, 1, 2, 3, 4] -3 … -1   -> [2, 3]
+[0, 1, 2, 3, 4] 1 …       -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] … 3       -> [0, 1, 2]
 ```
 
 **Postfix subdivide** `/`: divides each pip's timescale by the mot length.
@@ -212,14 +212,14 @@ Operators are left-associative unless otherwise noted.
 ### Precedence summary
 
 From highest to lowest binding:
-1. Postfix operators: slice (`_`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
+1. Postfix operators: slice (`…`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
 2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment and section separators: `=`, `!`
 
 ### Identifiers
 
-- Names must start with a letter or `_`, followed by alphanumerics (`ident = (letter | "_") alnum*`).
+- Names must start with a letter or `…`, followed by alphanumerics (`ident = (letter | "_") alnum*`).
 - Referencing an unknown name is an error: “undeclared identifier: Name”.
 
 ### Errors and constraints
@@ -241,7 +241,7 @@ From highest to lowest binding:
 // Random choices (result varies)
 [{0, 1, 2}]                  -> one of [0], [1], [2]
 [{-2 -> 2}]                  -> random integer from -2 to 2
-[{1 -> 6}@c0de]              -> seeded random (deterministic)
+[{1 -> 6}$c0de]              -> seeded random (deterministic)
 
 // Concatenation (comma only)
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
@@ -260,8 +260,8 @@ From highest to lowest binding:
 A = [0, 1]\nA, [2]           -> [0, 1, 2]
 
 // Slicing and rotation
-[0, 1, 2, 3, 4] -3 _ -1      -> [2, 3]
-[0, 1, 2, 3, 4] 1 _          -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] -3 … -1      -> [2, 3]
+[0, 1, 2, 3, 4] 1 …          -> [1, 2, 3, 4]
 // Rotation is via ~ operator
 [0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
 [0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
@@ -365,10 +365,10 @@ Crux {
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-    = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
-    | SliceIndex hspaces? "_"                       -- startOnly
-    | "_" hspaces? SliceIndex                       -- endOnly
-    | "_" SliceIndex                                -- endOnlyTight
+    = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
+    | SliceIndex hspaces? "…"                       -- startOnly
+    | "…" hspaces? SliceIndex                       -- endOnly
+    | "…" SliceIndex                                -- endOnlyTight
 
   SliceIndex
     = RandNum  -- rand
@@ -444,7 +444,7 @@ Crux {
     | number         -- num
     | ident          -- ref
 
-  Seed = "@" SeedChars
+  Seed = "$" SeedChars
   SeedChars = seedChar+
   seedChar = letter | digit | "_"
 

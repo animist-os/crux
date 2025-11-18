@@ -181,7 +181,7 @@ npm run build:test # build and test
 
 ### Random Number Generation
 - Deterministic by default (seeded xorshift32)
-- Seeds can be specified with `@hhhh` syntax
+- Seeds can be specified with `$hhhh` syntax
 - Warmup phase for better randomness distribution
 - Falls back to `Math.random` when no seed provided
 

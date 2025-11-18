@@ -282,10 +282,10 @@ woven = (B, T, S, T, S, T) z
 woven . [0, 0, [0,-1,0], 0, 0, 0]
 
 
-// @preset Mellotron_Flute
-// @octave -2
-// @reverb 0.2
-// @bpm 120
+// #preset Mellotron_Flute
+// #octave -2
+// #reverb 0.2
+// #bpm 120
 
 !
 B * [15|4]`;

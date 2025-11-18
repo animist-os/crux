@@ -10,7 +10,7 @@
 - Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
 - Subdivide: `/` (postfix) — divide each pip's timeScale by mot length.
 - Zip: `z` (postfix) — round-robin interleave comma-separated expressions.
-- Slice: `start _ end`, `start _`, `_ end` — slice section.
+- Slice: `start … end`, `start …`, `… end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS cycled.
@@ -69,7 +69,7 @@ Pips:
 | Reich (fan) `r` | `[0,1] r [2,3]` | `[0\|/4, 1\|/4, 2\|/4, 3\|/4]` |
 | Reich (cog) `.r` | `[0,1] .r [2,3]` | `[0\|/2, 2, 1\|/4, 3\|/2]` |
 | Pärt (fan) `p` | `[0,1,2,3] p [0,2,4]` | `[4, 0, 2, 2]` |
-| Slice `start _ end` | `[0,1,2,3,4] -3 _ -1` | `[2, 3]` |
+| Slice `start … end` | `[0,1,2,3,4] -3 … -1` | `[2, 3]` |
 
 
 
@@ -86,10 +86,10 @@ Pips:
 [{0, 2, 5}]
 ```
 
-- **Seeded curly (deterministic per seed) `@hhhh`**
+- **Seeded curly (deterministic per seed) `$hhhh`**
 ```text
-[{1 -> 6}@c0de]
-[{0,2,5}@beef]
+[{1 -> 6}$c0de]
+[{0,2,5}$beef]
 ```
 
 - **Random endpoints in ranges**:
@@ -109,7 +109,7 @@ Pips:
 ```text
 [{1,2} | 2]                 // fixed ts
 [{1,2} | * {2,4}]           // random ts
-[{1 -> 4}@cafe | / {2,4}@babe]  // both seeded
+[{1 -> 4}$cafe | / {2,4}$babe]  // both seeded
 ```
 
 - **Random timeScale for special/tagged pips (e.g., rest `r`)**
@@ -136,6 +136,6 @@ Pips:
 
 - Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly` or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
 
-- If you need determinism for a specific random choice or range, add `@hhhh` to that curly expression.
+- If you need determinism for a specific random choice or range, add `$hhhh` to that curly expression.
 
 - In the current grammar, use curly syntax `{...}` for random choices, and reserve single `|` for timeScale piping.

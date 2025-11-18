@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-11-01T22:54:41.828Z
+// Generated: 2025-11-18T16:38:21.827Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -115,10 +115,10 @@ const g = ohm.grammar(String.raw`
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-      = SliceIndex hspaces? "_" hspaces? SliceIndex   -- both
-      | SliceIndex hspaces? "_"                       -- startOnly
-      | "_" hspaces? SliceIndex                       -- endOnly
-      | "_" SliceIndex                                -- endOnlyTight
+      = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
+      | SliceIndex hspaces? "…"                       -- startOnly
+      | "…" hspaces? SliceIndex                       -- endOnly
+      | "…" SliceIndex                                -- endOnlyTight
 
     // Slice indices can be plain numbers or random numbers (curly)
     SliceIndex
@@ -222,7 +222,7 @@ const g = ohm.grammar(String.raw`
     MemberAccess
       = ident "." ident  -- prop
 
-    Seed = "@" SeedChars
+    Seed = "$" SeedChars
     SeedChars = seedChar+
     seedChar = letter | digit | "_"
 
@@ -623,7 +623,7 @@ const s = g.createSemantics().addOperation('parse', {
 
   // Timescale collection skips at parse layer; this is for AST building only
 
-  Seed(_at, chars) {
+  Seed(_sigil, chars) {
     return stringToSeed(chars.sourceString);
   },
 
@@ -1285,7 +1285,8 @@ class Prog {
       sections,
       pip_count,
       pip_depth,
-      quanta_count:duration
+      duration,
+      quanta_count: duration,
     };
   }
 }
@@ -2658,19 +2659,19 @@ function collectCurlySeedsFromSource(input) {
   return collectCurlySeedsFromAst(prog);
 }
 
-// Rewrite input by appending @hhhh (4 hex) after any `{...}` that lacks a seed
+// Rewrite input by appending $hhhh (4 hex) after any `{...}` that lacks a seed
 function rewriteCurlySeeds(input, seedProvider = generateSeed4) {
   const lines = input.split(/\r?\n/);
   const out = [];
-  const pattern = /\{[^{}]*\}(?!@[0-9a-fA-F]{4})/g;
+  const pattern = /\{[^{}]*\}(?!\$[0-9a-fA-F]{4})/g;
   for (const line of lines) {
     const idx = line.indexOf('//');
     if (idx === -1) {
-      out.push(line.replace(pattern, (m) => m + '@' + seedProvider()));
+      out.push(line.replace(pattern, (m) => m + '$' + seedProvider()));
     } else {
       const code = line.slice(0, idx);
       const comment = line.slice(idx);
-      out.push(code.replace(pattern, (m) => m + '@' + seedProvider()) + comment);
+      out.push(code.replace(pattern, (m) => m + '$' + seedProvider()) + comment);
     }
   }
   return out.join('\n');
@@ -3263,7 +3264,7 @@ golden.CruxProgramInfo = function(code) {
     }
   }
 
-  return { pip_count, pip_depth, quanta_count:duration };
+  return { pip_count, pip_depth, duration, quanta_count: duration };
 }
 
 // Find all source indices where a timescale literal appears in the source program.
@@ -3398,7 +3399,7 @@ golden.findNumericValueIndicesAtDepthOrAbove = function(source, minDepth, option
 }
 
 
-// Public: seed any unseeded curly randoms with @hhhh
+// Public: seed any unseeded curly randoms with $hhhh
 golden.CruxRewriteCurlySeeds = function(input) {
   return rewriteCurlySeeds(String(input || ''));
 }

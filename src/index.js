@@ -220,6 +220,42 @@ const s = g.createSemantics().addOperation('parse', {
     return new Mot(values);
   },
 
+  PriExpr_atIndexMot(_openBracketAt, _h1, indexNode, _h2, valueNode, _closeBracket) {
+    const index = indexNode.parse();
+    const value = valueNode.parse();
+    
+    // Create a mot with pipes at all positions except the specified index
+    // Length is index + 2 to match the pattern: pipes before, value at index, pipe after
+    // This matches the example: [@ 5 [4,3]/] -> [|,|,|,|,|,[4,3]/,|] (7 elements)
+    const length = index + 2;
+    const values = [];
+    
+    // Wrap nested deep like PriExpr_mot does to handle Mot literals as nested subdivisions
+    const wrapNestedDeep = (val) => {
+      if (val instanceof Mot) {
+        const inner = Array.isArray(val.values) ? val.values.map(wrapNestedDeep) : [];
+        return new NestedMot(inner);
+      }
+      if (val instanceof NestedMot) {
+        const inner = Array.isArray(val.values) ? val.values.map(wrapNestedDeep) : [];
+        return new NestedMot(inner);
+      }
+      return val;
+    };
+    
+    for (let i = 0; i < length; i++) {
+      if (i === index) {
+        values.push(wrapNestedDeep(value));
+      } else {
+        const pipe = new Pip(0, 1, null);
+        pipe._pipeOnly = true;
+        pipe._jamPass = 'step';
+        values.push(pipe);
+      }
+    }
+    return new Mot(values);
+  },
+
   PriExpr_nestedMot(_openBrackets, body, _closeBrackets) {
     const parsed = body.parse();
     return new NestedMot(parsed.values);
@@ -1662,14 +1698,13 @@ class DotZip {
     const left = requireMot(this.x.eval(env));
     const right = requireMot(this.y.eval(env));
     const out = [];
-    const maxLen = Math.max(left.values.length, right.values.length);
+    // Interleave up to LHS length, cycling RHS if needed
+    const len = left.values.length;
 
-    for (let i = 0; i < maxLen; i++) {
-      if (i < left.values.length) {
-        out.push(left.values[i]);
-      }
-      if (i < right.values.length) {
-        out.push(right.values[i]);
+    for (let i = 0; i < len; i++) {
+      out.push(left.values[i]);
+      if (right.values.length > 0) {
+        out.push(right.values[i % right.values.length]);
       }
     }
 

@@ -88,6 +88,7 @@ export const g = ohm.grammar(String.raw`
       | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" MotBody "]"            -- mot
+      | "[@" hspaces? Index hspaces? SingleValue "]"  -- atIndexMot
       | number                        -- numAsMot
       | "(" Expr ")"                  -- parens
       | Curly                           -- curlyAsExpr

@@ -104,15 +104,15 @@ Operators are left-associative unless otherwise noted.
 
 **Postfix slice**: slicing applied to a mot result.
    - Forms:
-     - `start … end` (spaces optional around `…`)
-     - `start …` (start to end)
-     - `… end` (from start to end index)
+     - `start ... end` (spaces optional around `...`)
+     - `start ...` (start to end)
+     - `... end` (from start to end index)
    - Indices are numbers; negative indices count from end. End is exclusive.
    - Examples:
 ```text
-[0, 1, 2, 3, 4] -3 … -1   -> [2, 3]
-[0, 1, 2, 3, 4] 1 …       -> [1, 2, 3, 4]
-[0, 1, 2, 3, 4] … 3       -> [0, 1, 2]
+[0, 1, 2, 3, 4] -3 ... -1   -> [2, 3]
+[0, 1, 2, 3, 4] 1 ...       -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] ... 3       -> [0, 1, 2]
 ```
 
 **Postfix subdivide** `/`: divides each pip's timescale by the mot length.
@@ -212,14 +212,14 @@ Operators are left-associative unless otherwise noted.
 ### Precedence summary
 
 From highest to lowest binding:
-1. Postfix operators: slice (`…`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
+1. Postfix operators: slice (`...`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
 2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment and section separators: `=`, `!`
 
 ### Identifiers
 
-- Names must start with a letter or `…`, followed by alphanumerics (`ident = (letter | "_") alnum*`).
+- Names must start with a letter or `_`, followed by alphanumerics (`ident = (letter | "_") alnum*`).
 - Referencing an unknown name is an error: “undeclared identifier: Name”.
 
 ### Errors and constraints
@@ -260,8 +260,8 @@ From highest to lowest binding:
 A = [0, 1]\nA, [2]           -> [0, 1, 2]
 
 // Slicing and rotation
-[0, 1, 2, 3, 4] -3 … -1      -> [2, 3]
-[0, 1, 2, 3, 4] 1 …          -> [1, 2, 3, 4]
+[0, 1, 2, 3, 4] -3 ... -1      -> [2, 3]
+[0, 1, 2, 3, 4] 1 ...          -> [1, 2, 3, 4]
 // Rotation is via ~ operator
 [0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
 [0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
@@ -365,10 +365,10 @@ Crux {
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-    = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
-    | SliceIndex hspaces? "…"                       -- startOnly
-    | "…" hspaces? SliceIndex                       -- endOnly
-    | "…" SliceIndex                                -- endOnlyTight
+    = SliceIndex hspaces? "..." hspaces? SliceIndex   -- both
+    | SliceIndex hspaces? "..."                       -- startOnly
+    | "..." hspaces? SliceIndex                       -- endOnly
+    | "..." SliceIndex                                -- endOnlyTight
 
   SliceIndex
     = RandNum  -- rand
@@ -406,15 +406,15 @@ Crux {
     = RandNum "->" RandNum         -- inclusive
 
   Pip
-    = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
-    | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
-    | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
-    | number hspaces? "|"                                 -- withPipeNoTs
+    = StepValue hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+    | StepValue hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
+    | StepValue hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
+    | StepValue hspaces? "|"                                 -- withPipeNoTs
     | "|" hspaces? TimeScale                              -- pipeOnlyTs
     | "|" hspaces? "*" hspaces? RandNum                   -- pipeOnlyMul
     | "|" hspaces? "/" hspaces? RandNum                   -- pipeOnlyDiv
     | "|"                                                 -- pipeBare
-    | PlainNumber                                         -- noTimeScale
+    | StepValue                                           -- noTimeScale
     | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
     | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
     | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
@@ -427,6 +427,10 @@ Crux {
     | CurlyPip hspaces? "|" hspaces? TimeScale            -- curlyPipWithTimeMulPipeImplicit
     | CurlyPip hspaces? "|" hspaces? "*" hspaces? RandNum -- curlyPipWithTimeMulPipe
     | CurlyPip hspaces? "|" hspaces? "/" hspaces? RandNum -- curlyPipWithTimeDivPipe
+
+  StepValue
+    = number hspaces? "/" hspaces? number  -- frac
+    | PlainNumber                          -- plain
 
   RandNum
     = Curly

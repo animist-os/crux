@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-11-18T16:38:21.827Z
+// Generated: 2025-11-24T15:57:13.240Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -46,7 +46,12 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," MulExpr   -- fby
+      = FollowedByExpr "," SliceExpr   -- fby
+      | SliceExpr
+
+  // Slice operator at lower precedence than binary operators
+  SliceExpr
+      = SliceExpr hspaces? SliceOp     -- slice
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -79,7 +84,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ident PostfixExpr -- aliasOp
       | PostfixExpr
 
-  // Postfix operators (tie, repeat, slice) at higher precedence than binary operators
+  // Postfix operators (tie, repeat, subdivide, zip) at higher precedence than binary operators
   // These apply to their immediate left operand
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
@@ -87,11 +92,11 @@ const g = ohm.grammar(String.raw`
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
-      | PostfixExpr hspaces? SliceOp                 -- slice
       | PriExpr
 
   PriExpr
-      = ident                          -- ref
+      = Pip                          -- pipAsMot
+      | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" MotBody "]"            -- mot
       | number                        -- numAsMot
@@ -115,10 +120,10 @@ const g = ohm.grammar(String.raw`
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-      = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
-      | SliceIndex hspaces? "…"                       -- startOnly
-      | "…" hspaces? SliceIndex                       -- endOnly
-      | "…" SliceIndex                                -- endOnlyTight
+      = SliceIndex hspaces? "..." hspaces? SliceIndex   -- both
+      | SliceIndex hspaces? "..."                       -- startOnly
+      | "..." hspaces? SliceIndex                       -- endOnly
+      | "..." SliceIndex                                -- endOnlyTight
 
     // Slice indices can be plain numbers or random numbers (curly)
     SliceIndex
@@ -157,27 +162,33 @@ const g = ohm.grammar(String.raw`
       = RandNum "->" RandNum      -- inclusive
 
   Pip
-      = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
-      | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
-      | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
-      | number hspaces? "|"                                  -- withPipeNoTs
+      = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
+      | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
+      | Range                                                -- rangeNoTimeScale
+      | StepValue hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+      | StepValue hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
+      | StepValue hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
+      | StepValue hspaces? "|"                                  -- withPipeNoTs
       | "|" hspaces? TimeScale                               -- pipeOnlyTs
       | "|" hspaces? "*" hspaces? RandNum                    -- pipeOnlyMul
       | "|" hspaces? "/" hspaces? RandNum                    -- pipeOnlyDiv
       | "|"                                                 -- pipeBare
-      | PlainNumber                                          -- noTimeScale
+      | StepValue                                            -- noTimeScale
       | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
       | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
       | Special                                              -- special
-      | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
-      | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
       | Curly hspaces? "|" hspaces? TimeScale               -- curlyWithTimeMulPipeImplicit
       | Curly hspaces? "|" hspaces? "*" hspaces? RandNum    -- curlyWithTimeMulPipe
       | Curly hspaces? "|" hspaces? "/" hspaces? RandNum    -- curlyWithTimeDivPipe
       | CurlyPip hspaces? "|" hspaces? TimeScale            -- curlyPipWithTimeMulPipeImplicit
       | CurlyPip hspaces? "|" hspaces? "*" hspaces? RandNum -- curlyPipWithTimeMulPipe
       | CurlyPip hspaces? "|" hspaces? "/" hspaces? RandNum -- curlyPipWithTimeDivPipe
+
+    StepValue
+      = number hspaces? "/" hspaces? number  -- frac
+      | PlainNumber                          -- plain
+      | ArithExpr                            -- arith
 
     RandNum
       = Curly
@@ -271,7 +282,6 @@ const g = ohm.grammar(String.raw`
   }
   `);
 
-
 // === Main Implementation ===
 // this just makes the code portable to golden
 const golden = globalThis.golden || {};
@@ -315,6 +325,16 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
+  SliceExpr_slice(x, _hspaces, sl) {
+    const base = x.parse();
+    const spec = sl.parse();
+    return new SegmentTransform(base, spec.start, spec.end);
+  },
+
+  SliceExpr(x) {
+    return x.parse();
+  },
+
   PostfixExpr_subdivide(expr, _slash) {
     const x = expr.parse();
     return new Subdivide(x);
@@ -348,12 +368,6 @@ const s = g.createSemantics().addOperation('parse', {
       return new Mul(parsedExpr, zeroMot);
     }
     return new RepeatByCount(parsedExpr, randSpec);
-  },
-
-  PostfixExpr_slice(x, _hspaces, sl) {
-    const base = x.parse();
-    const spec = sl.parse();
-    return new SegmentTransform(base, spec.start, spec.end);
   },
 
   MulExpr_mul(x, _times, y) {
@@ -460,6 +474,9 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
+  },
+  PriExpr_pipAsMot(pip) {
+    return new Mot([pip.parse()]);
   },
   PriExpr_numAsMot(n) {
     return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
@@ -784,6 +801,16 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(n.parse(), 1 / divisor, null, n.source.startIdx);
   },
 
+  StepValue_arith(expr) {
+    return expr.parse();
+  },
+  StepValue_frac(n, _h1, _slash, _h2, d) {
+    return n.parse() / d.parse();
+  },
+  StepValue_plain(n) {
+    return n.parse();
+  },
+
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
     return new Pip(n.parse(), ts.parse(), null, n.source.startIdx);
   },
@@ -843,6 +870,10 @@ const s = g.createSemantics().addOperation('parse', {
     const r = range.parse();
     const rhs = d.parse(); // number or RandNum
     return new RangePipe(r, { kind: 'div', rhs });
+  },
+
+  Pip_rangeNoTimeScale(range) {
+    return range.parse();
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
@@ -986,7 +1017,8 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectRepeatSuffixRewrites(); },
-  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
+  SliceExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
+  SliceExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
     const raw = String(n.sourceString).trim();
@@ -1089,7 +1121,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   PostfixExpr_tiePostfix(x, _t) { return x.collectTs(); },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
+  SliceExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
+  SliceExpr(x) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },
@@ -1165,6 +1198,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
     const xs = d.collectTs();
     return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
   },
+  Pip_rangeNoTimeScale(_range) { return []; },
 
   Pip_curlyWithTimeMulPipeImplicit(_curly, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
   Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) {

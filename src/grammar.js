@@ -35,7 +35,12 @@ export const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," MulExpr   -- fby
+      = FollowedByExpr "," SliceExpr   -- fby
+      | SliceExpr
+
+  // Slice operator at lower precedence than binary operators
+  SliceExpr
+      = SliceExpr hspaces? SliceOp     -- slice
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -68,7 +73,7 @@ export const g = ohm.grammar(String.raw`
       | MulExpr ident PostfixExpr -- aliasOp
       | PostfixExpr
 
-  // Postfix operators (tie, repeat, slice) at higher precedence than binary operators
+  // Postfix operators (tie, repeat, subdivide, zip) at higher precedence than binary operators
   // These apply to their immediate left operand
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
@@ -76,11 +81,11 @@ export const g = ohm.grammar(String.raw`
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
-      | PostfixExpr hspaces? SliceOp                 -- slice
       | PriExpr
 
   PriExpr
-      = ident                          -- ref
+      = Pip                          -- pipAsMot
+      | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" MotBody "]"            -- mot
       | number                        -- numAsMot
@@ -104,10 +109,10 @@ export const g = ohm.grammar(String.raw`
   NestedMotAbbrev = "[[" MotBody "]"
 
   SliceOp
-      = SliceIndex hspaces? "…" hspaces? SliceIndex   -- both
-      | SliceIndex hspaces? "…"                       -- startOnly
-      | "…" hspaces? SliceIndex                       -- endOnly
-      | "…" SliceIndex                                -- endOnlyTight
+      = SliceIndex hspaces? "..." hspaces? SliceIndex   -- both
+      | SliceIndex hspaces? "..."                       -- startOnly
+      | "..." hspaces? SliceIndex                       -- endOnly
+      | "..." SliceIndex                                -- endOnlyTight
 
     // Slice indices can be plain numbers or random numbers (curly)
     SliceIndex
@@ -146,27 +151,33 @@ export const g = ohm.grammar(String.raw`
       = RandNum "->" RandNum      -- inclusive
 
   Pip
-      = number hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
-      | number hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
-      | number hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
-      | number hspaces? "|"                                  -- withPipeNoTs
+      = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
+      | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
+      | Range                                                -- rangeNoTimeScale
+      | StepValue hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+      | StepValue hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
+      | StepValue hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
+      | StepValue hspaces? "|"                                  -- withPipeNoTs
       | "|" hspaces? TimeScale                               -- pipeOnlyTs
       | "|" hspaces? "*" hspaces? RandNum                    -- pipeOnlyMul
       | "|" hspaces? "/" hspaces? RandNum                    -- pipeOnlyDiv
       | "|"                                                 -- pipeBare
-      | PlainNumber                                          -- noTimeScale
+      | StepValue                                            -- noTimeScale
       | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
       | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
       | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
       | Special                                              -- special
-      | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
-      | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
       | Curly hspaces? "|" hspaces? TimeScale               -- curlyWithTimeMulPipeImplicit
       | Curly hspaces? "|" hspaces? "*" hspaces? RandNum    -- curlyWithTimeMulPipe
       | Curly hspaces? "|" hspaces? "/" hspaces? RandNum    -- curlyWithTimeDivPipe
       | CurlyPip hspaces? "|" hspaces? TimeScale            -- curlyPipWithTimeMulPipeImplicit
       | CurlyPip hspaces? "|" hspaces? "*" hspaces? RandNum -- curlyPipWithTimeMulPipe
       | CurlyPip hspaces? "|" hspaces? "/" hspaces? RandNum -- curlyPipWithTimeDivPipe
+
+    StepValue
+      = number hspaces? "/" hspaces? number  -- frac
+      | PlainNumber                          -- plain
+      | ArithExpr                            -- arith
 
     RandNum
       = Curly

@@ -43,6 +43,16 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
+  SliceExpr_slice(x, _hspaces, sl) {
+    const base = x.parse();
+    const spec = sl.parse();
+    return new SegmentTransform(base, spec.start, spec.end);
+  },
+
+  SliceExpr(x) {
+    return x.parse();
+  },
+
   PostfixExpr_subdivide(expr, _slash) {
     const x = expr.parse();
     return new Subdivide(x);
@@ -76,12 +86,6 @@ const s = g.createSemantics().addOperation('parse', {
       return new Mul(parsedExpr, zeroMot);
     }
     return new RepeatByCount(parsedExpr, randSpec);
-  },
-
-  PostfixExpr_slice(x, _hspaces, sl) {
-    const base = x.parse();
-    const spec = sl.parse();
-    return new SegmentTransform(base, spec.start, spec.end);
   },
 
   MulExpr_mul(x, _times, y) {
@@ -188,6 +192,9 @@ const s = g.createSemantics().addOperation('parse', {
 
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
+  },
+  PriExpr_pipAsMot(pip) {
+    return new Mot([pip.parse()]);
   },
   PriExpr_numAsMot(n) {
     return new Mot([new Pip(n.parse(), 1, null, n.source.startIdx)]);
@@ -512,6 +519,16 @@ const s = g.createSemantics().addOperation('parse', {
     return new Pip(n.parse(), 1 / divisor, null, n.source.startIdx);
   },
 
+  StepValue_arith(expr) {
+    return expr.parse();
+  },
+  StepValue_frac(n, _h1, _slash, _h2, d) {
+    return n.parse() / d.parse();
+  },
+  StepValue_plain(n) {
+    return n.parse();
+  },
+
   Pip_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
     return new Pip(n.parse(), ts.parse(), null, n.source.startIdx);
   },
@@ -571,6 +588,10 @@ const s = g.createSemantics().addOperation('parse', {
     const r = range.parse();
     const rhs = d.parse(); // number or RandNum
     return new RangePipe(r, { kind: 'div', rhs });
+  },
+
+  Pip_rangeNoTimeScale(range) {
+    return range.parse();
   },
 
   Pip_specialWithTimeMulPipeImplicit(sym, _h1, _pipe, _h2, ts) {
@@ -714,7 +735,8 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectRepeatSuffixRewrites(); },
-  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
+  SliceExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
+  SliceExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
     const raw = String(n.sourceString).trim();
@@ -817,7 +839,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   PostfixExpr_tiePostfix(x, _t) { return x.collectTs(); },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  PostfixExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
+  SliceExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
+  SliceExpr(x) { return x.collectTs(); },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },
@@ -893,6 +916,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
     const xs = d.collectTs();
     return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
   },
+  Pip_rangeNoTimeScale(_range) { return []; },
 
   Pip_curlyWithTimeMulPipeImplicit(_curly, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
   Pip_curlyWithTimeMulPipe(_curly, _h1, _pipe, _h2, _star, _h3, m) {

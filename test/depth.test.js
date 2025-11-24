@@ -45,10 +45,10 @@ test('concatenation does not increase depth', () => {
 });
 
 test('postfix :N multiplies zero-mot and does not affect binary depth', () => {
-  const src = '([0, 1, 2] -2 …) * [3] : 5';
+  const src = '([0, 1, 2] -2 ...) * [3] : 5';
   const ds = motDepths(src);
   // With corrected precedence, : binds tighter than *, so this parses as:
-  // ([0, 1, 2] -2 …) * ([3] : 5)
+  // ([0, 1, 2] -2 ...) * ([3] : 5)
   // The :5 creates a Mul of [3] with zero-mot, both at depth 2 under the outer *
   assert.deepEqual(ds, [
     { str: '[0, 1, 2]', depth: 1 },

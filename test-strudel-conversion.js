@@ -4,7 +4,7 @@
  */
 
 import golden from './dist/crux.cjs';
-import { cruxToStrudel } from './strudel-integration.js';
+import { cruxToStrudel, quantizeStep } from './strudel-integration.js';
 
 // Test cases
 const testCases = [
@@ -28,7 +28,7 @@ testCases.forEach((testCase, i) => {
     // Show MIDI notes
     const midiNotes = result.sections[0].values
       .filter(p => p.tag !== 'r')
-      .map(p => 60 + p.step);
+      .map(p => 60 + quantizeStep(p.step));
     console.log(`   MIDI notes: [${midiNotes.join(', ')}]`);
     console.log('');
   } catch (error) {

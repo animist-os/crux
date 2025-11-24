@@ -2,7 +2,7 @@
 
 A tiny language for algorithmic music. Build phrases ("mots") from relative pitch/time events ("pips"), then transform and combine them with a small, composable operator set.
 
-- Relative pitch (step) and duration (timeScale)
+- Relative pitch (step) and duration (timeScale), including fractional steps like `1/2`
 - Two mapping semantics for binary ops: **fan** (spread) and **cog** (tile)
 - Concise sequencing: concatenation, postfix repeat and underscore slicing
 - Musical transforms: steps, mirror, lens, tie, constraint, jam, rotate, Glass, Reich, Pärt

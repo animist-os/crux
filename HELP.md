@@ -10,7 +10,7 @@
 - Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
 - Subdivide: `/` (postfix) — divide each pip's timeScale by mot length.
 - Zip: `z` (postfix) — round-robin interleave comma-separated expressions.
-- Slice: `start … end`, `start …`, `… end` — slice section.
+- Slice: `start ... end`, `start ...`, `... end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS cycled.
@@ -35,6 +35,7 @@ Pips:
 * Range: `[0->3] === [0, 1, 2, 3]`
 * Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
 * Random Range: `[{-2 -> 2}] === random integer from -2 to 2`
+* Fractional steps: `[1/2, -3/4]` emits `[0.5, -0.75]`
 * Tags (character pips): `r` (rest)
 
 ### Binary Mot Operators
@@ -69,7 +70,7 @@ Pips:
 | Reich (fan) `r` | `[0,1] r [2,3]` | `[0\|/4, 1\|/4, 2\|/4, 3\|/4]` |
 | Reich (cog) `.r` | `[0,1] .r [2,3]` | `[0\|/2, 2, 1\|/4, 3\|/2]` |
 | Pärt (fan) `p` | `[0,1,2,3] p [0,2,4]` | `[4, 0, 2, 2]` |
-| Slice `start … end` | `[0,1,2,3,4] -3 … -1` | `[2, 3]` |
+| Slice `start ... end` | `[0,1,2,3,4] -3 ... -1` | `[2, 3]` |
 
 
 

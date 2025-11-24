@@ -39,6 +39,20 @@
  */
 
 // Conversion functions (included inline for convenience)
+
+function quantizeStep(step) {
+  if (!Number.isFinite(step)) {
+    return step;
+  }
+  const down = Math.floor(step);
+  const up = Math.ceil(step);
+  const distDown = Math.abs(step - down);
+  const distUp = Math.abs(up - step);
+  if (distDown <= distUp) {
+    return down;
+  }
+  return up;
+}
 function cruxToStrudel(cruxResult, options = {}) {
   const {
     rootNote = 60,      // C4 = MIDI 60
@@ -72,15 +86,16 @@ function cruxToStrudel(cruxResult, options = {}) {
     
     // Get the step value (relative semitones from root)
     const step = pip.step;
+    const quantizedStep = quantizeStep(step);
     
     // Convert step to note representation
     // Steps are relative semitones, so step 0 = root, step 1 = root+1 semitone, etc.
     let note;
     if (outputFormat === 'midi') {
-      note = rootNote + step;
+      note = rootNote + quantizedStep;
     } else {
       // Convert to note name (C, D, E, F, G, A, B)
-      note = stepToNoteName(step, octave);
+      note = stepToNoteName(quantizedStep, octave);
     }
     
     // Format duration

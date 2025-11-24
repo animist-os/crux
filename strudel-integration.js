@@ -33,6 +33,26 @@
 import "./dist/crux.cjs";
 
 /**
+ * Quantizes a (possibly fractional) step value to the nearest semitone.
+ * Ties (x.5) round down to maintain predictable behavior.
+ * @param {number} step
+ * @returns {number}
+ */
+function quantizeStep(step) {
+  if (!Number.isFinite(step)) {
+    return step;
+  }
+  const down = Math.floor(step);
+  const up = Math.ceil(step);
+  const distDown = Math.abs(step - down);
+  const distUp = Math.abs(up - step);
+  if (distDown <= distUp) {
+    return down;
+  }
+  return up;
+}
+
+/**
  * Converts a Crux result (Mot) to Strudel mini notation
  * @param {Object} cruxResult - Result from golden.crux_interp()
  * @param {Object} options - Conversion options
@@ -74,15 +94,16 @@ function cruxToStrudel(cruxResult, options = {}) {
     
     // Get the step value (relative semitones from root)
     const step = pip.step;
+    const quantizedStep = quantizeStep(step);
     
     // Convert step to note representation
     // Steps are relative semitones, so step 0 = root, step 1 = root+1 semitone, etc.
     let note;
     if (outputFormat === 'midi') {
-      note = rootNote + step;
+      note = rootNote + quantizedStep;
     } else {
       // Convert to note name (C, D, E, F, G, A, B)
-      note = stepToNoteName(step, octave);
+      note = stepToNoteName(quantizedStep, octave);
     }
     
     // Format duration
@@ -208,7 +229,8 @@ export {
   cruxToStrudel,
   stepToNoteName,
   formatDuration,
-  toFraction
+  toFraction,
+  quantizeStep
 };
 
 // Also export for CommonJS environments
@@ -217,7 +239,8 @@ if (typeof module !== 'undefined' && module.exports) {
     cruxToStrudel,
     stepToNoteName,
     formatDuration,
-    toFraction
+    toFraction,
+    quantizeStep
   };
 }
 
@@ -227,7 +250,8 @@ if (typeof window !== 'undefined') {
     cruxToStrudel,
     stepToNoteName,
     formatDuration,
-    toFraction
+    toFraction,
+    quantizeStep
   };
 }
 

@@ -6,7 +6,7 @@ shopt -s nullglob
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-default_targets=(src test examples GRAMMAR.md HELP.md ARCHITECTURE.md NOTES.md README.md STRUDEL_INTEGRATION.md INTEGRATION_SUMMARY.md example-usage.cjs strudel-example.js strudel-integration.js test-strudel-conversion.js)
+default_targets=(src test examples example-usage.cjs strudel-example.js strudel-integration.js test-strudel-conversion.js)
 
 if [[ $# -eq 0 ]]; then
   targets=("${default_targets[@]}")
@@ -59,7 +59,8 @@ fi
 for file in "${unique[@]}"; do
   perl -0pi -e 's/([}\]])@([A-Za-z0-9_]+)/$1\$$2/g' "$file"
   perl -0pi -e 's|(//\s*)@|$1#|g' "$file"
-  perl -0pi -e "s/(?<![A-Za-z_'\\\"])_(?![A-Za-z_'\\\"])/…/g" "$file"
+  perl -0pi -e 's/…/.../g' "$file"
+  perl -0pi -e "s/(?<![A-Za-z_'\\\"])_(?![A-Za-z_'\\\"])/\.\.\./g" "$file"
 done
 
 printf 'Updated %d files.\n' "${#unique[@]}"

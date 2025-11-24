@@ -96,6 +96,7 @@ The `crux()` function accepts an options object as the second parameter:
 - Crux uses **relative durations** (timeScale where 1 = whole note)
 - The integration currently uses the **first section** of multi-section Crux programs
 - Rests are supported via Crux's `r` tag
+- Fractional steps are quantized to the nearest semitone, rounding .5 down
 
 ## Troubleshooting
 

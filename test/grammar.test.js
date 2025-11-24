@@ -195,6 +195,14 @@ test('expand multiplies steps elementwise', () => {
   assert.equal(evalToString('[1, 2] ^ [2]'), '[2, 4]');
 });
 
+test('mot literal accepts fractional step values', () => {
+  assert.equal(evalToString('[1/2, -3/4]'), '[0.5, -0.75]');
+});
+
+test('expand handles fractional pip steps on RHS', () => {
+  assert.equal(evalToString('[0, 4, 2, 1] ^ [1/2]'), '[0, 2, 1, 0.5]');
+});
+
 test('dot pairs left with tiled right (numeric only)', () => {
   assert.equal(evalToString('[0, 1, 2] . [10, 20]'), '[10, 21, 12]');
 });
@@ -398,16 +406,16 @@ test('chained :N on simple Mot replicates then replicates again', () => {
 // delta form removed; mixed case adjusted accordingly (no semicolons)
 
 // Segment (slice/rotate) tests
-test('slice operator both: start … end with negatives', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 … -1'), '[2, 3]');
+test('slice operator both: start ... end with negatives', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 ... -1'), '[2, 3]');
 });
 
-test('slice operator startOnly: start …', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 …'), '[1, 2, 3, 4]');
+test('slice operator startOnly: start ...', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 ...'), '[1, 2, 3, 4]');
 });
 
-test('slice operator endOnly: … end', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] … 3'), '[0, 1, 2]');
+test('slice operator endOnly: ... end', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] ... 3'), '[0, 1, 2]');
 });
 
 test('slice end is randomly chosen from curly list', () => {
@@ -416,7 +424,7 @@ test('slice end is randomly chosen from curly list', () => {
   const validOutputs = ['[3, 4]', '[3, 4, 5, 6]'];
 
   for (let i = 0; i < 30; i++) {
-    const out = evalToString('[0 -> 8] 3 … {5,7}');
+    const out = evalToString('[0 -> 8] 3 ... {5,7}');
     assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
     results.add(out);
   }

@@ -158,10 +158,12 @@ Operators are left-associative unless otherwise noted.
       - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
       - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 4 | /2, 5 | /2, 4 | /2, 4 | /2, 2]`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
-  - '.,' cog-concatenate (element-wise zip with no cycling)
-      - interleaves two mots
-      - if one is shorter than the other, the remainder is simply concatenated
-      - Example `[0,1,2] ., [9,8,7] -> [0,9,1,8,2,7]
+  - '.,' cog-concatenate (element-wise zip with RHS cycling)
+      - interleaves two mots by pairing each LHS element with a corresponding RHS element
+      - RHS cycles/mod rotates: for each LHS position i, uses RHS[i % RHS.length]
+      - iterates through all LHS elements, cycling through RHS elements as needed
+      - Example `[0,1,2] ., [9,8,7] -> [0,9,1,8,2,7]`
+      - Example `[0 -> 3] ., [-7] -> [0,-7,1,-7,2,-7,3,-7]` (RHS cycles)
    - `.^` cog-mul (elementwise expand):
      - Same cycling as `.`, but steps multiply instead of add.
      - Example: `[1, 2] .^ [2] -> [2, 4]`

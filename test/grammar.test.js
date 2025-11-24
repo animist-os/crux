@@ -727,22 +727,25 @@ test('dotZip operator interleaves LHS and RHS per pip', () => {
   assert.equal(evalToString('[0,1,2,3] ., [10,9,8,7]'), '[0, 10, 1, 9, 2, 8, 3, 7]');
 });
 
-test('dotZip operator with shorter RHS', () => {
-  assert.equal(evalToString('[0,1,2,3] ., [10,9]'), '[0, 10, 1, 9, 2, 3]');
+test('dotZip operator cycles RHS with range LHS', () => {
+  assert.equal(evalToString('[0 -> 3] ., [-7]'), '[0, -7, 1, -7, 2, -7, 3, -7]');
 });
 
-test('dotZip operator with shorter LHS', () => {
-  assert.equal(evalToString('[0,1] ., [10,9,8,7]'), '[0, 10, 1, 9, 8, 7]');
+test('dotZip operator with shorter RHS - RHS cycles', () => {
+  assert.equal(evalToString('[0,1,2,3] ., [10,9]'), '[0, 10, 1, 9, 2, 10, 3, 9]');
 });
 
-test('dotZip operator 3-way interleave - current behavior', () => {
+test('dotZip operator with shorter LHS - RHS cycles through LHS length', () => {
+  assert.equal(evalToString('[0,1] ., [10,9,8,7]'), '[0, 10, 1, 9]');
+});
+
+test('dotZip operator 3-way interleave - RHS cycles', () => {
   const A = '[0,0,0]';
   const B = '[1,1,1]';
   const C = '[2,2,2]';
   const result = evalToString(`${A} ., ${B} ., ${C}`);
-  // Current: (A ., B) produces [0,1,0,1,0,1], then that ., C
-  // This is the actual behavior - documenting it
-  assert.equal(result, '[0, 2, 1, 2, 0, 2, 1, 0, 1]');
+  // (A ., B) produces [0,1,0,1,0,1], then that ., C cycles RHS: [0,2,1,2,0,2,1,2,0,2,1,2]
+  assert.equal(result, '[0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 1, 2]');
 });
 
 test('3-way zip using z operator with assignments', () => {

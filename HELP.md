@@ -15,7 +15,7 @@
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS cycled.
 - Tile mul: `.^` — elementwise multiply with RHS cycled.
-- Tile zip: `.,` — elementwise interleave (no cycling; remainder concatenated).
+- Tile zip: `.,` — elementwise interleave with RHS cycling (RHS mod/rotates through LHS length).
 - Rotate: `~` (fan), `.~` (cog) — rotate LHS by k positions for each k in RHS.
 - Jam: `j` (fan), `.j` (cog) — replace steps/timeScales with RHS; `|` entries pass through.
 - Steps (fan): `->` — for each k in RHS, emit LHS transposed by 0..k and concatenate.

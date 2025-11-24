@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-11-24T15:57:13.240Z
+// Generated: 2025-11-24T17:38:54.051Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -136,9 +136,18 @@ const g = ohm.grammar(String.raw`
       = ListOf<Entry, ",">            -- absolute
 
     Entry
-      = Value hspaces? ":" hspaces? RandNum  -- repeatPip
+      = Index hspaces? ":" hspaces? MotOrNestedValue  -- positionPip
+      | Value hspaces? ":" hspaces? RandNum  -- repeatPip
       | Value hspaces? ":"                    -- padPip
       | Value                                 -- plain
+    
+    MotOrNestedValue
+      = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+      | MotLiteral "/"                                -- motSubdivide
+      | NestedMotLiteral "/"                          -- nestedSubdivide
+      | NestedMotLiteral                              -- nested
+      | NestedMotAbbrev                               -- nestedAbbrev
+      | MotLiteral                                    -- mot
 
     Value
       = SingleValue
@@ -566,6 +575,37 @@ const s = g.createSemantics().addOperation('parse', {
   },
   
   
+
+  Entry_positionPip(index, _h1, _colon, _h2, value) {
+    // Position targeting: [5: [4,3]/] applies value at position 5
+    const indexNum = parseInt(index.sourceString, 10);
+    return new PositionPip(indexNum, value.parse());
+  },
+  
+  MotOrNestedValue_inlineMulMots(aNode, _h1, _star, _h2, bNode) {
+    const b = bNode.parse();
+    return b;
+  },
+  MotOrNestedValue_motSubdivide(node, _slash) {
+    const body = node.children[1];
+    const parsed = body.parse();
+    const mot = new Mot(parsed.values);
+    return subdivide(mot);
+  },
+  MotOrNestedValue_nestedSubdivide(node, _slash) {
+    const body = node.children[1];
+    const parsed = body.parse();
+    return subdivide(parsed);
+  },
+  MotOrNestedValue_nested(nested) {
+    return nested.parse();
+  },
+  MotOrNestedValue_nestedAbbrev(abbrev) {
+    return abbrev.parse();
+  },
+  MotOrNestedValue_mot(mot) {
+    return mot.parse();
+  },
 
   Entry_repeatPip(value, _h1, _colon, _h2, count) {
     // Pip-level repetition: [0: 3] or [0|/2 : 4]
@@ -1246,6 +1286,9 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   CurlyPip(_o, list, _c, _seedOpt) { return list.collectTs(); },
 
   // Entry with repetition or padding
+  Entry_positionPip(index, _h1, _colon, _h2, value) {
+    return value.collectTs();
+  },
   Entry_repeatPip(value, _h1, _colon, _h2, count) {
     return [...value.collectTs(), ...count.collectTs()];
   },
@@ -1464,29 +1507,89 @@ class Dot {
       rhsMask = [{ kind: 'subdiv', pairs }];
     } else if (this.y instanceof Mot) {
       const yAst = this.y;
-      rhsMask = yAst.values.map((entry) => {
-        // Subdivision grouping: NestedMot or NestedMotExpr
-        if (entry instanceof NestedMot || entry instanceof NestedMotExpr) {
-          const m = requireMot(entry.eval(env));
-          const pairs = [];
-          for (const v of m.values) {
-            if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
+      
+      // Check if any entries are PositionPip - if so, build sparse mask
+      const hasPositionPips = yAst.values.some(e => e instanceof PositionPip);
+      
+      if (hasPositionPips) {
+        // Build sparse mask: create array with pass-through defaults, then fill specified positions
+        const maxIndex = Math.max(...yAst.values
+          .filter(e => e instanceof PositionPip)
+          .map(e => e.index));
+        rhsMask = new Array(Math.max(xv.values.length, maxIndex + 1));
+        // Initialize all positions with pass-through (Pip(0,1))
+        for (let i = 0; i < rhsMask.length; i++) {
+          rhsMask[i] = { kind: 'simple', value: new Pip(0, 1) };
+        }
+        // Fill in specified positions
+        for (const entry of yAst.values) {
+          if (entry instanceof PositionPip) {
+            const idx = entry.index;
+            if (idx < 0) continue; // Skip negative indices
+            const value = entry.value;
+            // Handle subdivision grouping (NestedMot, NestedMotExpr, or Mot with multiple pips from subdivision)
+            if (value instanceof NestedMot || value instanceof NestedMotExpr) {
+              const m = requireMot(value.eval(env));
+              const pairs = [];
+              for (const v of m.values) {
+                if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
+              }
+              rhsMask[idx] = { kind: 'subdiv', pairs };
+            } else if (value instanceof Mot) {
+              // Check if this Mot has multiple pips (from subdivision like [4,3]/)
+              const m = requireMot(value.eval(env));
+              if (m.values.length > 1) {
+                // Multiple pips - treat as subdivision
+                const pairs = [];
+                for (const v of m.values) {
+                  if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
+                }
+                rhsMask[idx] = { kind: 'subdiv', pairs };
+              } else {
+                // Single pip - treat as simple value
+                const chosen = m.values.length > 0 && m.values[0] instanceof Pip 
+                  ? m.values[0] 
+                  : new Pip(0, 1);
+                rhsMask[idx] = { kind: 'simple', value: chosen };
+              }
+            } else {
+              // Resolve to a Pip
+              const mv = new Mot([value]).eval(env);
+              let chosen = null;
+              for (const v of mv.values) {
+                if (v instanceof Pip) { chosen = v; break; }
+              }
+              if (chosen == null) chosen = new Pip(0, 1);
+              rhsMask[idx] = { kind: 'simple', value: chosen };
+            }
           }
-          return { kind: 'subdiv', pairs };
         }
-        // Pad entry: mark explicitly for later fill logic
-        if (entry instanceof PadValue) {
-          return { kind: 'pad', value: entry.inner };
-        }
-        // Otherwise, resolve the single entry to a Pip
-        const mv = new Mot([entry]).eval(env);
-        let chosen = null;
-        for (const v of mv.values) {
-          if (v instanceof Pip) { chosen = v; break; }
-        }
-        if (chosen == null) chosen = new Pip(0, 1);
-        return { kind: 'simple', value: chosen };
-      });
+      } else {
+        // No PositionPip entries - use regular sequential mask
+        rhsMask = yAst.values.map((entry) => {
+          // Subdivision grouping: NestedMot or NestedMotExpr
+          if (entry instanceof NestedMot || entry instanceof NestedMotExpr) {
+            const m = requireMot(entry.eval(env));
+            const pairs = [];
+            for (const v of m.values) {
+              if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
+            }
+            return { kind: 'subdiv', pairs };
+          }
+          // Pad entry: mark explicitly for later fill logic
+          if (entry instanceof PadValue) {
+            return { kind: 'pad', value: entry.inner };
+          }
+          // Otherwise, resolve the single entry to a Pip
+          const mv = new Mot([entry]).eval(env);
+          let chosen = null;
+          for (const v of mv.values) {
+            if (v instanceof Pip) { chosen = v; break; }
+          }
+          if (chosen == null) chosen = new Pip(0, 1);
+          return { kind: 'simple', value: chosen };
+        });
+      }
 
       // If there is any pad in the mask, convert to an expanded RHS mask that does not cycle:
       // - Keep all elements before the first pad as-is
@@ -1944,14 +2047,14 @@ class DotZip {
     const left = requireMot(this.x.eval(env));
     const right = requireMot(this.y.eval(env));
     const out = [];
-    const maxLen = Math.max(left.values.length, right.values.length);
 
-    for (let i = 0; i < maxLen; i++) {
-      if (i < left.values.length) {
-        out.push(left.values[i]);
-      }
-      if (i < right.values.length) {
-        out.push(right.values[i]);
+    // Cycle through RHS as we iterate through LHS
+    for (let i = 0; i < left.values.length; i++) {
+      out.push(left.values[i]);
+      if (right.values.length > 0) {
+        // Mod/rotate the RHS: cycle through RHS elements
+        const rhsIndex = i % right.values.length;
+        out.push(right.values[rhsIndex]);
       }
     }
 
@@ -2605,6 +2708,13 @@ class RepeatPip {
   constructor(value, count) {
     this.value = value; // Value node to repeat (Pip, Range, etc.)
     this.count = count; // number or RandNum (RandomRange | RandomChoice)
+  }
+}
+
+class PositionPip {
+  constructor(index, value) {
+    this.index = index; // number (the position index)
+    this.value = value; // Value node to apply at that position
   }
 }
 

@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2025-11-24T17:52:31.504Z
+// Generated: 2025-11-25T01:09:39.923Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -26,11 +26,17 @@ const g = ohm.grammar(String.raw`
       = (nls | hspace | comment)* "!" (nls | hspace | comment)*
 
     Stmt
-      = AssignStmt
+      = EvalAssignStmt
+      | MacroAssignStmt
       | OpAliasStmt
       | ExprStmt
 
-    AssignStmt
+    // Evaluating assignment - evaluates expr and stores the result (flattened Mot)
+    EvalAssignStmt
+      = ident ":=" Expr
+
+    // Macro assignment - stores the expression AST for later substitution
+    MacroAssignStmt
       = ident "=" Expr
 
     // Simple operator aliasing sugar, e.g.,
@@ -245,8 +251,10 @@ const g = ohm.grammar(String.raw`
     Special
       = specialChar
 
+    // Special characters only match when NOT followed by alphanumeric
+    // This allows identifiers like 'rr', 'rest', 'rhythm' to work
     specialChar
-      = "r"
+      = "r" ~alnum
 
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single
@@ -314,8 +322,12 @@ const s = g.createSemantics().addOperation('parse', {
     return stmts.parse();
   },
 
-  AssignStmt(name, _equals, expr) {
-    return new Assign(name.sourceString, expr.parse());
+  EvalAssignStmt(name, _colonEquals, expr) {
+    return new EvalAssign(name.sourceString, expr.parse());
+  },
+
+  MacroAssignStmt(name, _equals, expr) {
+    return new MacroAssign(name.sourceString, expr.parse());
   },
 
   OpAliasStmt(name, _equals, op) {
@@ -1019,7 +1031,8 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   },
   Stmt(node) { return node.collectRepeatSuffixRewrites(); },
   OpAliasStmt(_name, _eq, _op) { return []; },
-  AssignStmt(_name, _eq, expr) { return expr.collectRepeatSuffixRewrites(); },
+  EvalAssignStmt(_name, _eq, expr) { return expr.collectRepeatSuffixRewrites(); },
+  MacroAssignStmt(_name, _eq, expr) { return expr.collectRepeatSuffixRewrites(); },
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -1119,7 +1132,8 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   },
   Stmt(node) { return node.collectTs(); },
   OpAliasStmt(_name, _eq, _op) { return []; },
-  AssignStmt(_name, _eq, expr) { return expr.collectTs(); },
+  EvalAssignStmt(_name, _eq, expr) { return expr.collectTs(); },
+  MacroAssignStmt(_name, _eq, expr) { return expr.collectTs(); },
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -1303,13 +1317,13 @@ function getFinalRootAstAndEnv(prog) {
   for (const stmts of prog.sections) {
     for (const stmt of stmts) {
       last = stmt;
-      if (stmt instanceof Assign) {
+      if (stmt instanceof EvalAssign || stmt instanceof MacroAssign) {
         env.set(stmt.name, stmt.expr);
       }
     }
   }
 
-  const root = (last instanceof Assign) ? last.expr : last;
+  const root = (last instanceof EvalAssign || last instanceof MacroAssign) ? last.expr : last;
   return { root, env };
 }
 
@@ -1380,7 +1394,8 @@ class OpAliasAssign {
   }
 }
 
-class Assign {
+// Evaluating assignment (:=) - evaluates expr and stores the result (flattened Mot)
+class EvalAssign {
   constructor(name, expr) {
     this.name = name;
     this.expr = expr;
@@ -1391,6 +1406,41 @@ class Assign {
     env.set(this.name, value);
     return value;
   }
+}
+
+// Macro assignment (=) - stores the expression AST for later substitution
+// When referenced, the stored expression is evaluated in the current context
+class MacroAssign {
+  constructor(name, expr) {
+    this.name = name;
+    this.expr = expr;
+  }
+
+  eval(env) {
+    // Store the expression AST itself (wrapped to distinguish from evaluated values)
+    env.set(this.name, new MacroBinding(this.expr));
+    // Evaluate once to return the "preview" value, but don't store that
+    return this.expr.eval(env);
+  }
+}
+
+// Wrapper to distinguish macro bindings from evaluated Mot values
+class MacroBinding {
+  constructor(expr) {
+    this.expr = expr;
+  }
+}
+
+// Helper to dereference a macro binding - returns the stored AST if the node is a Ref to a macro
+// This allows operators to introspect their operands' AST structure for macro bindings
+function derefMacro(ast, env) {
+  if (ast instanceof Ref && env.has(ast.name)) {
+    const binding = env.get(ast.name);
+    if (binding instanceof MacroBinding) {
+      return binding.expr;
+    }
+  }
+  return ast;
 }
 
 class FollowedBy {
@@ -1491,16 +1541,18 @@ class Dot {
     // If RHS is a Mot literal, build a mask that preserves NestedMot groupings and pad semantics
     let rhsMask = null;
 
+    // Dereference macro bindings to get the underlying AST for introspection
+    const yAst = derefMacro(this.y, env);
+
     // Handle bare NestedMot on RHS (e.g., [[0,0]])
-    if (this.y instanceof NestedMot || this.y instanceof NestedMotExpr) {
-      const m = requireMot(this.y.eval(env));
+    if (yAst instanceof NestedMot || yAst instanceof NestedMotExpr) {
+      const m = requireMot(yAst.eval(env));
       const pairs = [];
       for (const v of m.values) {
         if (v instanceof Pip) pairs.push({ d: v.step, ts: v.timeScale, tag: v.tag ?? null });
       }
       rhsMask = [{ kind: 'subdiv', pairs }];
-    } else if (this.y instanceof Mot) {
-      const yAst = this.y;
+    } else if (yAst instanceof Mot) {
       rhsMask = yAst.values.map((entry) => {
         // Subdivision grouping: NestedMot or NestedMotExpr
         if (entry instanceof NestedMot || entry instanceof NestedMotExpr) {
@@ -2434,7 +2486,12 @@ class Ref {
     if (!env.has(this.name)) {
       throw new Error('undeclared identifier: ' + this.name);
     }
-    return env.get(this.name);
+    const binding = env.get(this.name);
+    // If it's a macro binding, evaluate the stored expression
+    if (binding instanceof MacroBinding) {
+      return binding.expr.eval(env);
+    }
+    return binding;
   }
 }
 
@@ -2448,7 +2505,12 @@ class MemberAccess {
     if (!env.has(this.objName)) {
       throw new Error('undeclared identifier: ' + this.objName);
     }
-    const obj = env.get(this.objName);
+    let obj = env.get(this.objName);
+
+    // Handle MacroBinding - evaluate the stored expression first
+    if (obj instanceof MacroBinding) {
+      obj = obj.expr.eval(env);
+    }
 
     // Handle .length property
     if (this.propName === 'length') {
@@ -3697,7 +3759,7 @@ golden.findAllPipsWithPositions = function(source) {
       const stmts = ast.sections[i]; // Array of statements
       for (let j = 0; j < stmts.length; j++) {
         const stmt = stmts[j];
-        if (stmt instanceof Assign) {
+        if (stmt instanceof EvalAssign || stmt instanceof MacroAssign) {
           // Walk assignment expression
           walkExpr(stmt.expr, `sections[${i}][${j}].${stmt.name}`, 0);
         } else {

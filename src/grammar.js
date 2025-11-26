@@ -15,11 +15,17 @@ export const g = ohm.grammar(String.raw`
       = (nls | hspace | comment)* "!" (nls | hspace | comment)*
 
     Stmt
-      = AssignStmt
+      = EvalAssignStmt
+      | MacroAssignStmt
       | OpAliasStmt
       | ExprStmt
 
-    AssignStmt
+    // Evaluating assignment - evaluates expr and stores the result (flattened Mot)
+    EvalAssignStmt
+      = ident ":=" Expr
+
+    // Macro assignment - stores the expression AST for later substitution
+    MacroAssignStmt
       = ident "=" Expr
 
     // Simple operator aliasing sugar, e.g.,
@@ -234,8 +240,10 @@ export const g = ohm.grammar(String.raw`
     Special
       = specialChar
 
+    // Special characters only match when NOT followed by alphanumeric
+    // This allows identifiers like 'rr', 'rest', 'rhythm' to work
     specialChar
-      = "r"
+      = "r" ~alnum
 
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single

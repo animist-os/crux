@@ -12,9 +12,30 @@ Cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.  Length wi
 - **Program**: one or more sections separated by `!`. Each section contains one or more statements separated by newlines. The program returns an array of the final statement value from each section.
 - **Section**: A group of statements that share an environment. The `!` separator marks the boundary between sections.
 - **Statement**: either an assignment, an operator alias, or an expression.
-- **Assignment**: `Name = Expr`
+- **Macro Assignment**: `Name = Expr` — stores the expression AST for later substitution (macro-like behavior). When referenced, the original expression structure is preserved and evaluated in place.
+- **Evaluating Assignment**: `Name := Expr` — evaluates the expression immediately and stores the resulting Mot. The stored value is flattened and deterministic.
 - **Operator Alias**: `Name = OpSym` (allows using custom names for operators)
 - **Reference**: use a previously assigned `Name` in an expression.
+
+#### Assignment Examples
+
+Macro assignment (`=`) preserves expression structure for substitution:
+```text
+R = [[0,0], [0,0,0,0], 0, 0]
+a = [0 -> 9] . R
+```
+is equivalent to:
+```text
+a = [0 -> 9] . [[0,0], [0,0,0,0], 0, 0]
+```
+The nested structure of `R` is preserved when used in the dot operator.
+
+Evaluating assignment (`:=`) flattens the result:
+```text
+R := [[0,0], [0,0,0,0], 0, 0]
+a = [0 -> 9] . R
+```
+Here `R` is evaluated to `[0, 0, 0, 0, 0, 0, 0, 0]` (flattened), so the nested structure is lost.
 
 Example (single section, backward compatible):
 ```text
@@ -217,7 +238,7 @@ From highest to lowest binding:
 1. Postfix operators: slice (`...`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
 2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~` (all left-associative)
 3. Concatenation: `,` (left-associative)
-4. Assignment and section separators: `=`, `!`
+4. Assignment and section separators: `=`, `:=`, `!`
 
 ### Identifiers
 
@@ -287,11 +308,17 @@ Crux {
     = (nls | hspace | comment)* "!" (nls | hspace | comment)*
 
   Stmt
-    = AssignStmt
+    = EvalAssignStmt
+    | MacroAssignStmt
     | OpAliasStmt
     | ExprStmt
 
-  AssignStmt
+  // Evaluating assignment - evaluates expr and stores the result (flattened Mot)
+  EvalAssignStmt
+    = ident ":=" Expr
+
+  // Macro assignment - stores the expression AST for later substitution
+  MacroAssignStmt
     = ident "=" Expr
 
   OpAliasStmt
@@ -461,8 +488,10 @@ Crux {
   Special
     = specialChar
 
+  // Special characters only match when NOT followed by alphanumeric
+  // This allows identifiers like 'rr', 'rest', 'rhythm' to work
   specialChar
-    = "r"
+    = "r" ~alnum
 
   ident = (letter | "_") alnum+  -- withChars
         | letter                 -- single

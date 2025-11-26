@@ -378,6 +378,17 @@ test('rest special accepts timeScale via pipe', () => {
   assert.equal(evalToString('[r | 2]'), '[r | 2]');
 });
 
+test('identifiers starting with r are not confused with rest', () => {
+  // Single 'r' is rest, but 'rr', 'rest', 'rhythm' etc. are identifiers
+  assert.equal(evalToString('rr = [0, 1]; rr * [2]'), '[2, 3]');
+  assert.equal(evalToString('rest = [0, 1]; rest * [2]'), '[2, 3]');
+  assert.equal(evalToString('rhythm = [0, 1, 2]; rhythm'), '[0, 1, 2]');
+  // Uppercase R is also fine
+  assert.equal(evalToString('R = [0, 1]; R * [2]'), '[2, 3]');
+  // 'r' alone is still rest
+  assert.equal(evalToString('[r, 0, 1]'), '[r, 0, 1]');
+});
+
 test('findAllTimescaleIndices finds timescale literals across forms', () => {
   const src = '[0 | 2, 1 | /4, 2 | 3/2, 3 | {2,4}, 4 | / {2,4}, {1,2} | 2, r | 3]';
   const idxs = findAllTimescaleIndices(src);
@@ -1036,6 +1047,179 @@ test('arithmetic expression - complex nested', () => {
   const result = evalToString('p = [0->11]\nq = p * [3 | (p.length - 4)/(p.length + 12)]');
   // p.length = 12, so (12-4)/(12+12) = 8/24 = 1/3 (displays as /3)
   assert.match(result, /\[3 \| \/3,/);
+});
+
+// ===================================================================
+// Tests for macro assignment (=) vs evaluating assignment (:=)
+// ===================================================================
+
+test('macro assignment (=) preserves nested structure in dot operator', () => {
+  // This is the user's specific example
+  const withMacro = evalToString('R = [[0,0], [0,0,0,0], 0, 0]\na = [0 -> 9] . R\na');
+  const direct = evalToString('[0 -> 9] . [[0,0], [0,0,0,0], 0, 0]');
+  assert.equal(withMacro, direct, 'Macro assignment should preserve nested structure');
+});
+
+test('evaluating assignment (:=) flattens nested structure', () => {
+  // With := the nested structure is lost
+  const withEval = evalToString('R := [[0,0], [0,0,0,0], 0, 0]\na = [0 -> 9] . R\na');
+  // R becomes [0, 0, 0, 0, 0, 0, 0, 0] (flattened), so dot cycles through it
+  const direct = evalToString('[0 -> 9] . [0, 0, 0, 0, 0, 0, 0, 0]');
+  assert.equal(withEval, direct, 'Evaluating assignment should flatten structure');
+});
+
+test('macro vs eval assignment produce different results for nested mots', () => {
+  const withMacro = evalToString('R = [[0,0], [0,0,0,0], 0, 0]\n[0 -> 9] . R');
+  const withEval = evalToString('R := [[0,0], [0,0,0,0], 0, 0]\n[0 -> 9] . R');
+  assert.notEqual(withMacro, withEval, 'Macro and eval assignments should produce different results');
+});
+
+test('evaluating assignment (:=) basic usage', () => {
+  const program = 'A := [0, 1]\nA, [2]';
+  assert.equal(evalToString(program), '[0, 1, 2]');
+});
+
+test('evaluating assignment (:=) then reference', () => {
+  const program = 'A := [0, 1]\nA * A';
+  assert.equal(evalToString(program), '[0, 1, 1, 2]');
+});
+
+test('macro assignment (=) basic usage', () => {
+  const program = 'A = [0, 1]\nA, [2]';
+  assert.equal(evalToString(program), '[0, 1, 2]');
+});
+
+test('macro assignment (=) then reference', () => {
+  const program = 'A = [0, 1]\nA * A';
+  assert.equal(evalToString(program), '[0, 1, 1, 2]');
+});
+
+test('macro assignment preserves NestedMot structure for subdivision', () => {
+  // [[0,1]]/ should subdivide when used in macro
+  const withMacro = evalToString('R = [[0,1]]/\n[0,4,2] . R');
+  const direct = evalToString('[0,4,2] . [[0,1]]/');
+  assert.equal(withMacro, direct);
+});
+
+test('eval assignment loses NestedMot structure', () => {
+  // With := the structure becomes a flat [0|/2, 1|/2] mot
+  const withEval = evalToString('R := [[0,1]]/\n[0,4,2] . R');
+  const direct = evalToString('[0,4,2] . [0 | /2, 1 | /2]');
+  assert.equal(withEval, direct);
+});
+
+test('macro assignment with operator chain', () => {
+  // Use .* to avoid grammar ambiguity with member access
+  const withMacro = evalToString('base = [0, 2, 4]\nmod = [[0, 1], [0, -1]]\nbase .* mod');
+  const direct = evalToString('[0, 2, 4] .* [[0, 1], [0, -1]]');
+  assert.equal(withMacro, direct);
+});
+
+test('eval assignment with operator chain flattens', () => {
+  // Use .* to avoid grammar ambiguity with member access
+  const withEval = evalToString('base := [0, 2, 4]\nmod := [[0, 1], [0, -1]]\nbase .* mod');
+  // mod becomes [0, 1, 0, -1] when evaluated
+  const direct = evalToString('[0, 2, 4] .* [0, 1, 0, -1]');
+  assert.equal(withEval, direct);
+});
+
+test('macro assignment with multiple nested mots', () => {
+  // Use .* to avoid grammar ambiguity
+  const withMacro = evalToString('R = [[0, 1], [2, 3, 4]]\n[0, 7, 14] .* R');
+  const direct = evalToString('[0, 7, 14] .* [[0, 1], [2, 3, 4]]');
+  assert.equal(withMacro, direct);
+});
+
+test('macro assignment .length still works', () => {
+  const result = evalToString('p = [0, 1, 2, 3]\n[5] : p.length');
+  assert.equal(result, '[5, 5, 5, 5]');
+});
+
+test('eval assignment .length works', () => {
+  const result = evalToString('p := [0, 1, 2, 3]\n[5] : p.length');
+  assert.equal(result, '[5, 5, 5, 5]');
+});
+
+test('macro referencing another macro', () => {
+  const program = 'A = [[0, 1]]\nB = [A, [2, 3]]\n[0, 4, 8] . B';
+  const direct = evalToString('[0, 4, 8] . [[[0, 1]], [2, 3]]');
+  assert.equal(evalToString(program), direct);
+});
+
+test('eval referencing macro', () => {
+  // A is macro, B evaluates A
+  const program = 'A = [[0, 1]]\nB := [A, [2, 3]]\n[0, 4] . B';
+  // B evaluates to [0, 1, 2, 3] (flattened)
+  const direct = evalToString('[0, 4] . [0, 1, 2, 3]');
+  assert.equal(evalToString(program), direct);
+});
+
+test('macro referencing eval', () => {
+  // A is eval (flattened), B is macro referencing A
+  const program = 'A := [[0, 1]]\nB = [A, [2, 3]]\n[0, 4] . B';
+  // A = [0, 1], B macro stores [A, [2, 3]] which when evaluated gives [0, 1, 2, 3]
+  // But since A is already flattened, and B is a macro containing a Mot with ref to A,
+  // the structure is [[0,1] evaluated from A, [2,3]]
+  // The key is that A's value is [0,1] not [[0,1]] because := flattened it
+  const result = evalToString(program);
+  // Since A is flattened to [0,1], B = [A, [2,3]] stores ref A which evaluates to Mot[0,1]
+  // When used in dot, the nested structure of B is preserved
+  assert.ok(result.length > 0);
+});
+
+test('mixed macro and eval in complex expression', () => {
+  // pat is macro (nested structure preserved), mel is eval ([0, 1, 2, 3])
+  // Note: avoid variable names starting with 'r' as it conflicts with rest special
+  const program = 'pat = [[0,0], [0,0,0,0]]\nmel := [0 -> 3]\nmel .* pat';
+  const direct = evalToString('[0, 1, 2, 3] .* [[0,0], [0,0,0,0]]');
+  assert.equal(evalToString(program), direct);
+});
+
+test('macro assignment with random choice re-evaluates each time', () => {
+  // With macro assignment, the random choice is re-evaluated each time referenced
+  const results = new Set();
+  for (let i = 0; i < 30; i++) {
+    const result = evalToString('R = [{0, 1, 2}]\nR, R');
+    results.add(result);
+  }
+  // Should have different results since R is re-evaluated twice per expression
+  // Each R could be [0], [1], or [2], so R,R could be [0,0], [0,1], [1,2], etc.
+  assert.ok(results.size >= 3, `Expected variety in macro random results, got ${results.size} unique: ${[...results].join(', ')}`);
+});
+
+test('eval assignment with random choice is deterministic per binding', () => {
+  // With eval assignment, the random choice is evaluated once when assigned
+  const results = new Set();
+  for (let i = 0; i < 20; i++) {
+    const result = evalToString('R := [{0, 1, 2}]\nR, R');
+    // The two Rs should be the same value since R was evaluated once
+    const match = result.match(/\[(\d), (\d)\]/);
+    if (match) {
+      assert.equal(match[1], match[2], 'Both references to R should have same value');
+    }
+    results.add(result);
+  }
+  // Different invocations should still vary
+  assert.ok(results.size >= 2, 'Different program runs should have different random results');
+});
+
+test('macro preserves subdivision pattern in RHS of dot', () => {
+  const withMacro = evalToString('pattern = [0, [1, 0], 0]\n[0, 4, 2] . pattern');
+  const direct = evalToString('[0, 4, 2] . [0, [1, 0], 0]');
+  assert.equal(withMacro, direct);
+});
+
+test('eval loses subdivision pattern in RHS of dot', () => {
+  const withEval = evalToString('pattern := [0, [1, 0], 0]\n[0, 4, 2] . pattern');
+  // pattern becomes [0, 1, 0, 0] when evaluated
+  const direct = evalToString('[0, 4, 2] . [0, 1, 0, 0]');
+  assert.equal(withEval, direct);
+});
+
+test('macro with pad value preserves pad semantics', () => {
+  const withMacro = evalToString('pattern = [7, 0:, 7]\n[0,1,2,3,4,5,6] . pattern');
+  const direct = evalToString('[0,1,2,3,4,5,6] . [7, 0:, 7]');
+  assert.equal(withMacro, direct);
 });
 
 

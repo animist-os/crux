@@ -47,14 +47,12 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
-  SliceExpr_slice(x, _hspaces, sl) {
-    const base = x.parse();
-    const spec = sl.parse();
-    return new SegmentTransform(base, spec.start, spec.end);
+  PostfixExpr_drop(expr, _h1, _backslash, _h2, n) {
+    return new DropTransform(expr.parse(), Number(n.sourceString));
   },
 
-  SliceExpr(x) {
-    return x.parse();
+  PostfixExpr_dropRand(expr, _h1, _backslash, _h2, rn) {
+    return new DropTransform(expr.parse(), rn.parse());
   },
 
   PostfixExpr_subdivide(expr, _slash) {
@@ -194,6 +192,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new AliasCall(name.sourceString, x.parse(), y.parse());
   },
 
+  MulExpr_atIndex(x, _at, y) {
+    return new AtIndexOp(x.parse(), y.parse());
+  },
+
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
   },
@@ -224,15 +226,19 @@ const s = g.createSemantics().addOperation('parse', {
     return new Mot(values);
   },
 
-  PriExpr_atIndexMot(_openBracketAt, _h1, indexNode, _h2, valueNode, _closeBracket) {
+  PriExpr_atIndexMot(_openBracket, atIndexList, _closeBracket) {
+    // Returns an AtIndexMot containing the list of {index, value} entries
+    const entries = atIndexList.parse();
+    return new AtIndexMot(entries);
+  },
+
+  AtIndexList(list) {
+    return list.parse();
+  },
+
+  AtIndexEntry(_at, _h1, indexNode, _h2, valueNode) {
     const index = indexNode.parse();
     const value = valueNode.parse();
-    
-    // Create a mot with pipes at all positions except the specified index
-    // Length is index + 2 to match the pattern: pipes before, value at index, pipe after
-    // This matches the example: [@ 5 [4,3]/] -> [|,|,|,|,|,[4,3]/,|] (7 elements)
-    const length = index + 2;
-    const values = [];
     
     // Wrap nested deep like PriExpr_mot does to handle Mot literals as nested subdivisions
     const wrapNestedDeep = (val) => {
@@ -247,17 +253,7 @@ const s = g.createSemantics().addOperation('parse', {
       return val;
     };
     
-    for (let i = 0; i < length; i++) {
-      if (i === index) {
-        values.push(wrapNestedDeep(value));
-      } else {
-        const pipe = new Pip(0, 1, null);
-        pipe._pipeOnly = true;
-        pipe._jamPass = 'step';
-        values.push(pipe);
-      }
-    }
-    return new Mot(values);
+    return { index, value: wrapNestedDeep(value) };
   },
 
   PriExpr_nestedMot(_openBrackets, body, _closeBrackets) {
@@ -498,26 +494,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new Mot([new RandomPip(rn, 1)]);
   },
 
-  SliceOp_both(start, _h1, _us, _h2, end) {
-    return { start: start.parse(), end: end.parse() };
-  },
-
-  SliceOp_startOnly(start, _h1, _us) {
-    return { start: start.parse(), end: null };
-  },
-
-  SliceOp_endOnly(_us, _h1, end) {
-    return { start: null, end: end.parse() };
-  },
-
-  SliceOp_endOnlyTight(_us, end) {
-    return { start: null, end: end.parse() };
-  },
-
-  SliceIndex_rand(rn) { return rn.parse(); },
-  SliceIndex_num(idx) { return idx.parse(); },
-
-  Index(_sign, _digits) {
+  index(_sign, _digits) {
     return parseInt(this.sourceString, 10);
   },
 
@@ -773,11 +750,12 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotReich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_atIndex(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectRepeatSuffixRewrites(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectRepeatSuffixRewrites(); },
-  SliceExpr_slice(x, _hspaces, _sl) { return x.collectRepeatSuffixRewrites(); },
-  SliceExpr(x) { return x.collectRepeatSuffixRewrites(); },
+  PostfixExpr_drop(x, _h1, _bs, _h2, _n) { return x.collectRepeatSuffixRewrites(); },
+  PostfixExpr_dropRand(x, _h1, _bs, _h2, _rn) { return x.collectRepeatSuffixRewrites(); },
   // Core targets: numeric :N, and :<RandNum> only when it's a number literal
   PostfixExpr_repeatPost(_expr, h1, _colon, _h2, n) {
     const raw = String(n.sourceString).trim();
@@ -876,15 +854,19 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotReich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_atIndex(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectTs(); },
   PostfixExpr_zipColumns(x, _z) { return x.collectTs(); },
   PostfixExpr_tiePostfix(x, _t) { return x.collectTs(); },
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, _n) { return expr.collectTs(); },
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
-  SliceExpr_slice(x, _hspaces, _sl) { return x.collectTs(); },
-  SliceExpr(x) { return x.collectTs(); },
+  PostfixExpr_drop(x, _h1, _bs, _h2, _n) { return x.collectTs(); },
+  PostfixExpr_dropRand(x, _h1, _bs, _h2, rn) { return [...x.collectTs(), ...rn.collectTs()]; },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
+  PriExpr_atIndexMot(_ob, atIndexList, _cb) { return atIndexList.collectTs(); },
+  AtIndexList(list) { return list.collectTs(); },
+  AtIndexEntry(_at, _h1, _idx, _h2, value) { return value.collectTs(); },
   PriExpr_nestedMot(_ob, body, _cb) { return body.collectTs(); },
   NestedBody_nestedAbsolute(values) { return values.collectTs(); },
   PriExpr_parens(_op, e, _cp) { return e.collectTs(); },
@@ -2575,6 +2557,135 @@ class Pip {
 }
 
 
+// AtIndexMot: Represents a list of (index, value) entries for the @ operator
+// Used as the RHS of `mot @ [...]`
+class AtIndexMot {
+  constructor(entries) {
+    // entries is an array of { index: number, value: AST node }
+    this.entries = entries;
+  }
+
+  eval(env) {
+    // AtIndexMot doesn't evaluate directly - it's consumed by AtIndexOp
+    // But if evaluated standalone, return a placeholder Mot
+    return new Mot([]);
+  }
+}
+
+// AtIndexOp: The `@` binary operator
+// Applies transformations at specific indices without cycling
+// Supports negative indices (from end) and compensates for length changes
+class AtIndexOp {
+  constructor(x, y) {
+    this.x = x; // LHS mot
+    this.y = y; // RHS AtIndexMot or Mot containing at-index entries
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const rhs = this.y;
+    
+    // Get the at-index entries from RHS
+    let entries = [];
+    if (rhs instanceof AtIndexMot) {
+      entries = rhs.entries;
+    } else {
+      throw new Error('@ operator requires [@index value, ...] on the right side');
+    }
+    
+    if (entries.length === 0) {
+      return left;
+    }
+    
+    // Clone the left mot's values for mutation
+    let values = [...left.values];
+    const originalLength = values.length;
+    
+    // Process entries: resolve negative indices and sort by index descending
+    const resolvedEntries = entries.map(entry => {
+      let idx = entry.index;
+      // Handle negative indices (from end of original mot)
+      if (idx < 0) {
+        idx = originalLength + idx;
+      }
+      return { originalIndex: idx, value: entry.value };
+    });
+    
+    // Sort by index descending (highest first) so length changes don't affect lower indices
+    resolvedEntries.sort((a, b) => b.originalIndex - a.originalIndex);
+    
+    for (const entry of resolvedEntries) {
+      const targetIndex = entry.originalIndex;
+      
+      // Skip if index is out of bounds
+      if (targetIndex < 0 || targetIndex >= values.length) {
+        continue;
+      }
+      
+      // Get the left pip at this position
+      const leftPip = values[targetIndex];
+      
+      // Evaluate the transformation value
+      const transformValue = entry.value;
+      let transformedPips = [];
+      
+      if (transformValue instanceof NestedMot || transformValue instanceof NestedMotExpr) {
+        // Subdivision: expand the pip into multiple pips
+        const m = requireMot(transformValue.eval(env));
+        for (const p of m.values) {
+          if (p instanceof Pip) {
+            const combinedTag = leftPip.tag ?? p.tag ?? null;
+            transformedPips.push(new Pip(leftPip.step + p.step, leftPip.timeScale * p.timeScale, combinedTag));
+          }
+        }
+      } else if (transformValue instanceof Mot) {
+        // Mot literal: apply as subdivision (like the dot operator)
+        const m = requireMot(transformValue.eval(env));
+        for (const p of m.values) {
+          if (p instanceof Pip) {
+            const combinedTag = leftPip.tag ?? p.tag ?? null;
+            transformedPips.push(new Pip(leftPip.step + p.step, leftPip.timeScale * p.timeScale, combinedTag));
+          }
+        }
+      } else {
+        // Single value: apply transformation
+        const mv = new Mot([transformValue]).eval(env);
+        for (const p of mv.values) {
+          if (p instanceof Pip) {
+            // Check for pipe-only (pass-through with optional timescale)
+            if (p._pipeOnly) {
+              const combinedTag = leftPip.tag ?? p.tag ?? null;
+              if (p._jamPass === 'ts') {
+                // Preserve LHS step and timeScale
+                transformedPips.push(new Pip(leftPip.step, leftPip.timeScale, combinedTag));
+              } else if (p._jamPass === 'step') {
+                // Preserve LHS step, use RHS timeScale
+                transformedPips.push(new Pip(leftPip.step, p.timeScale, combinedTag));
+              } else {
+                // Default: preserve LHS step and timeScale
+                transformedPips.push(new Pip(leftPip.step, leftPip.timeScale, combinedTag));
+              }
+            } else {
+              const combinedTag = leftPip.tag ?? p.tag ?? null;
+              transformedPips.push(new Pip(leftPip.step + p.step, leftPip.timeScale * p.timeScale, combinedTag));
+            }
+          }
+        }
+      }
+      
+      // If no transformed pips, keep the original
+      if (transformedPips.length === 0) {
+        transformedPips = [leftPip];
+      }
+      
+      // Replace the pip(s) at the target index
+      values.splice(targetIndex, 1, ...transformedPips);
+    }
+    
+    return new Mot(values);
+  }
+}
+
 class Mot {
   constructor(values, rng_seed = null) {
     this.values = values;
@@ -2842,11 +2953,11 @@ class NestedMotExpr {
 }
 
 
-class SegmentTransform {
-  constructor(expr, start = null, end = null) {
+// Drop operator: drops N elements from the end (positive N) or start (negative N)
+class DropTransform {
+  constructor(expr, count) {
     this.expr = expr;
-    this.start = start;
-    this.end = end;
+    this.count = count;
   }
 
   eval(env) {
@@ -2855,25 +2966,26 @@ class SegmentTransform {
     const n = values.length;
     if (n === 0) return new Mot([]);
 
-    // Normalize indices: allow negative indices to count from end
-    const normIndex = (idx, defaultValue) => {
-      if (idx == null) return defaultValue;
-      let k;
-      if (typeof idx === 'number') {
-        k = Math.trunc(idx);
-      } else {
-        // RandNum (RandomRange | RandomChoice)
-        const rng = motif._rng || Math.random;
-        const num = resolveRandNumToNumber(idx, rng);
-        k = Math.trunc(num);
-      }
-      if (k < 0) k = n + k; // -1 => n-1
-      return Math.max(0, Math.min(n, k));
-    };
+    // Resolve count (may be a RandNum)
+    let k;
+    if (typeof this.count === 'number') {
+      k = Math.trunc(this.count);
+    } else {
+      // RandNum (RandomRange | RandomChoice)
+      const rng = motif._rng || Math.random;
+      const num = resolveRandNumToNumber(this.count, rng);
+      k = Math.trunc(num);
+    }
 
-    const s = normIndex(this.start, 0);
-    const e = normIndex(this.end, n);
-    return new Mot(values.slice(s, e));
+    // Positive k: drop last k elements (equivalent to slice 0 to n-k)
+    // Negative k: drop first |k| elements (equivalent to slice |k| to n)
+    if (k >= 0) {
+      const end = Math.max(0, n - k);
+      return new Mot(values.slice(0, end));
+    } else {
+      const start = Math.min(n, -k);
+      return new Mot(values.slice(start));
+    }
   }
 }
 
@@ -2933,7 +3045,7 @@ golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excl
       return;
     }
 
-    if (node instanceof SegmentTransform) {
+    if (node instanceof DropTransform) {
       visit(node.expr, depth);
       return;
     }
@@ -2998,7 +3110,7 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
     if (!node) return 0;
     if (memo.has(node)) return memo.get(node);
 
-    if (node instanceof SegmentTransform) {
+    if (node instanceof DropTransform) {
       const h = height(node.expr);
       memo.set(node, h);
       return h;

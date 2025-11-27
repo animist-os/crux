@@ -416,26 +416,34 @@ test('chained :N on simple Mot replicates then replicates again', () => {
 
 // delta form removed; mixed case adjusted accordingly (no semicolons)
 
-// Segment (slice/rotate) tests
-test('slice operator both: start ... end with negatives', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] -3 ... -1'), '[2, 3]');
+// Drop operator tests
+test('drop operator: \\ 1 drops last element', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] \\ 1'), '[0, 1, 2, 3]');
 });
 
-test('slice operator startOnly: start ...', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] 1 ...'), '[1, 2, 3, 4]');
+test('drop operator: \\ 2 drops last 2 elements', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] \\ 2'), '[0, 1, 2]');
 });
 
-test('slice operator endOnly: ... end', () => {
-  assert.equal(evalToString('[0, 1, 2, 3, 4] ... 3'), '[0, 1, 2]');
+test('drop operator: \\ -1 drops first element', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] \\ -1'), '[1, 2, 3, 4]');
 });
 
-test('slice end is randomly chosen from curly list', () => {
-  // [0->8] expands to [0,1,2,3,4,5,6,7,8]; slicing 3..{5,7} with exclusive end yields [3,4] or [3,4,5,6]
+test('drop operator: \\ -2 drops first 2 elements', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] \\ -2'), '[2, 3, 4]');
+});
+
+test('drop operator: \\ 0 keeps all elements', () => {
+  assert.equal(evalToString('[0, 1, 2, 3, 4] \\ 0'), '[0, 1, 2, 3, 4]');
+});
+
+test('drop count is randomly chosen from curly list', () => {
+  // [0->8] expands to [0,1,2,3,4,5,6,7,8]; dropping {1,3} gives either 8 or 6 elements
   const results = new Set();
-  const validOutputs = ['[3, 4]', '[3, 4, 5, 6]'];
+  const validOutputs = ['[0, 1, 2, 3, 4, 5, 6, 7]', '[0, 1, 2, 3, 4, 5]'];
 
   for (let i = 0; i < 30; i++) {
-    const out = evalToString('[0 -> 8] 3 ... {5,7}');
+    const out = evalToString('[0 -> 8] \\ {1,3}');
     assert.ok(validOutputs.includes(out), `Output ${i}: ${out} is not one of ${validOutputs.join(', ')}`);
     results.add(out);
   }
@@ -1220,6 +1228,71 @@ test('macro with pad value preserves pad semantics', () => {
   const withMacro = evalToString('pattern = [7, 0:, 7]\n[0,1,2,3,4,5,6] . pattern');
   const direct = evalToString('[0,1,2,3,4,5,6] . [7, 0:, 7]');
   assert.equal(withMacro, direct);
+});
+
+// @ operator tests
+test('@ operator: single target with positive value', () => {
+  assert.equal(evalToString('[0 -> 9] @ [@5 7]'), '[0, 1, 2, 3, 4, 12, 6, 7, 8, 9]');
+});
+
+test('@ operator: single target with negative value', () => {
+  assert.equal(evalToString('[0 -> 9] @ [@5 -7]'), '[0, 1, 2, 3, 4, -2, 6, 7, 8, 9]');
+});
+
+test('@ operator: negative index from end', () => {
+  assert.equal(evalToString('[0 -> 9] @ [@-1 -7]'), '[0, 1, 2, 3, 4, 5, 6, 7, 8, 2]');
+});
+
+test('@ operator: negative index second from end', () => {
+  assert.equal(evalToString('[0 -> 4] @ [@-2 10]'), '[0, 1, 2, 13, 4]');
+});
+
+test('@ operator: multiple targets without length change', () => {
+  assert.equal(evalToString('[0 -> 9] @ [@2 -7, @4 7]'), '[0, 1, -5, 3, 11, 5, 6, 7, 8, 9]');
+});
+
+test('@ operator: single target with subdivision', () => {
+  assert.equal(evalToString('[0 -> 9] @ [@5 [1,0,-1]/]'), '[0, 1, 2, 3, 4, 6 | /3, 5 | /3, 4 | /3, 6, 7, 8, 9]');
+});
+
+test('@ operator: multiple targets with length compensation', () => {
+  // @2 transforms index 2 (value 2) with [1,0,-1] -> becomes 3 pips: 3, 2, 1
+  // @5 now targets original index 5, which shifted to index 7 after the +2 length change
+  // Original value at index 5 was 5, so 5 + (-7) = -2
+  assert.equal(evalToString('[0 -> 9] @ [@2 [1,0,-1], @5 -7]'), '[0, 1, 3, 2, 1, 3, 4, -2, 6, 7, 8, 9]');
+});
+
+test('@ operator: with assignment', () => {
+  assert.equal(evalToString('a = [0 -> 9]\na @ [@5 -7]'), '[0, 1, 2, 3, 4, -2, 6, 7, 8, 9]');
+});
+
+test('@ operator: mot literal on RHS transforms to multiple pips', () => {
+  // [1, 0, -1] without / still creates 3 pips but with original timescale
+  assert.equal(evalToString('[0 -> 4] @ [@2 [1, 0, -1]]'), '[0, 1, 3, 2, 1, 3, 4]');
+});
+
+test('@ operator: index 0', () => {
+  assert.equal(evalToString('[0, 1, 2] @ [@0 10]'), '[10, 1, 2]');
+});
+
+test('@ operator: chained with other operators', () => {
+  // First create a mot, then apply @ transformation
+  assert.equal(evalToString('([0 -> 4] * [0]) @ [@2 100]'), '[0, 1, 102, 3, 4]');
+});
+
+test('@ operator: pipe-only timescale |N preserves step', () => {
+  // |4 should preserve the step but apply timescale 4
+  assert.equal(evalToString('[0 -> 4] @ [@2 |4]'), '[0, 1, 2 | 4, 3, 4]');
+});
+
+test('@ operator: pipe-only divide |/N preserves step', () => {
+  // |/2 should preserve the step but divide timescale by 2
+  assert.equal(evalToString('[0 -> 4] @ [@2 |/2]'), '[0, 1, 2 | /2, 3, 4]');
+});
+
+test('@ operator: bare pipe | preserves step and timescale', () => {
+  // Bare | should preserve both step and timescale (no change)
+  assert.equal(evalToString('[0 -> 4] @ [@2 |]'), '[0, 1, 2, 3, 4]');
 });
 
 

@@ -123,17 +123,17 @@ Operators are left-associative unless otherwise noted.
 
 1) **Postfix operators** (bind tightest to their left operand)
 
-**Postfix slice**: slicing applied to a mot result.
-   - Forms:
-     - `start ... end` (spaces optional around `...`)
-     - `start ...` (start to end)
-     - `... end` (from start to end index)
-   - Indices are numbers; negative indices count from end. End is exclusive.
+**Postfix drop** `\`: drops N elements from the end (positive N) or start (negative N).
+   - `Expr \ N` drops N elements from the end
+   - `Expr \ -N` drops N elements from the start
+   - N can be a number or RandNum (curly expression)
    - Examples:
 ```text
-[0, 1, 2, 3, 4] -3 ... -1   -> [2, 3]
-[0, 1, 2, 3, 4] 1 ...       -> [1, 2, 3, 4]
-[0, 1, 2, 3, 4] ... 3       -> [0, 1, 2]
+[0, 1, 2, 3, 4] \ 1         -> [0, 1, 2, 3]      // drop last 1
+[0, 1, 2, 3, 4] \ 2         -> [0, 1, 2]         // drop last 2
+[0, 1, 2, 3, 4] \ -1        -> [1, 2, 3, 4]      // drop first 1
+[0, 1, 2, 3, 4] \ -2        -> [2, 3, 4]         // drop first 2
+[0 -> 7] \ {1, 2}           -> [0..5] or [0..6] // random drop count
 ```
 
 **Postfix subdivide** `/`: divides each pip's timescale by the mot length.
@@ -221,6 +221,20 @@ Operators are left-associative unless otherwise noted.
      - Pärt-inspired tintinnabulation operator with octave equivalence.
      - Snaps LHS steps to nearest RHS scale degree (mod 7), avoiding unisons.
      - Example: `[0,1,2,3] p [0,2,4] -> [4,0,2,2]` (0→4 down to avoid unison, 1→0, 2→2, 3→2).
+   - `@` at-index (apply transformations at specific positions without cycling):
+     - Unlike `.` which cycles the RHS over the LHS, `@` applies transformations only at specified indices.
+     - RHS uses the at-index mot syntax: `[@index value, @index value, ...]`
+     - **Negative indices**: `@-1` is the last pip, `@-2` is second-to-last, etc.
+     - **Multiple targets**: Comma-separate entries like `[@2 -7, @4 7]`.
+     - **Length compensation**: All indices refer to the original mot positions. When a transformation changes length (e.g., subdivision), subsequent indices are automatically adjusted.
+     - Examples:
+```text
+[0 -> 9] @ [@5 -7]                     -> [0, 1, 2, 3, 4, -2, 6, 7, 8, 9]     // index 5: 5+(-7)=-2
+[0 -> 9] @ [@-1 -7]                    -> [0, 1, 2, 3, 4, 5, 6, 7, 8, 2]      // last pip: 9+(-7)=2
+[0 -> 9] @ [@2 -7, @4 7]               -> [0, 1, -5, 3, 11, 5, 6, 7, 8, 9]    // multiple targets
+[0 -> 9] @ [@5 [1,0,-1]/]              -> [0, 1, 2, 3, 4, 6|/3, 5|/3, 4|/3, 6, 7, 8, 9]  // subdivision at index 5
+[0 -> 9] @ [@2 [1,0,-1], @5 -7]        -> [0, 1, 3, 2, 1, 3, 4, -2, 6, 7, 8, 9]  // @5 compensates for +2 length change at @2
+```
 
 3) **Concatenation**:
    - Use `,` between expressions to concatenate mots.
@@ -235,8 +249,8 @@ Operators are left-associative unless otherwise noted.
 ### Precedence summary
 
 From highest to lowest binding:
-1. Postfix operators: slice (`...`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
-2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~` (all left-associative)
+1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
+2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~`, `@` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment and section separators: `=`, `:=`, `!`
 
@@ -282,9 +296,9 @@ From highest to lowest binding:
 // Assignment & reference
 A = [0, 1]\nA, [2]           -> [0, 1, 2]
 
-// Slicing and rotation
-[0, 1, 2, 3, 4] -3 ... -1      -> [2, 3]
-[0, 1, 2, 3, 4] 1 ...          -> [1, 2, 3, 4]
+// Drop and rotation
+[0, 1, 2, 3, 4] \ 1            -> [0, 1, 2, 3]    // drop last 1
+[0, 1, 2, 3, 4] \ -1           -> [1, 2, 3, 4]    // drop first 1
 // Rotation is via ~ operator
 [0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
 [0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
@@ -360,6 +374,7 @@ Crux {
     | MulExpr "~" PostfixExpr      -- rotate
     | MulExpr ".~" PostfixExpr     -- dotRotate
     | MulExpr ident PostfixExpr    -- aliasOp
+    | MulExpr "@" PostfixExpr      -- atIndex
     | PostfixExpr
 
   PostfixExpr
@@ -368,16 +383,26 @@ Crux {
     | PostfixExpr "t"                          -- tiePostfix
     | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
     | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
-    | PostfixExpr hspaces? SliceOp               -- slice
+    | PostfixExpr hspaces? "\\" hspaces? RandNum  -- dropRand
+    | PostfixExpr hspaces? "\\" hspaces? number   -- drop
     | PriExpr
 
   PriExpr
     = ident                        -- ref
     | "[[" NestedBody "]]"         -- nestedMot
+    | "[" AtIndexList "]"          -- atIndexMot
     | "[" MotBody "]"              -- mot
     | number                       -- numAsMot
     | "(" Expr ")"                 -- parens
     | Curly                        -- curlyAsExpr
+
+  AtIndexList
+    = NonemptyListOf<AtIndexEntry, atIndexSep>
+
+  atIndexSep = hspaces? "," hspaces?
+
+  AtIndexEntry
+    = "@" hspaces? index hspaces? SingleValue
 
   NestedBody
     = ListOf<NestedElem, ",">      -- nestedAbsolute
@@ -392,18 +417,6 @@ Crux {
   MotLiteral = "[" MotBody "]"
   NestedMotLiteral = "[[" NestedBody "]]"
   NestedMotAbbrev = "[[" MotBody "]"
-
-  SliceOp
-    = SliceIndex hspaces? "..." hspaces? SliceIndex   -- both
-    | SliceIndex hspaces? "..."                       -- startOnly
-    | "..." hspaces? SliceIndex                       -- endOnly
-    | "..." SliceIndex                                -- endOnlyTight
-
-  SliceIndex
-    = RandNum  -- rand
-    | Index    -- num
-
-  Index = sign? digit+
 
   MotBody
     = ListOf<Entry, ",">           -- absolute
@@ -498,7 +511,7 @@ Crux {
 
   OpSym
     = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
-    | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~"
+    | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?
@@ -508,6 +521,8 @@ Crux {
     = number ~ (hspaces? "->")
 
   sign = "+" | "-"
+
+  index = sign? digit+
 
   hspace = " " | "\t"
   hspaces = hspace+

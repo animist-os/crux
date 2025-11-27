@@ -41,12 +41,7 @@ export const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," SliceExpr   -- fby
-      | SliceExpr
-
-  // Slice operator at lower precedence than binary operators
-  SliceExpr
-      = SliceExpr hspaces? SliceOp     -- slice
+      = FollowedByExpr "," MulExpr   -- fby
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -77,9 +72,10 @@ export const g = ohm.grammar(String.raw`
       | MulExpr "~" PostfixExpr  -- rotate
       | MulExpr ".~" PostfixExpr  -- dotRotate
       | MulExpr ident PostfixExpr -- aliasOp
+      | MulExpr "@" PostfixExpr  -- atIndex
       | PostfixExpr
 
-  // Postfix operators (tie, repeat, subdivide, zip) at higher precedence than binary operators
+  // Postfix operators (tie, repeat, subdivide, zip, drop) at higher precedence than binary operators
   // These apply to their immediate left operand
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
@@ -87,17 +83,27 @@ export const g = ohm.grammar(String.raw`
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
+      | PostfixExpr hspaces? "\\" hspaces? RandNum  -- dropRand
+      | PostfixExpr hspaces? "\\" hspaces? number   -- drop
       | PriExpr
 
   PriExpr
       = Pip                          -- pipAsMot
       | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
+      | "[" AtIndexList "]"  -- atIndexMot
       | "[" MotBody "]"            -- mot
-      | "[@" hspaces? Index hspaces? SingleValue "]"  -- atIndexMot
       | number                        -- numAsMot
       | "(" Expr ")"                  -- parens
       | Curly                           -- curlyAsExpr
+
+  AtIndexList
+      = NonemptyListOf<AtIndexEntry, atIndexSep>
+  
+  atIndexSep = hspaces? "," hspaces?
+
+  AtIndexEntry
+      = "@" hspaces? index hspaces? SingleValue
 
   NestedBody
       = ListOf<NestedElem, ",">       -- nestedAbsolute
@@ -114,19 +120,6 @@ export const g = ohm.grammar(String.raw`
 
   // Abbreviated nested mot that closes with a single ']' so it can be followed by more values inside the same mot
   NestedMotAbbrev = "[[" MotBody "]"
-
-  SliceOp
-      = SliceIndex hspaces? "..." hspaces? SliceIndex   -- both
-      | SliceIndex hspaces? "..."                       -- startOnly
-      | "..." hspaces? SliceIndex                       -- endOnly
-      | "..." SliceIndex                                -- endOnlyTight
-
-    // Slice indices can be plain numbers or random numbers (curly)
-    SliceIndex
-      = RandNum  -- rand
-      | Index    -- num
-
-    Index = sign? digit+
 
   MotBody
       = ListOf<Entry, ",">            -- absolute
@@ -251,7 +244,7 @@ export const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~"
+      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?
@@ -262,6 +255,9 @@ export const g = ohm.grammar(String.raw`
       = number ~ (hspaces? "->")
 
     sign = "+" | "-"
+
+    // Index for [@index value] notation (lexical rule - no space skipping)
+    index = sign? digit+
 
     hspace = " " | "\t"
     hspaces = hspace+

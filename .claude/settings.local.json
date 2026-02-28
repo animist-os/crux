@@ -10,7 +10,19 @@
       "Bash(npm run build:test:*)",
       "Bash(for i in {1..5})",
       "Bash(do npm test)",
-      "Bash(done)"
+      "Bash(done)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.mfiles.co.uk)",
+      "WebFetch(domain:www.kunstderfuge.com)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "WebFetch(domain:tonic-chord.com)",
+      "WebFetch(domain:www.vantagemusic.org)",
+      "WebFetch(domain:welltemperedclavier.org)",
+      "mcp__codebase__search",
+      "mcp__codebase__grep_search",
+      "mcp__codebase__file_search",
+      "mcp__codebase__outline_code"
     ],
     "deny": [],
     "ask": []

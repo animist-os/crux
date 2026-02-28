@@ -1,0 +1,477 @@
+# Crux Test Corpus: Monophonic Diatonic Melodies
+#
+# Each melody is a flat Mot string with diatonic scale-degree steps
+# relative to the tonic (step 0 = tonic). The pitchRegime field specifies
+# the scale/mode, and tonic is the MIDI note number of the tonic pitch.
+# TimeScale 1 = the prevailing beat unit (usually a quarter note).
+# For 12Tone regimes, steps are chromatic semitones (12 per octave).
+#
+# Categories: bach, folk, classical, chant, edm, minimalist
+
+melodies:
+
+  # ---------------------------------------------------------------------------
+  # FOLK / TRADITIONAL
+  # ---------------------------------------------------------------------------
+
+  - id: mary-had-a-little-lamb
+    name: "Mary Had a Little Lamb"
+    source: "American nursery rhyme"
+    category: folk
+    key: "C major"
+    pitchRegime: Pentatonic
+    tonic: 60
+    crux: |
+      // #pitchRegime Pentatonic
+      // #tonic 0
+      [2, 1, 0, 1, 2, 2, 2 | 2, 1, 1, 1 | 2, 2, 3, 3 | 2, 2, 1, 0, 1, 2, 2, 2, 2, 1, 1, 2, 1, 0 | 2]
+    notes: "Full melody, 4 phrases. 3-note melodic range (C-D-E). Phrase endings use double duration."
+
+  - id: twinkle-twinkle
+    name: "Twinkle Twinkle Little Star"
+    source: "French folk melody (Ah! vous dirai-je, maman)"
+    category: folk
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0, 0, 4, 4, 5, 5, 4 | 2, 3, 3, 2, 2, 1, 1, 0 | 2, 4, 4, 3, 3, 2, 2, 1 | 2, 4, 4, 3, 3, 2, 2, 1 | 2, 0, 0, 4, 4, 5, 5, 4 | 2, 3, 3, 2, 2, 1, 1, 0 | 2]
+    notes: "Full first verse (AABBAA). Repeated notes, leap to P5, stepwise descent. Mirror structure between A and B phrases."
+
+  - id: frere-jacques
+    name: "Frere Jacques"
+    source: "French folk melody"
+    category: folk
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0, 1, 2, 0, 0, 1, 2, 0, 2, 3, 4 | 2, 2, 3, 4 | 2, 4 | /2, 5 | /2, 4 | /2, 3 | /2, 2, 0, 4 | /2, 5 | /2, 4 | /2, 3 | /2, 2, 0, 0, -3, 0 | 2, 0, -3, 0 | 2]
+    notes: "Full round (8 phrases). Ascending scale cells, eighth-note ornamental figures, descending fifth in final phrase."
+
+  - id: greensleeves
+    name: "Greensleeves (verse)"
+    source: "English folk melody (16th century)"
+    category: folk
+    key: "A minor"
+    pitchRegime: HarmonicMinor
+    tonic: 57
+    crux: |
+      // #pitchRegime HarmonicMinor
+      // #tonic 9
+      [0, 2 | 2, 3, 4 | /2, 5 | /2, 4 | 2, 3, 1 | 2, 0 | /2, -1 | /2, 0 | 2, 1, 2 | 2, 0, 2 | 2, 3, 4 | /2, 5 | /2, 4 | 2, 3, 1 | 2, 2, 1, 0 | 4]
+    notes: "Verse with both endings. 3/4 time, dotted rhythms, harmonic minor leading tone (-1 = G#). Varied timeScale ratios."
+
+  - id: scarborough-fair
+    name: "Scarborough Fair"
+    source: "English folk ballad"
+    category: folk
+    key: "D minor"
+    pitchRegime: Minor
+    tonic: 62
+    crux: |
+      // #pitchRegime Minor
+      // #tonic 2
+      [0, 0, 0 | 2, 0, 3, 3 | 2, 2, 3, 4, 6 | 2, 6, 4, 6, 7 | 2, 6 | 2, 4, 3, 2, 1, 2 | 2, 0 | 2, 0 | 2]
+    notes: "3/4 time. Dorian mode character. Wide range (12 semitones). Arch contour with long phrase endings."
+
+  - id: amazing-grace
+    name: "Amazing Grace"
+    source: "American hymn, New Britain melody"
+    category: folk
+    key: "G major"
+    pitchRegime: Major
+    tonic: 55
+    crux: |
+      // #pitchRegime Major
+      // #tonic 7
+      [0 | /2, 3, 3 | /2, 5 | /2, 4, 5, 7, 5 | /2, 4, 3, 3 | /2, 5 | /2, 4, 3, 0 | /2, -2, 0, 3 | /2, 5 | /2, 4, 5, 7 | 2]
+    notes: "Pickup eighth note, pentatonic framework (steps 0,5,7,9,12). Dotted rhythms. Two phrases with contrasting contour."
+
+  - id: auld-lang-syne
+    name: "Auld Lang Syne"
+    source: "Scottish folk melody"
+    category: folk
+    key: "G major"
+    pitchRegime: Major
+    tonic: 55
+    crux: |
+      // #pitchRegime Major
+      // #tonic 7
+      [0, 3 | 2, 3, 3 | 2, 5, 4 | 2, 3 | 2, 4, 5, 3 | 2, 3, 3 | 2, 5, 7 | 4, 8, 7 | 2, 7, 5 | 2, 3 | 2, 4, 5, 7 | 2, 7, 5 | 2, 3, 3 | 2, 5, 4 | 2, 3 | 2, 4, 5, 3 | 4]
+    notes: "Pentatonic melody. Pickup note, arch contour. Two 8-bar phrases with contrasting endings."
+
+  - id: sakura
+    name: "Sakura Sakura"
+    source: "Japanese traditional melody"
+    category: folk
+    key: "A minor"
+    pitchRegime: Major
+    tonic: 57
+    crux: |
+      // #pitchRegime Major
+      // #tonic 9
+      [0, 0, 1, 0, 0, 1, 0, 1, 3, 4, 3, 1, 0, 1, 3, 4, 3, 1, 0, -3, 0 | 2, 0, 1, 3, 4, 3, 1, 0, -3, 0 | 2]
+    notes: "Pentatonic (in min 2nd scale). Narrow intervallic movement. Descending fifth leap. Repetitive cell structure."
+
+  - id: when-the-saints
+    name: "When the Saints Go Marching In"
+    source: "African-American spiritual"
+    category: folk
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0 | /2, 2 | /2, 3 | /2, 4, 0 | /2, 2 | /2, 3 | /2, 4, 0 | /2, 2 | /2, 3, 4 | /2, 2, 0, 2, 1, 2, 1, 0, 0, 2, 4 | /2, 4, 3, 2, 3 | 2]
+    notes: "Syncopated rhythm. Major triad arpeggiation (0,4,7). Mixed eighth and quarter notes. Gospel/march feel."
+
+  # ---------------------------------------------------------------------------
+  # BACH
+  # ---------------------------------------------------------------------------
+
+  - id: bach-invention1
+    name: "Two-Part Invention No. 1 (subject + answer)"
+    source: "J.S. Bach, BWV 772"
+    category: bach
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0, 1, 2, 3, 4 | /2, 2 | /2, 4, 0, 4, 5, 6, 7, 8 | /2, 6 | /2, 8, 4]
+    notes: "Subject followed by tonal answer at the fifth. Ascending scale figure plus leap. Mixed 16th and 8th values."
+
+  - id: bach-wtc1-fugue2
+    name: "Well-Tempered Clavier I, Fugue 2 (subject + answer)"
+    source: "J.S. Bach, BWV 847"
+    category: bach
+    key: "C minor"
+    pitchRegime: 12Tone
+    tonic: 60
+    crux: |
+      // #pitchRegime 12Tone
+      // #tonic 0
+      [0 | 2, 2, 3, 5 | 4, 7, 3, 8, 7, 5 | 4, 3, 2, 0 | 4, 7 | 2, 9, 10, 12 | 4, 14, 10, 15, 14, 12 | 4, 10, 9, 7 | 4]
+    notes: "Subject + answer at the fifth. Mixed 8th/16th note values. Arch contour. Minor mode with chromatic intervals."
+
+  - id: bach-wtc1-fugue1
+    name: "Well-Tempered Clavier I, Fugue 1 (subject)"
+    source: "J.S. Bach, BWV 846"
+    category: bach
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0 | 2, r, 0, 1, 2, 4 | 2, 3, 2 | /2, 3 | /2, 1 | 2, 2, 0, 1, -1, 0 | 4]
+    notes: "Iconic WTC opening fugue subject. Begins with rest. Scalar motion with chromatic lower neighbor (-1). Moderate length."
+
+  - id: bach-cello-prelude
+    name: "Cello Suite No. 1, Prelude (opening figure)"
+    source: "J.S. Bach, BWV 1007"
+    category: bach
+    key: "G major"
+    pitchRegime: Major
+    tonic: 55
+    crux: |
+      // #pitchRegime Major
+      // #tonic 7
+      [0, 4, 2, 4, 5, 4, 2, 4, 0, 4, 2, 4, 5, 4, 2, 4, -1, 4, 2, 4, 5, 4, 2, 4, -1, 3, 1, 3, 4, 3, 1, 3]
+    notes: "Arpeggiated figure over 4 bars. All 8th notes. Broken chord pattern with pedal tone. Tests repetitive intervallic cells."
+
+  - id: bach-art-of-fugue
+    name: "Art of Fugue, Contrapunctus I (subject + answer)"
+    source: "J.S. Bach, BWV 1080"
+    category: bach
+    key: "D minor"
+    pitchRegime: 12Tone
+    tonic: 62
+    crux: |
+      // #pitchRegime 12Tone
+      // #tonic 2
+      [0 | 4, 7 | 2, 5 | 2, 0, -1, 0, 2, 3 | 4, 7 | 4, 14 | 2, 12 | 2, 7, 6, 7, 9, 10 | 4]
+    notes: "Subject: D(w)-A(h)-F(h)-D-C#-D-E-F(w), then answer transposed up a fifth. Long note values (whole/half). Wide leaps (P5, P4). Harmonic minor leading tone."
+
+  - id: bach-little-fugue
+    name: "Little Fugue in G minor (subject)"
+    source: "J.S. Bach, BWV 578"
+    category: bach
+    key: "G minor"
+    pitchRegime: HarmonicMinor
+    tonic: 55
+    crux: |
+      // #pitchRegime HarmonicMinor
+      // #tonic 7
+      [0 | 4, 4 | 4, 2, 1, 0, -1, 0, 1, 2, 3, 4 | 3, 3, 2 | 2, 1 | 2, 0 | 4]
+    notes: "One of Bach's most famous organ fugue subjects. Opens with held G-D fifth, then 8th-note scalar descent with chromatic F# turn, ascending scale, and stepwise descent to close."
+
+  - id: bach-passacaglia
+    name: "Passacaglia in C minor (ground bass)"
+    source: "J.S. Bach, BWV 582"
+    category: bach
+    key: "C minor"
+    pitchRegime: Minor
+    tonic: 60
+    crux: |
+      // #pitchRegime Minor
+      // #tonic 0
+      [0 | 3, 2 | 3, 3 | 3, 4, 5, 4, 3, 2, 1, 2 | 3, 3 | 3, 4, 3, 2, 1, 0 | 3]
+    notes: "8-bar ground bass repeated 20 times with variations. Ascending by step then decorated descent. Long notes (dotted half) alternate with quarter-note passages. Arch contour."
+
+  - id: bach-wtc1-fugue16
+    name: "Well-Tempered Clavier I, Fugue 16 (subject)"
+    source: "J.S. Bach, BWV 861"
+    category: bach
+    key: "G minor"
+    pitchRegime: Minor
+    tonic: 55
+    crux: |
+      // #pitchRegime Minor
+      // #tonic 7
+      [0 | 4, 0 | 2, 1 | 2, 2 | 4, 2 | 2, 3 | 2, 4 | 4, 4, 5, 4, 3, 2, 3, 4, 2, 3 | 4]
+    notes: "Long subject with distinct halves: slow ascending stepwise opening (half+quarter notes), then faster 8th-note descent with neighbor-tone decoration."
+
+  - id: bach-wtc1-fugue21
+    name: "Well-Tempered Clavier I, Fugue 21 (subject)"
+    source: "J.S. Bach, BWV 866"
+    category: bach
+    key: "Bb major"
+    pitchRegime: Major
+    tonic: 58
+    crux: |
+      // #pitchRegime Major
+      // #tonic 10
+      [0, r, 0 | /2, 1 | /2, 2 | /2, 3 | /2, 4, r, 4 | /2, 5 | /2, 6 | /2, 7 | /2, 8, 7, 6, 5, 4, 3, 2, 1, 0 | 4]
+    notes: "Energetic subject with rests between rising scale figures (8th-rest-4x16th). Two ascending scale bursts followed by stepwise descent. Tests rest integration in fast passages."
+
+  - id: bach-wtc2-fugue5
+    name: "Well-Tempered Clavier II, Fugue 5 (subject)"
+    source: "J.S. Bach, BWV 874"
+    category: bach
+    key: "D major"
+    pitchRegime: Major
+    tonic: 62
+    crux: |
+      // #pitchRegime Major
+      // #tonic 2
+      [0, 2, 4, 7, 6, 5, 4, 3, 2, 1, 0 | 4]
+    notes: "Ascending triad arpeggio (D-F#-A-D) then full descending scale. All 8th notes except final half note. Clean diatonic motion."
+
+  - id: bach-goldberg-bass
+    name: "Goldberg Variations Aria (bass line, first half)"
+    source: "J.S. Bach, BWV 988"
+    category: bach
+    key: "G major"
+    pitchRegime: Major
+    tonic: 55
+    crux: |
+      // #pitchRegime Major
+      // #tonic 7
+      [0, -1, -2, -3, -4, -5, -4, -3]
+    notes: "Ground bass for all 30 variations including 9 canons at increasing intervals. Descending scalar line (G-F#-E-D-C-B) then ascending (C-D). All dotted half notes in 3/4. Foundation of Bach's largest variation set."
+
+  - id: bach-invention4
+    name: "Two-Part Invention No. 4 (subject + answer)"
+    source: "J.S. Bach, BWV 775"
+    category: bach
+    key: "D minor"
+    pitchRegime: Dorian
+    tonic: 62
+    crux: |
+      // #pitchRegime Dorian
+      // #tonic 2
+      [0, 1, 2, 3, 4 | /2, 3 | /2, 2 | /2, 3 | /2, 1, 0, 4, 5, 6, 7, 8 | /2, 7 | /2, 6 | /2, 7 | /2, 5, 4]
+    notes: "Subject: ascending D minor scale then turn figure. Answer at the fifth. Mixed 16th and 8th values. Tests motivic pattern with ornamental turn."
+
+  - id: bach-invention8
+    name: "Two-Part Invention No. 8 (subject)"
+    source: "J.S. Bach, BWV 779"
+    category: bach
+    key: "F major"
+    pitchRegime: Major
+    tonic: 53
+    crux: |
+      // #pitchRegime Major
+      // #tonic 5
+      [0, 3, 2, 3, 4, 7, 6, 7, 4, 3 | /2, 4 | /2, 2 | /2, 3 | /2, 1 | /2, 2 | /2, 0]
+    notes: "Leaping subject outlining F major triad positions (F-C, E-C, G-C', B-C'). Descending 16th-note scale figure. Tests large intervallic leaps mixed with stepwise motion."
+
+  # ---------------------------------------------------------------------------
+  # CLASSICAL
+  # ---------------------------------------------------------------------------
+
+  - id: ode-to-joy
+    name: "Ode to Joy"
+    source: "Beethoven, Symphony No. 9"
+    category: classical
+    key: "D major"
+    pitchRegime: Major
+    tonic: 62
+    crux: |
+      // #pitchRegime Major
+      // #tonic 2
+      [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2 | 1.5, 1 | /2, 1 | 2, 2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 1 | 1.5, 0 | /2, 0 | 2]
+    notes: "Full A section (first + second ending). Mostly stepwise, arch shape. Dotted rhythm at phrase endings."
+
+  - id: eine-kleine-theme
+    name: "Eine kleine Nachtmusik (opening theme)"
+    source: "Mozart, K. 525"
+    category: classical
+    key: "G major"
+    pitchRegime: Major
+    tonic: 55
+    crux: |
+      // #pitchRegime Major
+      // #tonic 7
+      [0 | 2, r, 0, 2, 0, 2 | 2, r, 0, 2, 4 | 2, 7, r, 5 | 2, r, 5, 4, 3, 4 | 2, r, 3, 2, 1, 2 | 2, r, 1, 0 | 4]
+    notes: "Triadic opening gesture (0,4,7,12), rests between motifs, descending scale answer. Tests rest integration with melodic cells."
+
+  - id: fur-elise
+    name: "Fur Elise (opening theme)"
+    source: "Beethoven, WoO 59"
+    category: classical
+    key: "A minor"
+    pitchRegime: 12Tone
+    tonic: 57
+    crux: |
+      // #pitchRegime 12Tone
+      // #tonic 9
+      [11, 10, 11, 10, 11, 5, 9, 7, 3 | 2, 0, 3, 7, 5 | 2, 3, 0, 3, 5, 7 | 2, 11, 10, 11, 10, 11, 5, 9, 7, 3 | 2, 0, 3, 7, 5 | 2, 3, 7, 5, 3 | 4]
+    notes: "Oscillating semitone motif (E-D#-E). All 8th notes except phrase endings. Chromatic turn figure resolving down."
+
+  - id: mozart-k545
+    name: "Piano Sonata K. 545 (opening)"
+    source: "Mozart, K. 545"
+    category: classical
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0 | 2, 2 | 2, 4 | 2, 7 | 4, 6, 7, 8, 7, 5 | 2, 7, 5, 3, 5, 4 | 2, 2 | 2, 1, 2, 0 | 4]
+    notes: "Rising arpeggio to octave then descending scalar passage. Mixed quarter, eighth, and half note values."
+
+  # ---------------------------------------------------------------------------
+  # CHANT / MODAL
+  # ---------------------------------------------------------------------------
+
+  - id: dies-irae
+    name: "Dies Irae"
+    source: "Medieval Latin hymn (13th century)"
+    category: chant
+    key: "D minor"
+    pitchRegime: Dorian
+    tonic: 62
+    crux: |
+      // #pitchRegime Dorian
+      // #tonic 2
+      [0, 0, 1, 0, -1, 0, 0, 0, 1, 2, 1, 0, 1, 0, -1, 0, 1, 2, 0, -1, -2, -1, 0]
+    notes: "All equal durations. Three phrases (AAB). Narrow range. Descending to Bb (-3) in final phrase. Modal character."
+
+  - id: veni-creator
+    name: "Veni Creator Spiritus"
+    source: "Gregorian hymn (9th century)"
+    category: chant
+    key: "D dorian"
+    pitchRegime: Dorian
+    tonic: 62
+    crux: |
+      // #pitchRegime Dorian
+      // #tonic 2
+      [0, 3, 3, 4, 3, 4, 5, 4, 3 | 2, 3, 4, 2, 3, 2, 1, 0 | 2, 0, 3, 3, 4, 3, 4, 5, 4, 3 | 2, 3, 2, 1, 0, 1, 2, 1, 0 | 2]
+    notes: "Two verse phrases (each repeated). Dorian mode. All quarter notes except phrase endings. Arch contour."
+
+  # ---------------------------------------------------------------------------
+  # EDM / ELECTRONIC
+  # ---------------------------------------------------------------------------
+
+  - id: acid-bassline-303
+    name: "Acid Bassline (TB-303 style)"
+    source: "Electronic dance music pattern"
+    category: edm
+    key: "A minor"
+    pitchRegime: BluesMin
+    tonic: 57
+    crux: |
+      // #pitchRegime BluesMin
+      // #tonic 9
+      [0, 0, 6, 0, 1, 0, 2, 1, 0, 0, 6, 0, 1, 2, 1, 0, 0, 1, 0, 6, 0, 2, 1, 0, 0, 6, 2, 1, 0, 0, 1, 0]
+    notes: "Two bars of 16th notes. Octave jump (step 12). Minor pentatonic intervals. Second bar varies the pattern."
+
+  - id: four-on-the-floor
+    name: "Four on the Floor (kick pattern)"
+    source: "Electronic dance music"
+    category: edm
+    key: "n/a (unpitched)"
+    pitchRegime: Pentatonic
+    tonic: 60
+    crux: |
+      // #pitchRegime Pentatonic
+      // #tonic 0
+      [0, 0, 0, 0, 0, 0, 0, 0]
+    notes: "Degenerate case: constant pitch, constant duration. 8 beats. Tests identity decomposition."
+
+  - id: trance-arp
+    name: "Trance Arpeggio (classic pattern)"
+    source: "Electronic dance music"
+    category: edm
+    key: "A minor"
+    pitchRegime: Minor
+    tonic: 57
+    crux: |
+      // #pitchRegime Minor
+      // #tonic 9
+      [0, 2, 4, 7, 9, 7, 4, 2, 0, 2, 4, 7, 9, 7, 4, 2, 0, 3, 5, 7, 10, 7, 5, 3, 0, 3, 5, 7, 10, 7, 5, 3]
+    notes: "Rising/falling arpeggios over 2 chords (Am, F). All 8th notes. Symmetrical contour. Tests arpeggiated decomposition."
+
+  # ---------------------------------------------------------------------------
+  # MINIMALIST
+  # ---------------------------------------------------------------------------
+
+  - id: reich-clapping
+    name: "Clapping Music (basic pattern)"
+    source: "Steve Reich (1972)"
+    category: minimalist
+    key: "n/a (unpitched)"
+    pitchRegime: Pentatonic
+    tonic: 60
+    crux: |
+      // #pitchRegime Pentatonic
+      // #tonic 0
+      [0, 0, 0, r, 0, 0, r, 0, r, 0, 0, r, 0, 0, 0, r, 0, 0, r, 0, r, 0, 0]
+    notes: "Two cycles of the basic pattern. Single pitch with rests. Tests rest handling and constant-pitch decomposition."
+
+  - id: glass-arpeggio
+    name: "Glass-style Arpeggio (opening pattern)"
+    source: "In the style of Philip Glass"
+    category: minimalist
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [0, 2, 4, 7, 4, 2, 0, 2, 4, 7, 4, 2, 1, 3, 5, 8, 5, 3, 1, 3, 5, 8, 5, 3]
+    notes: "Two-chord arpeggio pattern (C major, D minor). Symmetrical rise and fall. All 8th notes. Additive rhythm feel."
+
+  - id: riley-in-c-motif
+    name: "In C (Motifs 1-6)"
+    source: "Terry Riley, In C (1964)"
+    category: minimalist
+    key: "C major"
+    pitchRegime: Major
+    tonic: 60
+    crux: |
+      // #pitchRegime Major
+      // #tonic 0
+      [2 | /2, 2 | /2, 2, 2 | /2, 2 | /2, 2, 2 | /2, 3, 2, r, 2 | /2, 3, 2, 3, 2 | /2, 2, 2, 3, 4, 0]
+    notes: "Sequential motifs from the piece. Repetitive cells with gradual expansion. Tests incremental motivic growth."

@@ -10,6 +10,8 @@
     "build:test": "npm run build && node --test"
   },
   "dependencies": {
-    "ohm-js": "^17.2.1"
+    "@tonejs/midi": "^2.0.28",
+    "ohm-js": "^17.2.1",
+    "yaml": "^2.8.2"
   }
 }

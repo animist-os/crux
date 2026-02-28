@@ -16,6 +16,10 @@ console.log('📝 Reading src/index.js...');
 const indexPath = path.join(__dirname, 'src/index.js');
 let indexContent = fs.readFileSync(indexPath, 'utf8');
 
+console.log('📝 Reading src/decompose.js...');
+const decomposePath = path.join(__dirname, 'src/decompose.js');
+let decomposeContent = fs.readFileSync(decomposePath, 'utf8');
+
 // Remove ES6 imports since we'll use require or global ohm
 grammarContent = grammarContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
 grammarContent = grammarContent.replace(/^export \{ g \};?\s*\n?/m, '');
@@ -23,6 +27,8 @@ grammarContent = grammarContent.replace(/^export const g = /m, 'const g = ');
 
 indexContent = indexContent.replace(/^import \* as ohm from ['"]ohm-js['"];?\s*\n/m, '');
 indexContent = indexContent.replace(/^import \{ g \} from ['"]\.\/grammar\.js['"];?\s*\n/m, '');
+
+decomposeContent = decomposeContent.replace(/^import ['"]\.\/index\.js['"];?\s*\n/m, '');
 
 // For now, just note that ohm-js needs to be available
 // In your actual environment, you'll load ohm-js separately or inline it
@@ -43,6 +49,9 @@ ${grammarContent}
 
 // === Main Implementation ===
 ${indexContent}
+
+// === Decomposition Engine ===
+${decomposeContent}
 
 // === Exports ===
 if (typeof module !== 'undefined' && module.exports) {

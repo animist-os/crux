@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * Re-analyze corpus MIDI files to auto-detect pitchRegime and tonic,
- * then convert absolute MIDI note numbers to diatonic scale degrees.
+ * Generate melodies.yaml from MIDI files in corpus/midi_src/.
  *
- * Reads each MIDI file, extracts pitch classes from the note numbers,
- * auto-detects the best pitchRegime and tonic via findRegime, then
- * converts each note to a diatonic step. Outputs updated YAML with
- * pitchRegime, tonic, and diatonic crux strings (including directive
- * comments).
+ * Scans the midi_src directory for .mid files (ignoring subdirectories),
+ * auto-detects pitchRegime and tonic from each file's pitch content,
+ * converts notes to diatonic scale degrees, and writes the complete
+ * melodies.yaml from scratch.
  *
  * Usage:
  *   node tools/reanalyze-corpus.js [--dry-run] [--verbose]
  */
 
 import fs from 'node:fs';
-import { parse as parseYaml } from 'yaml';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pkg from '@tonejs/midi';
 const { Midi } = pkg;
 import { findRegime, chromaticToDiatonic, computeTonicMidi } from './find-regime.js';
@@ -27,33 +26,64 @@ import {
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
+const CATEGORY_PREFIXES = {
+  'bach':     'bach',
+  'trance':   'edm',
+  'acid':     'edm',
+  'four-on':  'edm',
+  'reich':    'minimalist',
+  'glass':    'minimalist',
+  'riley':    'minimalist',
+  'dies':     'chant',
+  'veni':     'chant',
+  'ode':      'classical',
+  'eine':     'classical',
+  'fur':      'classical',
+  'mozart':   'classical',
+};
+
+function inferCategory(id) {
+  for (const [prefix, category] of Object.entries(CATEGORY_PREFIXES)) {
+    if (id.startsWith(prefix)) return category;
+  }
+  return 'folk';
+}
+
+function titleCase(str) {
+  return str.replace(/(^|\s)\S/g, c => c.toUpperCase());
+}
+
 const dryRun = process.argv.includes('--dry-run');
 const verbose = process.argv.includes('--verbose');
 
-// Read existing corpus metadata
-const corpusPath = new URL('../corpus/melodies.yaml', import.meta.url).pathname;
-const corpusYaml = fs.readFileSync(corpusPath, 'utf-8');
-const corpus = parseYaml(corpusYaml);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const midiDir = path.join(__dirname, '..', 'corpus', 'midi_src');
+const corpusPath = path.join(__dirname, '..', 'corpus', 'melodies.yaml');
+
+// Scan midi_src/ for .mid files (skip directories and non-.mid files)
+const midiFiles = fs.readdirSync(midiDir)
+  .filter(f => f.endsWith('.mid') && fs.statSync(path.join(midiDir, f)).isFile())
+  .sort();
+
+if (midiFiles.length === 0) {
+  console.error('No .mid files found in ' + midiDir);
+  process.exit(1);
+}
 
 let melodyCount = 0;
 let problemCount = 0;
 const results = [];
 
-for (const melody of corpus.melodies) {
-  const midiPath = new URL(`../corpus/midi_src/${melody.id}.mid`, import.meta.url).pathname;
-
-  if (!fs.existsSync(midiPath)) {
-    console.error(`WARNING: MIDI file not found for ${melody.id}`);
-    continue;
-  }
+for (const file of midiFiles) {
+  const id = path.basename(file, '.mid').replace(/_/g, '-');
+  const midiPath = path.join(midiDir, file);
 
   const buffer = fs.readFileSync(midiPath);
   const midi = new Midi(buffer);
 
-  // First track with notes
   const track = midi.tracks.find(t => t.notes.length > 0);
   if (!track || track.notes.length === 0) {
-    console.error(`WARNING: No notes in MIDI for ${melody.id}`);
+    console.error(`WARNING: No notes in MIDI for ${id}`);
     continue;
   }
 
@@ -72,24 +102,18 @@ for (const melody of corpus.melodies) {
     }
   }
 
-  // --- Determine pitchRegime and tonic ---
-  // Use existing curated values from YAML when available; auto-detect otherwise.
+  // Auto-detect pitchRegime and tonic from absolute MIDI numbers
   const midiNumbers = mono.map(n => n.midi);
-  let pitchRegime, tonicPc, tonicMidi, confidence;
+  const pitchClasses = [...new Set(midiNumbers.map(n => n % 12))];
+  const regimeResult = findRegime(pitchClasses);
+  const pitchRegime = regimeResult.pitchRegime;
+  const tonicPc = regimeResult.tonicPc;
+  const tonicMidi = computeTonicMidi(midiNumbers, tonicPc);
 
-  if (melody.pitchRegime && melody.tonic != null) {
-    pitchRegime = melody.pitchRegime;
-    tonicMidi = melody.tonic;
-    tonicPc = tonicMidi % 12;
-    confidence = 'curated';
-  } else {
-    const pitchClasses = [...new Set(midiNumbers.map(n => n % 12))];
-    const regimeResult = findRegime(pitchClasses);
-    pitchRegime = regimeResult.pitchRegime;
-    tonicPc = regimeResult.tonicPc;
-    tonicMidi = computeTonicMidi(midiNumbers, tonicPc);
-    confidence = regimeResult.confidence;
-  }
+  // Derive metadata from filename and detected regime/tonic
+  const name = titleCase(id.replace(/-/g, ' '));
+  const key = `${NOTE_NAMES[tonicPc]} ${pitchRegime}`;
+  const category = inferCategory(id);
 
   // Build diatonic pips
   const durations = mono.map(n => n.duration);
@@ -101,7 +125,6 @@ for (const melody of corpus.melodies) {
   for (let i = 0; i < mono.length; i++) {
     const note = mono[i];
 
-    // Detect rest (gap before this note)
     if (i > 0) {
       const prev = mono[i - 1];
       const gap = note.time - (prev.time + prev.duration);
@@ -128,33 +151,33 @@ for (const melody of corpus.melodies) {
   }
 
   const cruxMot = formatMot(pips);
-  // Build full crux string with directive comments
   const cruxString = `// #pitchRegime ${pitchRegime}\n// #tonic ${tonicPc}\n${cruxMot}`;
 
   melodyCount++;
   if (problems.length > 0) problemCount += problems.length;
 
-  const result = {
-    id: melody.id,
+  results.push({
+    id,
+    name,
+    source: '',
+    category,
+    key,
     pitchRegime,
-    tonicPc,
     tonicMidi,
-    confidence,
+    tonicPc,
+    confidence: regimeResult.confidence,
     crux: cruxString,
     cruxMot,
+    notes: '',
     problems,
-    originalCrux: melody.crux,
-  };
-  results.push(result);
+  });
 
-  // Summary
   const status = problems.length > 0 ? '  PROBLEMS' : '  OK';
   const rootNote = `${NOTE_NAMES[tonicPc]}${Math.floor(tonicMidi / 12) - 1}`;
-  console.error(`${melody.id}: ${pitchRegime} tonic=${rootNote} (MIDI ${tonicMidi}) [${confidence}]${status}`);
+  console.error(`${id}: ${pitchRegime} tonic=${rootNote} (MIDI ${tonicMidi}) [${regimeResult.confidence}]${status}`);
 
   if (verbose || problems.length > 0) {
-    const pcs = [...new Set(midiNumbers.map(n => n % 12))].sort((a, b) => a - b);
-    console.error(`  PCs:      [${pcs.join(', ')}]`);
+    console.error(`  PCs:      [${pitchClasses.sort((a, b) => a - b).join(', ')}]`);
     console.error(`  diatonic: ${cruxMot}`);
     if (problems.length > 0) {
       for (const p of problems) console.error(`  PROBLEM:  ${p}`);
@@ -170,107 +193,35 @@ if (dryRun) {
   process.exit(problemCount > 0 ? 1 : 0);
 }
 
-// Build the updated YAML by patching the original line by line.
-// This preserves comments and formatting.
-const yamlLines = corpusYaml.split('\n');
-const resultMap = new Map(results.map(r => [r.id, r]));
+// Generate melodies.yaml from scratch
+const yamlLines = [
+  '# Crux Test Corpus: Monophonic Diatonic Melodies',
+  '#',
+  '# Auto-generated by tools/reanalyze-corpus.js from MIDI files in corpus/midi_src/.',
+  '# Each melody is a flat Mot string with diatonic scale-degree steps',
+  '# relative to the tonic (step 0 = tonic). The pitchRegime field specifies',
+  '# the scale/mode, and tonic is the MIDI note number of the tonic pitch.',
+  '#',
+  '',
+  'melodies:',
+  '',
+];
 
-const outLines = [];
-let idx = 0;
-while (idx < yamlLines.length) {
-  const line = yamlLines[idx];
-
-  // Match a list-item id line like "  - id: melody-name"
-  const idMatch = line.match(/^(\s+-\s+)id:\s*(\S+)/);
-  if (idMatch) {
-    const prefix = idMatch[1]; // "  - " (includes the dash)
-    const id = idMatch[2];
-    const r = resultMap.get(id);
-    // Field indent: replace leading "- " with spaces to get property indent
-    const fieldIndent = prefix.replace(/-/, ' ');
-
-    if (r) {
-      outLines.push(line); // id line
-      idx++;
-
-      let emittedRegime = false;
-      let emittedCrux = false;
-
-      while (idx < yamlLines.length) {
-        const cur = yamlLines[idx];
-
-        // Detect next list item
-        if (cur.match(/^\s+-\s+id:/)) break;
-
-        // Detect section separator comment (but not inline notes)
-        if (cur.match(/^\s+#\s*---/)) break;
-
-        // Replace or skip old pitchRegime/tonic
-        if (cur.match(/^\s+pitchRegime:/)) { idx++; continue; }
-        if (cur.match(/^\s+tonic:\s+\d/)) { idx++; continue; }
-
-        // Replace crux line and insert pitchRegime/tonic before it.
-        // Also skip any block scalar continuation lines (indented deeper
-        // than the crux: key itself).
-        if (cur.match(/^\s+crux:/)) {
-          const cruxIndent = cur.match(/^(\s+)/)[1].length;
-
-          // Skip this line and any block scalar continuation lines
-          idx++;
-          while (idx < yamlLines.length) {
-            const next = yamlLines[idx];
-            // Continuation line: either empty or indented deeper than crux:
-            const nextIndentMatch = next.match(/^(\s+)/);
-            if (next.trim() === '') break; // blank line ends the block
-            if (!nextIndentMatch || nextIndentMatch[1].length <= cruxIndent) break;
-            idx++; // skip this continuation line
-          }
-
-          if (!emittedRegime) {
-            outLines.push(`${fieldIndent}pitchRegime: ${r.pitchRegime}`);
-            outLines.push(`${fieldIndent}tonic: ${r.tonicMidi}`);
-            emittedRegime = true;
-          }
-          // Emit crux as block scalar with directive comments
-          outLines.push(`${fieldIndent}crux: |`);
-          for (const cruxLine of r.crux.split('\n')) {
-            outLines.push(`${fieldIndent}  ${cruxLine}`);
-          }
-          emittedCrux = true;
-          continue;
-        }
-
-        // Blank line = end of entry
-        if (cur.trim() === '') {
-          if (!emittedRegime) {
-            outLines.push(`${fieldIndent}pitchRegime: ${r.pitchRegime}`);
-            outLines.push(`${fieldIndent}tonic: ${r.tonicMidi}`);
-            emittedRegime = true;
-          }
-          if (!emittedCrux) {
-            outLines.push(`${fieldIndent}crux: |`);
-            for (const cruxLine of r.crux.split('\n')) {
-              outLines.push(`${fieldIndent}  ${cruxLine}`);
-            }
-            emittedCrux = true;
-          }
-          outLines.push(cur);
-          idx++;
-          break;
-        }
-
-        // Copy other lines (name, source, category, key, notes)
-        outLines.push(cur);
-        idx++;
-      }
-      continue;
-    }
+for (const r of results) {
+  yamlLines.push(`  - id: ${r.id}`);
+  yamlLines.push(`    name: "${r.name}"`);
+  yamlLines.push(`    source: "${r.source}"`);
+  yamlLines.push(`    category: ${r.category}`);
+  yamlLines.push(`    key: "${r.key}"`);
+  yamlLines.push(`    pitchRegime: ${r.pitchRegime}`);
+  yamlLines.push(`    tonic: ${r.tonicMidi}`);
+  yamlLines.push(`    crux: |`);
+  for (const cruxLine of r.crux.split('\n')) {
+    yamlLines.push(`      ${cruxLine}`);
   }
-
-  outLines.push(line);
-  idx++;
+  yamlLines.push(`    notes: "${r.notes}"`);
+  yamlLines.push('');
 }
 
-const updatedYaml = outLines.join('\n');
-fs.writeFileSync(corpusPath, updatedYaml);
+fs.writeFileSync(corpusPath, yamlLines.join('\n'));
 console.error(`Wrote ${corpusPath}`);

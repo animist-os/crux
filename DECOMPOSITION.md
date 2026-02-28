@@ -89,20 +89,32 @@ If relationship rewrites break verification (the rewritten program doesn't produ
 
 ## Corpus Pipeline
 
-### Source Files
+### Source of Truth
 
-- `corpus/melodies.yaml` — 34 monophonic melodies with diatonic scale-degree Crux notation, pitchRegime, tonic, and metadata.
+**MIDI files** in `corpus/midi_src/` are the source of truth for pitch and rhythm. These are manually curated and corrected against published scores.
+
+**Metadata** in `corpus/melodies.yaml` (name, source, category, key, pitchRegime, tonic, notes) is maintained by hand. The `crux:` block is regenerated from MIDI on each pipeline run.
+
+### Files
+
+- `corpus/midi_src/*.mid` — Curated MIDI files (source of truth for notes/rhythm).
+- `corpus/melodies.yaml` — Metadata + derived diatonic Crux notation.
 - `corpus/melodies_decomposed.yaml` — Generated. Each melody gets a `decompositions` array of scored candidates.
-- `modules/golden/golden_crux_corpus.js` — Generated Doh.Module. Programs include `// #pitchRegime` and `// #tonic` directives plus a flattened comment for comparison.
+- `modules/golden/golden_crux_corpus.js` — Generated Doh.Module for the GoldenCruxPanel examples browser.
 
 ### Generation Steps
 
 ```
-generate_decomposed.js    →  melodies_decomposed.yaml
-generate_crux_corpus.js   →  golden_crux_corpus.js
+corpus/midi_src/*.mid                           (source of truth)
+    ↓ reanalyze-corpus.js
+corpus/melodies.yaml                            (metadata + derived crux)
+    ↓ generate_decomposed.js
+corpus/melodies_decomposed.yaml                 (scored decomposition candidates)
+    ↓ generate_crux_corpus.js
+modules/golden/golden_crux_corpus.js            (loadable Doh.Module)
 ```
 
-Both are run via `scripts/update_crux_corpus.sh`.
+All three steps are run via `scripts/update_crux_corpus.sh`. Supports `--dry-run` (step 1 only, no writes) and `--verbose`.
 
 ### Directives
 
@@ -141,9 +153,10 @@ The flattened comment strips timeScales to show step-only values, making it easy
 
 ## Supporting Tools
 
-- `tools/find-regime.js` — Maps pitchRegime names to pitch class sets. Provides `diatonicToChromatic()` for converting scale-degree steps to chromatic semitones.
-- `tools/generate-corpus-midi.js` — Generates MIDI files from corpus melodies (output in `corpus/midi_src/`).
-- `tools/reanalyze-corpus.js` — Re-analyzes MIDI files to extract features.
+- `tools/reanalyze-corpus.js` — Reads MIDI files + YAML metadata, converts to diatonic Crux, patches YAML in place. First step of the pipeline. Uses curated pitchRegime/tonic from YAML; auto-detects if absent.
+- `tools/find-regime.js` — Maps pitchRegime names to pitch class sets. Provides `chromaticToDiatonic()` and `diatonicToChromatic()` for converting between scale-degree steps and chromatic semitones.
+- `tools/midi-to-crux.js` — Low-level MIDI-to-Crux utilities: `findBaseDuration()`, `quantizeTimeScale()`, `formatMot()`.
+- `tools/generate-corpus-midi.js` — Generates MIDI files from YAML (reverse direction, for audition after YAML edits).
 - `test/corpus.test.js` — Validates corpus YAML structure, pitchRegime/tonic values, crux parsing, and round-trip consistency.
 
 ## Design Principles

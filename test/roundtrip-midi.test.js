@@ -37,7 +37,7 @@ function extractMonophonicNotes(buffer) {
       continue;
     }
     const prev = mono[mono.length - 1];
-    if (note.time < prev.time + prev.duration - 0.001) continue;
+    if (note.time < prev.time + prev.duration - prev.duration * 0.15) continue;
     mono.push(note);
   }
 

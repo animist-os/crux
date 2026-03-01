@@ -97,7 +97,7 @@ for (const file of midiFiles) {
   for (let i = 1; i < sorted.length; i++) {
     const prev = mono[mono.length - 1];
     const prevEnd = prev.time + prev.duration;
-    if (sorted[i].time >= prevEnd - 0.001) {
+    if (sorted[i].time >= prevEnd - prev.duration * 0.15) {
       mono.push(sorted[i]);
     }
   }

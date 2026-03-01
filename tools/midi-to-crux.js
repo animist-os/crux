@@ -199,7 +199,7 @@ export function midiToMot(buffer, options = {}) {
     const prev = mono[mono.length - 1];
     const prevEnd = prev.time + prev.duration;
     // If this note starts before the previous ends, skip it (polyphonic overlap)
-    if (note.time < prevEnd - 0.001) {
+    if (note.time < prevEnd - prev.duration * 0.15) {
       if (verbose) {
         process.stderr.write(`Skipping overlapping note: MIDI ${note.midi} at ${note.time.toFixed(3)}s\n`);
       }

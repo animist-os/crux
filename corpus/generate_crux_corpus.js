@@ -65,15 +65,16 @@ for (const melody of data.melodies) {
             // Track index within this kind for disambiguation
             kindIndex[decomp.kind] = (kindIndex[decomp.kind] || 0) + 1;
             if (kindCounts[decomp.kind] > 1) {
-                name = `${melody.name} (${decomp.kind} #${kindIndex[decomp.kind]})`;
+                name = `${melody.name} #${kindIndex[decomp.kind]}`;
             } else {
-                name = `${melody.name} (${decomp.kind})`;
+                name = `${melody.name}`;
             }
         }
 
         entries.push({
             name,
-            description: `${melody.notes} [${melody.source}, ${melody.key}]`,
+            //description: `${melody.notes} [${melody.source}, ${melody.key}]`,
+            description: `${decomp.score} ${decomp.kind}`,
             tag,
             program,
         });

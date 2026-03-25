@@ -177,6 +177,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new PaertOp(x.parse(), y.parse());
   },
 
+  MulExpr_fold(x, _f, y) {
+    return new FoldOp(x.parse(), y.parse());
+  },
+
   MulExpr_dot(x, _dot, y) {
     return new Dot(x.parse(), y.parse());
   },
@@ -749,6 +753,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_reich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotReich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_fold(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_atIndex(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
@@ -853,6 +858,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_reich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotReich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_fold(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_atIndex(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectTs(); },
@@ -1539,6 +1545,7 @@ function instantiateOpNodeBySymbol(sym, x, y) {
     case 'r': return new ReichOp(x, y);
     case '.r': return new DotReich(x, y);
     case 'p': return new PaertOp(x, y);
+    case 'f': return new FoldOp(x, y);
     default:
       throw new Error('unknown operator symbol for alias: ' + sym);
   }
@@ -1975,6 +1982,31 @@ class PaertOp {
       // Reconstruct quantized step with same octave
       const quantizedStep = octave * 7 + nearestDegree;
       out.push(new Pip(quantizedStep, pip.timeScale, pip.tag));
+    }
+
+    return new Mot(out);
+  }
+}
+
+// Fold: concatenate mot with its reverse, transposed by RHS step
+// [0,1,2] f [0] → [0,1,2,2,1,0]
+// [4,5,6] f [2] → [4,5,6,8,7,6]
+class FoldOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [...left.values];
+
+    for (const r of right.values) {
+      const reversed = [...left.values].reverse();
+      for (const p of reversed) {
+        out.push(new Pip(p.step + r.step, p.timeScale * r.timeScale, p.tag));
+      }
     }
 
     return new Mot(out);

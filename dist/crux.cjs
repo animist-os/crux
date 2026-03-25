@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-02-27T22:32:59.476Z
+// Generated: 2026-03-25T21:20:51.375Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -77,6 +77,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr "g" PostfixExpr   -- glass
       | MulExpr "r" PostfixExpr   -- reich
       | MulExpr "p" PostfixExpr   -- paert
+      | MulExpr "f" PostfixExpr   -- fold
       | MulExpr "*" PostfixExpr  -- mul
       | MulExpr "^" PostfixExpr  -- expand
       | MulExpr "." PostfixExpr  -- dot
@@ -255,7 +256,7 @@ const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~" | "@"
+      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?
@@ -462,6 +463,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   MulExpr_paert(x, _p, y) {
     return new PaertOp(x.parse(), y.parse());
+  },
+
+  MulExpr_fold(x, _f, y) {
+    return new FoldOp(x.parse(), y.parse());
   },
 
   MulExpr_dot(x, _dot, y) {
@@ -1036,6 +1041,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_reich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotReich(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_fold(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_atIndex(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectRepeatSuffixRewrites(); },
@@ -1140,6 +1146,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_reich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotReich(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_paert(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_fold(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_aliasOp(x, _name, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_atIndex(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr_subdivide(x, _slash) { return x.collectTs(); },
@@ -1826,6 +1833,7 @@ function instantiateOpNodeBySymbol(sym, x, y) {
     case 'r': return new ReichOp(x, y);
     case '.r': return new DotReich(x, y);
     case 'p': return new PaertOp(x, y);
+    case 'f': return new FoldOp(x, y);
     default:
       throw new Error('unknown operator symbol for alias: ' + sym);
   }
@@ -2262,6 +2270,31 @@ class PaertOp {
       // Reconstruct quantized step with same octave
       const quantizedStep = octave * 7 + nearestDegree;
       out.push(new Pip(quantizedStep, pip.timeScale, pip.tag));
+    }
+
+    return new Mot(out);
+  }
+}
+
+// Fold: concatenate mot with its reverse, transposed by RHS step
+// [0,1,2] f [0] → [0,1,2,2,1,0]
+// [4,5,6] f [2] → [4,5,6,8,7,6]
+class FoldOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+    const out = [...left.values];
+
+    for (const r of right.values) {
+      const reversed = [...left.values].reverse();
+      for (const p of reversed) {
+        out.push(new Pip(p.step + r.step, p.timeScale * r.timeScale, p.tag));
+      }
     }
 
     return new Mot(out);
@@ -3907,15 +3940,20 @@ class DLiteral {
   toString() {
     const parts = this.pips.map(p => {
       const step = p.step;
-      const ts = Math.abs(p.timeScale ?? 1);
+      const ts = p.timeScale ?? 1;
       if (ts === 1) return `${step}`;
-      const inv = 1 / ts;
+      // Negative timeScale signals retrograde in Mul/Expand operators.
+      // Preserve the sign so round-trip verification works.
+      const absTs = Math.abs(ts);
+      const neg = ts < 0 ? '-' : '';
+      if (absTs === 1) return `${step} | ${neg}1`;
+      const inv = 1 / absTs;
       const invRounded = Math.round(inv);
       if (Math.abs(inv - invRounded) < 1e-10 && invRounded !== 0) {
-        return `${step} | /${invRounded}`;
+        return `${step} | ${neg}/${invRounded}`;
       }
-      const tsStr = Number.isInteger(ts) ? String(ts) : String(+ts.toFixed(6)).replace(/\.0+$/, '');
-      return `${step} | ${tsStr}`;
+      const tsStr = Number.isInteger(absTs) ? String(absTs) : String(+absTs.toFixed(6)).replace(/\.0+$/, '');
+      return `${step} | ${neg}${tsStr}`;
     });
     return '[' + parts.join(', ') + ']';
   }
@@ -4170,9 +4208,11 @@ function buildRhythmExpr(timeScales) {
 // Variable Hoisting
 // ============================================================================
 // Identifies repeated sub-expressions in a candidate AST and hoists them
-// into named variable assignments for readability.
+// into named variable assignments. The goal is to reveal repetition and
+// structural relationships — not to save characters. A hoist that costs
+// characters but names a motif used three times is a clear win.
 
-const MIN_HOIST_LEN = 8; // min toString() length to consider hoisting
+const MIN_HOIST_LEN = 5; // min toString() length to consider hoisting
 
 // Variable names: aa, ab, ac, ... az, ba, bb, ...
 // Two-char names avoid single-letter operator conflicts (j, m, l, c, g, r, p, t, z).
@@ -4192,6 +4232,9 @@ function walkAST(node, visitor) {
     for (const part of node.parts) walkAST(part, visitor);
   } else if (node instanceof DRepeat) {
     walkAST(node.expr, visitor);
+  } else if (node instanceof DProgram) {
+    for (const a of node.assignments) walkAST(a.expr, visitor);
+    walkAST(node.finalExpr, visitor);
   }
 }
 
@@ -4236,11 +4279,99 @@ function substituteAST(node, targetKey, replacement) {
     if (newExpr === node.expr) return node;
     return new DRepeat(newExpr, node.count);
   }
+  if (node instanceof DProgram) {
+    let changed = false;
+    const newAssignments = node.assignments.map(a => {
+      const newExpr = substituteAST(a.expr, targetKey, replacement);
+      if (newExpr !== a.expr) { changed = true; return { ...a, expr: newExpr }; }
+      return a;
+    });
+    const newFinal = substituteAST(node.finalExpr, targetKey, replacement);
+    if (newFinal !== node.finalExpr) changed = true;
+    return changed ? new DProgram(newAssignments, newFinal) : node;
+  }
   return node;
 }
 
-// Attempt to hoist repeated sub-expressions into variables.
+// Evaluate a standalone Crux expression and return its pip values.
+function evalExpr(code) {
+  try {
+    const result = golden.crux_interp(code);
+    const mot = result.sections.at(-1);
+    if (!mot?.values) return null;
+    return mot.values.map(p => ({ step: p.step, timeScale: p.timeScale }));
+  } catch { return null; }
+}
+
+// After hoisting, try to express variables in terms of each other.
+// Detects transposition (aa * [N]) and retrograde (aa * [N | -1]).
+// Returns the number of inter-variable relationships found.
+function findVariableRelationships(assignments) {
+  // Evaluate each variable's expression to get pip values
+  const evalMap = new Map();
+  for (const assign of assignments) {
+    const pips = evalExpr(assign.expr.toString());
+    if (pips) evalMap.set(assign.name, pips);
+  }
+
+  let count = 0;
+
+  for (let i = 1; i < assignments.length; i++) {
+    const laterPips = evalMap.get(assignments[i].name);
+    if (!laterPips || laterPips.length === 0) continue;
+
+    for (let j = 0; j < i; j++) {
+      const earlierPips = evalMap.get(assignments[j].name);
+      if (!earlierPips || earlierPips.length === 0) continue;
+      if (earlierPips.length !== laterPips.length) continue;
+
+      const earlierName = assignments[j].name;
+
+      // Check transposition: later = earlier + constant offset
+      const offset = laterPips[0].step - earlierPips[0].step;
+      if (offset !== 0) {
+        let isTransposition = true;
+        for (let k = 0; k < earlierPips.length; k++) {
+          if (laterPips[k].step - earlierPips[k].step !== offset) { isTransposition = false; break; }
+          if (Math.abs(laterPips[k].timeScale - earlierPips[k].timeScale) > 1e-10) { isTransposition = false; break; }
+        }
+        if (isTransposition) {
+          assignments[i].expr = new DBinOp('*', new DRef(earlierName),
+            new DLiteral([{ step: offset, timeScale: 1 }]));
+          assignments[i].derivedFrom = earlierName;
+          count++;
+          break;
+        }
+      }
+
+      // Check retrograde: later = reverse(earlier) + offset
+      const retroOffset = laterPips[0].step - earlierPips[earlierPips.length - 1].step;
+      let isRetrograde = true;
+      for (let k = 0; k < earlierPips.length; k++) {
+        const rev = earlierPips.length - 1 - k;
+        if (laterPips[k].step - earlierPips[rev].step !== retroOffset) { isRetrograde = false; break; }
+        if (Math.abs(laterPips[k].timeScale - earlierPips[rev].timeScale) > 1e-10) { isRetrograde = false; break; }
+      }
+      if (isRetrograde) {
+        assignments[i].expr = new DBinOp('*', new DRef(earlierName),
+          new DLiteral([{ step: retroOffset, timeScale: -1 }]));
+        assignments[i].derivedFrom = earlierName;
+        count++;
+        break;
+      }
+    }
+  }
+
+  return count;
+}
+
+// Attempt to hoist repeated sub-expressions into variables, then
+// look for inter-variable relationships (transposition, retrograde).
 // Returns {code, score, kind} or null if no hoisting was beneficial.
+//
+// Selection criterion: structural value = occurrences × expression length.
+// This prioritizes naming motifs that appear many times and/or are
+// non-trivial expressions, regardless of whether it saves characters.
 function attemptHoist(node, targetPips, baseKind) {
   const assignments = [];
   let currentNode = node;
@@ -4249,40 +4380,62 @@ function attemptHoist(node, targetPips, baseKind) {
   while (true) {
     const freqs = collectSubExpressions(currentNode);
     let bestKey = null;
-    let bestSavings = 0;
+    let bestValue = 0;
     let bestNode = null;
+    let bestCount = 0;
 
     for (const [key, { count, node: exprNode }] of freqs) {
       if (count < 2) continue;
-      const name = generateVarName(varIndex);
-      // Savings: replace N occurrences of exprLen with nameLen, add one assignment line
-      const savings = (count - 1) * key.length - (name.length + 3 + 1); // "aa = " + "\n"
-      if (savings > bestSavings) {
-        bestSavings = savings;
+      // Structural value: how much repetition does naming this reveal?
+      // More occurrences and longer expressions = more structure exposed.
+      const value = count * key.length;
+      if (value > bestValue) {
+        bestValue = value;
         bestKey = key;
         bestNode = exprNode;
+        bestCount = count;
       }
     }
 
-    if (!bestKey || bestSavings <= 0) break;
+    if (!bestKey) break;
 
     const name = generateVarName(varIndex);
     varIndex++;
     currentNode = substituteAST(currentNode, bestKey, new DRef(name));
-    assignments.push({ name, expr: bestNode });
+    assignments.push({ name, expr: bestNode, uses: bestCount });
   }
 
   if (assignments.length === 0) return null;
 
-  const program = new DProgram(assignments, currentNode);
-  const code = program.toString();
+  // Snapshot the hoisted-only version before trying relationships.
+  const hoistOnlyAssignments = assignments.map(a => ({ ...a }));
 
-  // Verify the hoisted version round-trips correctly
-  if (!verify(code, targetPips)) return null;
+  // Phase 2: try to express variables in terms of each other.
+  // This reveals structural relationships between motifs.
+  const relationships = findVariableRelationships(assignments);
+
+  let program = new DProgram(assignments, currentNode);
+  let code = program.toString();
+
+  // Verify the full program round-trips correctly
+  if (!verify(code, targetPips)) {
+    if (relationships > 0) {
+      // Relationship rewrites broke verification — fall back to hoist-only.
+      const fallback = new DProgram(hoistOnlyAssignments, currentNode);
+      const fallbackCode = fallback.toString();
+      if (!verify(fallbackCode, targetPips)) return null;
+      return {
+        code: fallbackCode,
+        score: scoreHoisted(fallbackCode, targetPips, hoistOnlyAssignments, 0),
+        kind: baseKind,
+      };
+    }
+    return null;
+  }
 
   return {
     code,
-    score: score(code, targetPips),
+    score: scoreHoisted(code, targetPips, assignments, relationships),
     kind: baseKind,
   };
 }
@@ -4467,12 +4620,268 @@ function buildSegmentedCandidate(pips, runs, runNodeFn) {
   return parts;
 }
 
+// ============================================================================
+// Kernel Discovery
+// ============================================================================
+// Finds a short motif (the "kernel") and shows how the surface derives from
+// transformations of it. Reveals thematic self-similarity — the generative
+// heart of the material — even when the resulting program is longer than the literal.
+
+const MIN_KERNEL_LEN = 3;
+const MAX_KERNEL_LEN_CAP = 8;
+const MAX_KERNEL_CANDIDATES = 50;
+const MIN_KERNEL_COVERAGE = 0.4;
+const KERNEL_TRANSFORM_COUNT = 3; // identity, transposition, retrograde (phase 1)
+
+// Interval profile: the sequence of step deltas between adjacent pips.
+// Two subsequences with the same profile are the same kernel modulo transposition.
+function intervalProfile(pips) {
+  const profile = [];
+  for (let i = 1; i < pips.length; i++) {
+    profile.push(pips[i].step - pips[i - 1].step);
+  }
+  return profile.join(',');
+}
+
+// Generate candidate kernels from the surface. Deduplicates by interval profile
+// and weights toward earlier positions (the generating motif often appears first)
+// and shorter lengths (more parsimonious).
+function generateKernelCandidates(pips) {
+  const maxLen = Math.min(MAX_KERNEL_LEN_CAP, Math.floor(pips.length / 2));
+  if (maxLen < MIN_KERNEL_LEN) return [];
+
+  const seen = new Map(); // intervalProfile -> true
+  const candidates = [];
+
+  for (let len = MIN_KERNEL_LEN; len <= maxLen; len++) {
+    for (let start = 0; start <= pips.length - len; start++) {
+      const sub = pips.slice(start, start + len);
+      const profile = intervalProfile(sub);
+
+      if (!seen.has(profile)) {
+        seen.set(profile, true);
+        // Weight: prefer earlier positions and shorter kernels
+        const positionWeight = 1 / (1 + start);
+        const parsimonyWeight = 1 / len;
+        const weight = positionWeight * 0.7 + parsimonyWeight * 0.3;
+        candidates.push({ pips: sub, startIndex: start, length: len, weight });
+      }
+    }
+  }
+
+  candidates.sort((a, b) => b.weight - a.weight);
+  return candidates.slice(0, MAX_KERNEL_CANDIDATES);
+}
+
+// --- Transformation Matchers ---
+// Each takes kernel K and target T (same length, step-only),
+// returns {transform, params, buildAST(kernelRef)} or null.
+
+function matchIdentity(K, T) {
+  for (let i = 0; i < K.length; i++) {
+    if (K[i].step !== T[i].step) return null;
+  }
+  return {
+    transform: 'identity',
+    params: {},
+    buildAST: (ref) => ref,
+  };
+}
+
+function matchTransposition(K, T) {
+  const offset = T[0].step - K[0].step;
+  if (offset === 0) return null; // that's identity
+  for (let i = 1; i < K.length; i++) {
+    if (T[i].step - K[i].step !== offset) return null;
+  }
+  return {
+    transform: 'transposition',
+    params: { offset },
+    buildAST: (ref) => new DBinOp('*', ref, new DLiteral([{ step: offset, timeScale: 1 }])),
+  };
+}
+
+function matchRetrograde(K, T) {
+  const n = K.length;
+  const offset = T[0].step - K[n - 1].step;
+  for (let i = 0; i < n; i++) {
+    if (T[i].step - K[n - 1 - i].step !== offset) return null;
+  }
+  return {
+    transform: 'retrograde',
+    params: { offset },
+    buildAST: (ref) => new DBinOp('*', ref, new DLiteral([{ step: offset, timeScale: -1 }])),
+  };
+}
+
+// Try all matchers in priority order, return first match.
+function matchWindow(kernel, window) {
+  return matchIdentity(kernel, window)
+      || matchTransposition(kernel, window)
+      || matchRetrograde(kernel, window)
+      || null;
+}
+
+// Scan the surface for all windows that match the kernel under some transformation.
+function findKernelMatches(kernel, surface) {
+  const kLen = kernel.length;
+  const matches = [];
+
+  for (let i = 0; i <= surface.length - kLen; i++) {
+    const window = surface.slice(i, i + kLen);
+    const m = matchWindow(kernel, window);
+    if (m) {
+      matches.push({ start: i, end: i + kLen - 1, ...m });
+    }
+  }
+
+  return matches;
+}
+
+// Greedy non-overlapping selection. Pick earliest match first among those
+// at the best quality tier, mark pips as covered, repeat.
+function selectCoverage(matches, surfaceLen) {
+  // Sort by start position (prefer earlier matches for stable coverage)
+  const sorted = [...matches].sort((a, b) => a.start - b.start);
+
+  const covered = new Uint8Array(surfaceLen);
+  const selected = [];
+
+  for (const m of sorted) {
+    let overlaps = false;
+    for (let i = m.start; i <= m.end; i++) {
+      if (covered[i]) { overlaps = true; break; }
+    }
+    if (overlaps) continue;
+
+    for (let i = m.start; i <= m.end; i++) covered[i] = 1;
+    selected.push(m);
+  }
+
+  const coveredCount = covered.reduce((sum, v) => sum + v, 0);
+  return { selected, coverage: coveredCount / surfaceLen };
+}
+
+// Score a kernel candidate. Coverage dominates, structure rewards named variables,
+// parsimony rewards shorter kernels, diversity rewards varied transforms.
+function scoreKernel(coverage, kernelLength, uniqueTransforms, namedVarCount, surfaceLength) {
+  const coverageScore = coverage;
+  const parsimonyScore = 1 - (kernelLength / surfaceLength);
+  const diversityScore = uniqueTransforms / KERNEL_TRANSFORM_COUNT;
+  const structureScore = namedVarCount * 0.15;
+
+  const total = coverageScore * 0.50
+              + parsimonyScore * 0.10
+              + diversityScore * 0.10
+              + structureScore * 0.30;
+
+  return { coverage: coverageScore, parsimony: parsimonyScore,
+           diversity: diversityScore, structure: structureScore, total };
+}
+
+// Build a DProgram from the kernel, selected matches, and surface.
+function buildKernelProgram(kernel, selected, surface) {
+  const kernelName = 'nug';
+  const kernelRef = new DRef(kernelName);
+  const assignments = [];
+
+  // First assignment: the kernel itself
+  assignments.push({ name: kernelName, expr: new DLiteral(kernel) });
+
+  // Group matches by transform signature (same transform+params = same variable)
+  const groups = new Map();
+  for (const m of selected) {
+    const sig = m.transform + ':' + JSON.stringify(m.params);
+    if (!groups.has(sig)) groups.set(sig, { matches: [], buildAST: m.buildAST, transform: m.transform });
+    groups.get(sig).matches.push(m);
+  }
+
+  // Create a named variable for each non-identity group
+  let varIndex = 0;
+  const matchToRef = new Map();
+
+  for (const [sig, group] of groups) {
+    if (group.transform === 'identity') {
+      for (const m of group.matches) matchToRef.set(m, kernelRef);
+      continue;
+    }
+
+    const varName = generateVarName(varIndex++);
+    const expr = group.buildAST(kernelRef);
+    assignments.push({ name: varName, expr });
+
+    const ref = new DRef(varName);
+    for (const m of group.matches) matchToRef.set(m, ref);
+  }
+
+  // Build final expression: refs in surface order, with literal gaps
+  const sortedMatches = [...selected].sort((a, b) => a.start - b.start);
+  const parts = [];
+  let cursor = 0;
+
+  for (const m of sortedMatches) {
+    if (m.start > cursor) {
+      parts.push(new DLiteral(surface.slice(cursor, m.start)));
+    }
+    parts.push(matchToRef.get(m));
+    cursor = m.end + 1;
+  }
+
+  if (cursor < surface.length) {
+    parts.push(new DLiteral(surface.slice(cursor)));
+  }
+
+  const finalExpr = parts.length === 1 ? parts[0] : new DConcat(parts);
+  return new DProgram(assignments, finalExpr);
+}
+
+// Main kernel discoverer. Called from discoverSteps().
+function discoverKernels(pips, features) {
+  const candidates = [];
+  if (pips.length < 6) return candidates; // too short for kernel analysis
+
+  const kernelCandidates = generateKernelCandidates(pips);
+
+  for (const kc of kernelCandidates) {
+    const matches = findKernelMatches(kc.pips, pips);
+    if (matches.length < 2) continue; // need at least 2 occurrences
+
+    const { selected, coverage } = selectCoverage(matches, pips.length);
+    if (coverage < MIN_KERNEL_COVERAGE) continue;
+
+    // Count unique transform types and named variables
+    const uniqueTransforms = new Set(selected.map(m => m.transform)).size;
+    const transformGroups = new Set(selected.map(m =>
+      m.transform + ':' + JSON.stringify(m.params)));
+    const hasIdentity = selected.some(m => m.transform === 'identity');
+    // Named vars = kernel + non-identity groups
+    const namedVarCount = 1 + (transformGroups.size - (hasIdentity ? 1 : 0));
+
+    const kernelScore = scoreKernel(
+      coverage, kc.length, uniqueTransforms, namedVarCount, pips.length);
+
+    const program = buildKernelProgram(kc.pips, selected, pips);
+
+    candidates.push({
+      node: program,
+      kind: 'kernel',
+      kernelScore,
+    });
+  }
+
+  // Sort by kernel score descending, return top 3
+  candidates.sort((a, b) => b.kernelScore.total - a.kernelScore.total);
+  return candidates.slice(0, 3);
+}
+
+
 // Run all step-only discoverers on a pip sequence.
 function discoverSteps(pips, features) {
   const candidates = [];
   candidates.push(...discoverRanges(pips, features));
   candidates.push(...discoverRepeats(pips, features));
   candidates.push(...discoverProgressions(pips, features));
+  candidates.push(...discoverKernels(pips, features));
   return candidates;
 }
 
@@ -4499,10 +4908,26 @@ function discover(pips, features) {
 
     // For each step decomposition, wrap with .j rhythmExpr
     for (const sc of stepCandidates) {
-      candidates.push({
-        node: new DBinOp('.j', sc.node, rhythmExpr),
-        kind: sc.kind + '+rhythm',
-      });
+      if (sc.node instanceof DProgram) {
+        // DProgram can't be wrapped in DBinOp — add rhythm as a named
+        // assignment and apply .j only to the final expression.
+        const rhythmAssign = { name: 'rhythm', expr: rhythmExpr };
+        const newFinal = new DBinOp('.j', sc.node.finalExpr, new DRef('rhythm'));
+        const newProgram = new DProgram(
+          [...sc.node.assignments, rhythmAssign],
+          newFinal
+        );
+        candidates.push({
+          node: newProgram,
+          kind: sc.kind + '+rhythm',
+          kernelScore: sc.kernelScore,
+        });
+      } else {
+        candidates.push({
+          node: new DBinOp('.j', sc.node, rhythmExpr),
+          kind: sc.kind + '+rhythm',
+        });
+      }
     }
 
     // Also try: step literal .j compressed-rhythm (if rhythm compresses well)
@@ -4551,32 +4976,81 @@ function verify(code, targetPips) {
   }
 }
 
-function score(code, targetPips) {
-  // Baseline: what the literal representation would look like
-  const literalCode = new DLiteral(targetPips).toString();
-  const literalLen = literalCode.length;
-  const codeLen = code.length;
+// Measure compression of the step portion only (exclude .j rhythm mask).
+function compressionOf(code, targetPips) {
+  const jIndex = code.indexOf(' .j ');
+  let codeLen, baseLen;
+  if (jIndex !== -1) {
+    codeLen = code.substring(0, jIndex).length;
+    baseLen = new DLiteral(stripRhythm(targetPips)).toString().length;
+  } else {
+    codeLen = code.length;
+    baseLen = new DLiteral(targetPips).toString().length;
+  }
+  return 1 - (codeLen / baseLen);
+}
 
-  const compressionRatio = 1 - (codeLen / literalLen);
+// Score a candidate without hoisting.
+function score(code, targetPips) {
+  const compression = compressionOf(code, targetPips);
+  return {
+    compression,
+    structure: 0,
+    total: compression,
+  };
+}
+
+// Score a hoisted candidate. Structure dominates: each named variable
+// reveals a reusable motif, and each additional use of that variable
+// reveals repetition. This matters more than character savings.
+//
+// Inter-variable relationships (transposition, retrograde) are the
+// highest-value structural insight — they show how motifs transform
+// into each other. These are rewarded heavily.
+function scoreHoisted(code, targetPips, assignments, relationships = 0) {
+  const compression = compressionOf(code, targetPips);
+
+  // Structure score: reward naming motifs and their reuse.
+  // Base credit for extracting a variable (0.15), plus credit for
+  // each additional use beyond the first two (the minimum for hoisting).
+  let structure = 0;
+  for (const { uses } of assignments) {
+    structure += 0.15;                         // named a motif
+    structure += (uses - 2) * 0.05;            // extra reuses beyond the pair
+  }
+
+  // Inter-variable relationships: a variable expressed as a transformation
+  // of another variable is a major structural insight (e.g., ac = aa * [-2]
+  // says "this motif is a transposition of that motif"). Reward heavily.
+  structure += relationships * 0.40;
 
   return {
-    compression: compressionRatio,
-    total: compressionRatio, // Sprint 1: compression only
+    compression,
+    structure,
+    total: compression + structure,
   };
 }
 
 function assemble(targetPips, candidates) {
   const results = [];
 
-  for (const { node, kind } of candidates) {
+  for (const candidate of candidates) {
+    const { node, kind } = candidate;
     const code = node.toString();
     if (verify(code, targetPips)) {
-      // Attempt variable hoisting for non-literal candidates
       let finalCode = code;
       let finalScore = score(code, targetPips);
       let finalKind = kind;
 
-      if (kind !== 'literal') {
+      if (kind.startsWith('kernel') && candidate.kernelScore) {
+        // Kernel programs have their own variable structure — skip hoisting.
+        // Use kernel-specific scoring that rewards coverage and structure.
+        finalScore = {
+          compression: compressionOf(code, targetPips),
+          ...candidate.kernelScore,
+        };
+      } else if (kind !== 'literal') {
+        // Attempt variable hoisting for non-literal, non-kernel candidates
         const hoisted = attemptHoist(node, targetPips, kind);
         if (hoisted) {
           finalCode = hoisted.code;
@@ -4603,6 +5077,29 @@ function assemble(targetPips, candidates) {
     seen.add(r.code);
     return true;
   });
+
+  // Extract rhythm masks into a named `rhythm` variable for readability.
+  // This makes it easier to compare compressed code with the flattened literal
+  // because both share the same `rhythm` reference.
+  for (const result of deduped) {
+    if (result.kind === 'literal') continue;
+    if (result.kind.startsWith('kernel')) continue; // kernel programs handle rhythm internally
+    const lines = result.code.split('\n');
+    const lastLine = lines[lines.length - 1];
+    const jIdx = lastLine.indexOf(' .j ');
+    if (jIdx === -1) continue;
+
+    const stepPart = lastLine.substring(0, jIdx);
+    const rhythmPart = lastLine.substring(jIdx + 4);
+
+    lines[lines.length - 1] = `rhythm = ${rhythmPart}`;
+    lines.push(`${stepPart} .j rhythm`);
+    const newCode = lines.join('\n');
+
+    if (verify(newCode, targetPips)) {
+      result.code = newCode;
+    }
+  }
 
   return { candidates: deduped };
 }

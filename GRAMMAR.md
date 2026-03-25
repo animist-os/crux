@@ -221,6 +221,15 @@ Operators are left-associative unless otherwise noted.
      - Pärt-inspired tintinnabulation operator with octave equivalence.
      - Snaps LHS steps to nearest RHS scale degree (mod 7), avoiding unisons.
      - Example: `[0,1,2,3] p [0,2,4] -> [4,0,2,2]` (0→4 down to avoid unison, 1→0, 2→2, 3→2).
+   - `f` fold (fan):
+     - Concatenates the mot with its reverse, transposed by each RHS value. Steps add; timeScales multiply.
+     - Creates palindrome/arch structures. Multiple RHS values produce multiple folds.
+     - Examples:
+```text
+[0,1,2] f [0]          -> [0, 1, 2, 2, 1, 0]          // simple palindrome
+[4,5,6] f [2]          -> [4, 5, 6, 8, 7, 6]          // fold with transposition
+[0,1,2] f [0,1]        -> [0, 1, 2, 2, 1, 0, 3, 2, 1] // two folds (fan)
+```
    - `@` at-index (apply transformations at specific positions without cycling):
      - Unlike `.` which cycles the RHS over the LHS, `@` applies transformations only at specified indices.
      - RHS uses the at-index mot syntax: `[@index value, @index value, ...]`
@@ -250,7 +259,7 @@ Operators are left-associative unless otherwise noted.
 
 From highest to lowest binding:
 1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
-2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `*`, `^`, `.`, `~`, `@` (all left-associative)
+2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment and section separators: `=`, `:=`, `!`
 
@@ -368,6 +377,7 @@ Crux {
     | MulExpr "g" PostfixExpr      -- glass
     | MulExpr "r" PostfixExpr      -- reich
     | MulExpr "p" PostfixExpr      -- paert
+    | MulExpr "f" PostfixExpr      -- fold
     | MulExpr "*" PostfixExpr      -- mul
     | MulExpr "^" PostfixExpr      -- expand
     | MulExpr "." PostfixExpr      -- dot
@@ -511,7 +521,7 @@ Crux {
 
   OpSym
     = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
-    | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~" | "@"
+    | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?

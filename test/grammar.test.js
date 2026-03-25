@@ -1295,4 +1295,32 @@ test('@ operator: bare pipe | preserves step and timescale', () => {
   assert.equal(evalToString('[0 -> 4] @ [@2 |]'), '[0, 1, 2, 3, 4]');
 });
 
+// === Fold operator ===
 
+test('fold with zero transpose creates simple palindrome', () => {
+  assert.equal(evalToString('[0, 1, 2] f [0]'), '[0, 1, 2, 2, 1, 0]');
+});
+
+test('fold with transpose adds to reversed portion', () => {
+  assert.equal(evalToString('[4, 5, 6] f [2]'), '[4, 5, 6, 8, 7, 6]');
+});
+
+test('fold with negative transpose subtracts from reversed portion', () => {
+  assert.equal(evalToString('[4, 5, 6] f [-2]'), '[4, 5, 6, 4, 3, 2]');
+});
+
+test('fold fan: multiple RHS values produce multiple folds', () => {
+  assert.equal(evalToString('[0, 1, 2] f [0, 1]'), '[0, 1, 2, 2, 1, 0, 3, 2, 1]');
+});
+
+test('fold preserves timescales', () => {
+  assert.equal(evalToString('[0 | 2, 1 | 3] f [0]'), '[0 | 2, 1 | 3, 1 | 3, 0 | 2]');
+});
+
+test('fold with timescale on RHS multiplies timescales', () => {
+  assert.equal(evalToString('[0, 1, 2] f [0 | 2]'), '[0, 1, 2, 2 | 2, 1 | 2, 0 | 2]');
+});
+
+test('fold with range expansion', () => {
+  assert.equal(evalToString('[0 -> 2] f [0]'), '[0, 1, 2, 2, 1, 0]');
+});

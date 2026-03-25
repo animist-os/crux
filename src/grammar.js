@@ -66,6 +66,7 @@ export const g = ohm.grammar(String.raw`
       | MulExpr "g" PostfixExpr   -- glass
       | MulExpr "r" PostfixExpr   -- reich
       | MulExpr "p" PostfixExpr   -- paert
+      | MulExpr "f" PostfixExpr   -- fold
       | MulExpr "*" PostfixExpr  -- mul
       | MulExpr "^" PostfixExpr  -- expand
       | MulExpr "." PostfixExpr  -- dot
@@ -244,7 +245,7 @@ export const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "*" | "^" | "." | "~" | "@"
+      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?

@@ -230,6 +230,29 @@ Operators are left-associative unless otherwise noted.
 [4,5,6] f [2]          -> [4, 5, 6, 8, 7, 6]          // fold with transposition
 [0,1,2] f [0,1]        -> [0, 1, 2, 2, 1, 0, 3, 2, 1] // two folds (fan)
 ```
+   - `>` displace (shift a mot forward or backward in time):
+     - Positive RHS step: prepend a rest with timeScale equal to the step value.
+     - Negative RHS step: trim from the front by that many time units (anticipation).
+     - Zero: identity (no change).
+     - Examples:
+```text
+[0, 1, 2] > [1]           -> [r, 0, 1, 2]           // delayed by 1 beat
+[0, 1, 2] > [2]           -> [r | 2, 0, 1, 2]       // delayed by 2 beats
+[0, 1, 2] > [1/2]         -> [r | /2, 0, 1, 2]      // delayed by half a beat
+[0, 1, 2] > [-1]          -> [1, 2]                  // anticipation: first pip trimmed
+[0 | 2, 1] > [-1]         -> [0, 1]                  // partial trim of first pip
+```
+   - `||` mot timeScale (scale all pip durations in a mot):
+     - Multiplies every pip's timeScale by the RHS value.
+     - RHS can be a number (step used as factor) or a pipe-only entry (timeScale used as factor).
+     - Examples:
+```text
+[0, 1, 2] || [2]          -> [0 | 2, 1 | 2, 2 | 2]        // double-time
+[0, 1, 2] || [1/2]        -> [0 | /2, 1 | /2, 2 | /2]     // half-time
+[0, 1, 2] || [| 2]        -> [0 | 2, 1 | 2, 2 | 2]        // pipe-only form
+[0 | 2, 1] || [3]         -> [0 | 6, 1 | 3]               // compounds with existing timeScale
+[0, 1] || [2] || [3]      -> [0 | 6, 1 | 6]               // chains (left-assoc)
+```
    - `@` at-index (apply transformations at specific positions without cycling):
      - Unlike `.` which cycles the RHS over the LHS, `@` applies transformations only at specified indices.
      - RHS uses the at-index mot syntax: `[@index value, @index value, ...]`
@@ -259,7 +282,7 @@ Operators are left-associative unless otherwise noted.
 
 From highest to lowest binding:
 1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
-2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@` (all left-associative)
+2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@`, `>`, `||` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment and section separators: `=`, `:=`, `!`
 
@@ -311,6 +334,15 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 // Rotation is via ~ operator
 [0, 1, 2, 3] ~ [-1]          -> [3, 0, 1, 2]
 [0, 1, 2, 3] ~ [1, 2]        -> [1, 2, 3, 0, 2, 3, 0, 1]
+
+// Displacement
+[0, 1, 2] > [1]              -> [r, 0, 1, 2]
+[0, 1, 2] > [1/2]            -> [r | /2, 0, 1, 2]
+[0, 1, 2] > [-1]             -> [1, 2]
+
+// Mot TimeScale
+[0, 1, 2] || [2]             -> [0 | 2, 1 | 2, 2 | 2]
+[0, 1, 2] || [1/2]           -> [0 | /2, 1 | /2, 2 | /2]
 ```
 
 ### Ohm-JS grammar (reference)
@@ -385,6 +417,8 @@ Crux {
     | MulExpr ".~" PostfixExpr     -- dotRotate
     | MulExpr ident PostfixExpr    -- aliasOp
     | MulExpr "@" PostfixExpr      -- atIndex
+    | MulExpr ">" PostfixExpr      -- displace
+    | MulExpr "||" PostfixExpr     -- motTimeScale
     | PostfixExpr
 
   PostfixExpr
@@ -521,7 +555,7 @@ Crux {
 
   OpSym
     = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
-    | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+    | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?

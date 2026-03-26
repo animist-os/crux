@@ -27,6 +27,8 @@
 - Glass: `g` (fan), `.g` (cog) — Glass-inspired minimalist rhythmic patterns.
 - Reich: `r` (fan), `.r` (cog) — Reich-inspired phasing patterns.
 - Pärt: `p` (fan) — Pärt-inspired tintinnabulation with octave equivalence.
+- Displace: `>` — shift a mot forward in time by prepending rest; negative values trim from front (anticipation).
+- Mot TimeScale: `||` — scale all pip durations in a mot by a factor.
 
 
 
@@ -71,6 +73,11 @@ Pips:
 | Reich (cog) `.r` | `[0,1] .r [2,3]` | `[0\|/2, 2, 1\|/4, 3\|/2]` |
 | Pärt (fan) `p` | `[0,1,2,3] p [0,2,4]` | `[4, 0, 2, 2]` |
 | Slice `start ... end` | `[0,1,2,3,4] -3 ... -1` | `[2, 3]` |
+| Displace `>` | `[0,1,2] > [1]` | `[r, 0, 1, 2]` |
+| Displace (frac) `>` | `[0,1,2] > [1/2]` | `[r\|/2, 0, 1, 2]` |
+| Displace (neg) `>` | `[0,1,2] > [-1]` | `[1, 2]` |
+| Mot TimeScale `\|\|` | `[0,1,2] \|\| [2]` | `[0\|2, 1\|2, 2\|2]` |
+| Mot TimeScale (half) `\|\|` | `[0,1,2] \|\| [1/2]` | `[0\|/2, 1\|/2, 2\|/2]` |
 
 
 

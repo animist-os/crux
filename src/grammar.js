@@ -74,6 +74,8 @@ export const g = ohm.grammar(String.raw`
       | MulExpr ".~" PostfixExpr  -- dotRotate
       | MulExpr ident PostfixExpr -- aliasOp
       | MulExpr "@" PostfixExpr  -- atIndex
+      | MulExpr ">" PostfixExpr  -- displace
+      | MulExpr "||" PostfixExpr  -- motTimeScale
       | PostfixExpr
 
   // Postfix operators (tie, repeat, subdivide, zip, drop) at higher precedence than binary operators
@@ -245,7 +247,7 @@ export const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+      | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?

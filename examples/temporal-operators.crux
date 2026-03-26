@@ -1,0 +1,75 @@
+// Temporal Operators: Displacement (>) and Mot TimeScale (||)
+// These operate on entire mots rather than individual pips
+
+// ===== Section 1: Basic Displacement =====
+// Shift a melody forward in time by prepending rest
+melody = [0, 2, 4, 5]
+melody > [1]
+
+!
+
+// ===== Section 2: Displacement for Canon =====
+// Simple canon: melody against itself, displaced by 2 beats
+melody = [0, 2, 4, 5, 4, 2]
+(melody, melody > [2])z
+
+!
+
+// ===== Section 3: Fractional Displacement =====
+// Swing feel: offset by half a beat
+riff = [0, 3, 5, 7]
+(riff, riff > [1/2])z
+
+!
+
+// ===== Section 4: Anticipation (Negative Displacement) =====
+// Trim from front to create an "early entrance" effect
+phrase = [0, 2, 4, 5, 7]
+phrase > [-1]
+
+!
+
+// ===== Section 5: Basic Mot TimeScale =====
+// Double-time and half-time
+theme = [0, 2, 4, 5]
+theme || [2], theme, theme || [1/2]
+
+!
+
+// ===== Section 6: Augmentation and Diminution =====
+// Classical compositional technique
+subject = [0, 1, 2, 3, 4]
+// Original, then diminution (half speed), then augmentation (double speed)
+subject, subject || [1/2], subject || [2]
+
+!
+
+// ===== Section 7: Combining Both Operators =====
+// Displaced canon at different speeds
+motif = [0, 3, 5, 7]
+voice_a = motif
+voice_b = motif || [2] > [1]
+(voice_a, voice_b)z
+
+!
+
+// ===== Section 8: Phasing with Displacement =====
+// Reich-style gradual phase shift
+cell = [0, 1, 2, 3] : 4
+(cell, cell > [1/2])z
+
+!
+
+// ===== Section 9: Speed Ramp =====
+// Accelerating pattern using chained mot timescale
+bit = [0, 2, 4]
+bit || [4], bit || [2], bit, bit || [1/2]
+
+!
+
+// ===== Section 10: Polyrhythm via TimeScale =====
+// 3-against-4: same melody at different speeds
+fig = [0, 2, 4, 5]
+fast = fig || [3/4]
+slow = fig || [4/3]
+(fig, fast)z

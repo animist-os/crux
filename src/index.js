@@ -200,6 +200,14 @@ const s = g.createSemantics().addOperation('parse', {
     return new AtIndexOp(x.parse(), y.parse());
   },
 
+  MulExpr_displace(x, _gt, y) {
+    return new DisplaceOp(x.parse(), y.parse());
+  },
+
+  MulExpr_motTimeScale(x, _doublePipe, y) {
+    return new MotTimeScaleOp(x.parse(), y.parse());
+  },
+
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
   },
@@ -2013,6 +2021,99 @@ class FoldOp {
   }
 }
 
+// Displace: prepend rest(s) to shift a mot forward in time
+// [0,1,2] > [1] → [r, 0, 1, 2]  (displaced by 1 unit)
+// [0,1,2] > [1/2] → [r | /2, 0, 1, 2]  (displaced by half a unit)
+// [0,1,2] > [2] → [r | 2, 0, 1, 2]  (displaced by 2 units)
+// Negative displacement removes time from the front (anticipation)
+// [0,1,2] > [-1] → [1, 2]  (first pip dropped, like arriving early)
+class DisplaceOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+
+    if (right.values.length === 0) return left;
+
+    // Sum all RHS pip steps to get total displacement amount
+    // Use the first pip's step as the displacement value
+    const dispPip = right.values[0];
+    const amount = dispPip.step;
+
+    if (amount === 0) return left;
+
+    if (amount > 0) {
+      // Positive: prepend a rest with timeScale = amount
+      const restPip = new Pip(0, amount, 'r');
+      return new Mot([restPip, ...left.values]);
+    } else {
+      // Negative: anticipation — trim from front by |amount| time units
+      const trimAmount = Math.abs(amount);
+      let trimmed = 0;
+      let startIdx = 0;
+      const values = left.values;
+
+      for (let i = 0; i < values.length; i++) {
+        const pipDur = values[i].timeScale;
+        if (trimmed + pipDur <= trimAmount) {
+          trimmed += pipDur;
+          startIdx = i + 1;
+        } else if (trimmed < trimAmount) {
+          // Partial trim of this pip
+          const remaining = pipDur - (trimAmount - trimmed);
+          const partialPip = new Pip(values[i].step, remaining, values[i].tag);
+          return new Mot([partialPip, ...values.slice(i + 1)]);
+        } else {
+          break;
+        }
+      }
+
+      if (startIdx >= values.length) return new Mot([]);
+      return new Mot(values.slice(startIdx));
+    }
+  }
+}
+
+// MotTimeScale: scale all pip timeScales in a mot by a factor
+// [0,1,2] || [2] → [0 | 2, 1 | 2, 2 | 2]  (all durations doubled)
+// [0,1,2] || [1/2] → [0 | /2, 1 | /2, 2 | /2]  (all durations halved)
+class MotTimeScaleOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = requireMot(this.x.eval(env));
+    const right = requireMot(this.y.eval(env));
+
+    if (right.values.length === 0) return left;
+
+    // Use first pip's step as the scale factor (treating it as a multiplier)
+    // If step is 0, use the timeScale from the pip (for pipe-only entries like [|2])
+    const factorPip = right.values[0];
+    let factor;
+    if (factorPip.step === 0 && factorPip.timeScale !== 1) {
+      // Pipe-only form: [|2] or [|/3] — use the timeScale directly as the factor
+      factor = factorPip.timeScale;
+    } else {
+      factor = factorPip.step;
+    }
+
+    if (factor === 0) return left;
+    if (factor === 1) return left;
+
+    const out = left.values.map(pip =>
+      new Pip(pip.step, pip.timeScale * factor, pip.tag)
+    );
+    return new Mot(out);
+  }
+}
+
 // Subdivide postfix operator: divides all timescales by the length of the mot
 // Example: [0,1,2]/ → [0|/3, 1|/3, 2|/3]
 // Example: [[2,2]]/ → [2|/2, 2|/2]
@@ -3045,6 +3146,7 @@ const BINARY_TRANSFORMS = new Set([
   Mirror, DotMirror, Lens, DotLens, DotTie, JamOp, DotJam,
   ConstraintOp, DotConstraint, RotateOp, DotRotate, DotZip,
   GlassOp, DotGlass, ReichOp, DotReich, PaertOp,
+  DisplaceOp, MotTimeScaleOp,
   AliasCall,
 ]);
 

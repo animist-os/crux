@@ -1324,3 +1324,101 @@ test('fold with timescale on RHS multiplies timescales', () => {
 test('fold with range expansion', () => {
   assert.equal(evalToString('[0 -> 2] f [0]'), '[0, 1, 2, 2, 1, 0]');
 });
+
+// === Displace operator (>) ===
+
+test('displace by 1 prepends a rest', () => {
+  assert.equal(evalToString('[0, 1, 2] > [1]'), '[r, 0, 1, 2]');
+});
+
+test('displace by 2 prepends a rest with timeScale 2', () => {
+  assert.equal(evalToString('[0, 1, 2] > [2]'), '[r | 2, 0, 1, 2]');
+});
+
+test('displace by fraction prepends a rest with fractional timeScale', () => {
+  assert.equal(evalToString('[0, 1, 2] > [1/2]'), '[r | /2, 0, 1, 2]');
+});
+
+test('displace by 0 is identity', () => {
+  assert.equal(evalToString('[0, 1, 2] > [0]'), '[0, 1, 2]');
+});
+
+test('negative displace trims from front', () => {
+  assert.equal(evalToString('[0, 1, 2] > [-1]'), '[1, 2]');
+});
+
+test('negative displace trims multiple pips', () => {
+  assert.equal(evalToString('[0, 1, 2, 3] > [-2]'), '[2, 3]');
+});
+
+test('negative displace partial trim', () => {
+  // [0 | 2, 1] > [-1] should trim 1 unit from the first pip (which has duration 2)
+  // leaving [0 | 1, 1] = [0, 1]
+  assert.equal(evalToString('[0 | 2, 1] > [-1]'), '[0, 1]');
+});
+
+test('negative displace trims entire mot', () => {
+  assert.equal(evalToString('[0, 1, 2] > [-3]'), '[]');
+});
+
+test('displace works with variables', () => {
+  assert.equal(evalToString('A = [0, 1, 2]\nA > [1]'), '[r, 0, 1, 2]');
+});
+
+test('displace chains with other operators', () => {
+  assert.equal(evalToString('([0, 1] > [1]) * [0, 2]'), '[r, 0, 1, r, 2, 3]');
+});
+
+test('displace preserves pip tags', () => {
+  assert.equal(evalToString('[r, 0, 1] > [1]'), '[r, r, 0, 1]');
+});
+
+test('displace with expression as RHS', () => {
+  assert.equal(evalToString('[0, 1, 2] > [3]'), '[r | 3, 0, 1, 2]');
+});
+
+// === Mot TimeScale operator (||) ===
+
+test('mot timescale doubles all durations', () => {
+  assert.equal(evalToString('[0, 1, 2] || [2]'), '[0 | 2, 1 | 2, 2 | 2]');
+});
+
+test('mot timescale halves all durations', () => {
+  assert.equal(evalToString('[0, 1, 2] || [1/2]'), '[0 | /2, 1 | /2, 2 | /2]');
+});
+
+test('mot timescale with pipe-only form', () => {
+  assert.equal(evalToString('[0, 1, 2] || [| 2]'), '[0 | 2, 1 | 2, 2 | 2]');
+});
+
+test('mot timescale with pipe-only divide', () => {
+  assert.equal(evalToString('[0, 1, 2] || [| /3]'), '[0 | /3, 1 | /3, 2 | /3]');
+});
+
+test('mot timescale preserves existing timescales (multiplies)', () => {
+  assert.equal(evalToString('[0 | 2, 1] || [3]'), '[0 | 6, 1 | 3]');
+});
+
+test('mot timescale with 1 is identity', () => {
+  assert.equal(evalToString('[0, 1, 2] || [1]'), '[0, 1, 2]');
+});
+
+test('mot timescale preserves tags', () => {
+  assert.equal(evalToString('[r, 0, 1] || [2]'), '[r | 2, 0 | 2, 1 | 2]');
+});
+
+test('mot timescale works with variables', () => {
+  assert.equal(evalToString('A = [0, 1, 2]\nA || [2]'), '[0 | 2, 1 | 2, 2 | 2]');
+});
+
+test('mot timescale chains', () => {
+  assert.equal(evalToString('[0, 1] || [2] || [3]'), '[0 | 6, 1 | 6]');
+});
+
+test('displace and mot timescale combined', () => {
+  assert.equal(evalToString('([0, 1, 2] || [2]) > [1]'), '[r, 0 | 2, 1 | 2, 2 | 2]');
+});
+
+test('mot timescale then displace', () => {
+  assert.equal(evalToString('[0, 1, 2] > [1] || [2]'), '[r | 2, 0 | 2, 1 | 2, 2 | 2]');
+});

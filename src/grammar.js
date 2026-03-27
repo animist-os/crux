@@ -96,7 +96,8 @@ export const g = ohm.grammar(String.raw`
       | PriExpr
 
   PriExpr
-      = Pip                          -- pipAsMot
+      = globalPlaceholder             -- globalPlaceholder
+      | Pip                          -- pipAsMot
       | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" AtIndexList "]"  -- atIndexMot
@@ -255,6 +256,8 @@ export const g = ohm.grammar(String.raw`
     // This allows identifiers like 'rr', 'rest', 'rhythm' to work
     specialChar
       = "r" ~alnum
+
+    globalPlaceholder = "_" ~(alnum | "_")
 
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single

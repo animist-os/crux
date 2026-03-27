@@ -310,6 +310,53 @@ A && (A > [1]) && (A > [2])           -> three-voice canon
 ([0, 1] ^ [2]) * [0] -> [0, 2]
 ```
 
+7) **Global placeholder** (`_`):
+   - `_` is a placeholder meaning "each section's output."
+   - Any expression statement containing `_` is a **global op** — it does not contribute to the section's value, but is applied as a post-processing step to every section's output after all sections have been evaluated.
+   - `_` participates in normal Crux expressions: it can appear on either side of binary ops and with postfix ops.
+   - Multiple global op statements compose in declaration order (first applied first, result feeds into next).
+   - A section containing only global ops produces no output.
+   - `_` can appear in any section, alongside regular statements.
+   - Note: `_` must be separated from postfix single-letter operators by a space (`_ t`, not `_t`) to avoid being parsed as an identifier.
+   - Examples:
+```text
+// Apply a rhythm to all sections
+[0, 1, 2, 3]
+!
+[7, 6, 5, 4]
+!
+_ .j [|, |/2, |/2]
+
+// Repeat every section 3 times
+[0, 1]
+!
+[2, 3]
+!
+_:3
+
+// Transpose all sections by 10
+[0, 1, 2]
+!
+[3, 4, 5]
+!
+_ . [10]                          -> sections become [10, 11, 12] and [13, 14, 15]
+
+// Chain operations
+(_ . [10]):2                      -> transpose then repeat
+
+// Multiple global ops (compose in order)
+_ . [10]
+_ . [100]                         -> first add 10, then add 100
+
+// Reference variables
+R = [|, |/2, |/2]
+[0, 1, 2]
+!
+[3, 4, 5]
+!
+_ .j R
+```
+
 ### Precedence summary
 
 From highest to lowest binding:
@@ -480,7 +527,8 @@ Crux {
     | PriExpr
 
   PriExpr
-    = ident                        -- ref
+    = globalPlaceholder             -- globalPlaceholder
+    | ident                        -- ref
     | "[[" NestedBody "]]"         -- nestedMot
     | "[" AtIndexList "]"          -- atIndexMot
     | "[" MotBody "]"              -- mot
@@ -606,6 +654,8 @@ Crux {
   // This allows identifiers like 'rr', 'rest', 'rhythm' to work
   specialChar
     = "r" ~alnum
+
+  globalPlaceholder = "_" ~(alnum | "_")
 
   ident = (letter | "_") alnum+  -- withChars
         | letter                 -- single

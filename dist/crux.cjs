@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-03-27T00:39:31.242Z
+// Generated: 2026-03-27T17:32:59.748Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -107,7 +107,8 @@ const g = ohm.grammar(String.raw`
       | PriExpr
 
   PriExpr
-      = Pip                          -- pipAsMot
+      = globalPlaceholder             -- globalPlaceholder
+      | Pip                          -- pipAsMot
       | ident                          -- ref
       | "[[" NestedBody "]]"       -- nestedMot
       | "[" AtIndexList "]"  -- atIndexMot
@@ -267,6 +268,8 @@ const g = ohm.grammar(String.raw`
     specialChar
       = "r" ~alnum
 
+    globalPlaceholder = "_" ~(alnum | "_")
+
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single
 
@@ -327,6 +330,8 @@ function wrapArithNode(node) {
   return node;
 }
 
+let _hasGlobalPlaceholder = false;
+
 const s = g.createSemantics().addOperation('parse', {
   Prog(_leadingNls, sections, _trailingNls) {
     return new Prog(sections.parse());
@@ -346,6 +351,16 @@ const s = g.createSemantics().addOperation('parse', {
 
   OpAliasStmt(name, _equals, op) {
     return new OpAliasAssign(name.sourceString, op.parse());
+  },
+
+  ExprStmt(expr) {
+    _hasGlobalPlaceholder = false;
+    const parsed = expr.parse();
+    if (_hasGlobalPlaceholder) {
+      _hasGlobalPlaceholder = false;
+      return new GlobalOpStmt(parsed);
+    }
+    return parsed;
   },
 
   FollowedByExpr_fby(x, _comma, y) {
@@ -517,6 +532,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new MotTimeScaleOp(x.parse(), y.parse());
   },
 
+  PriExpr_globalPlaceholder(_underscore) {
+    _hasGlobalPlaceholder = true;
+    return new GlobalPlaceholder();
+  },
   PriExpr_ref(name) {
     return new Ref(name.sourceString);
   },
@@ -1196,6 +1215,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   PostfixExpr_repeatPostRand(expr, _h1, _colon, _h2, rn) { return [...expr.collectTs(), ...rn.collectTs()]; },
   PostfixExpr_drop(x, _h1, _bs, _h2, _n) { return x.collectTs(); },
   PostfixExpr_dropRand(x, _h1, _bs, _h2, rn) { return [...x.collectTs(), ...rn.collectTs()]; },
+  PriExpr_globalPlaceholder(_underscore) { return []; },
   PriExpr_ref(_name) { return []; },
   PriExpr_mot(_ob, body, _cb) { return body.collectTs(); },
   PriExpr_atIndexMot(_ob, atIndexList, _cb) { return atIndexList.collectTs(); },
@@ -1344,6 +1364,7 @@ function getFinalRootAstAndEnv(prog) {
   // Process all sections to build up the environment
   for (const stmts of prog.sections) {
     for (const stmt of stmts) {
+      if (stmt instanceof GlobalOpStmt) continue;
       last = stmt;
       if (stmt instanceof EvalAssign || stmt instanceof MacroAssign) {
         env.set(stmt.name, stmt.expr);
@@ -1363,13 +1384,23 @@ class Prog {
   interp() {
     const env = new Map();
     const sections = [];
+    const globalOps = [];
 
     for (const stmts of this.sections) {
       let lastValue = new Mot([]);
+      let hasNonGlobalStmt = false;
       for (const stmt of stmts) {
-        lastValue = stmt.eval(env);
+        const result = stmt.eval(env);
+        if (result instanceof GlobalOpMarker) {
+          globalOps.push(result);
+          continue;
+        }
+        lastValue = result;
+        hasNonGlobalStmt = true;
       }
-      // If the section result is a Poly, flatten its voices into separate sections
+
+      if (!hasNonGlobalStmt) continue;
+
       if (lastValue instanceof Poly) {
         for (const voice of lastValue.voices) {
           sections.push(voice);
@@ -1378,6 +1409,14 @@ class Prog {
         sections.push(lastValue);
       }
     }
+
+    for (const { expr } of globalOps) {
+      for (let i = 0; i < sections.length; i++) {
+        env.set('__globalPlaceholder__', sections[i]);
+        sections[i] = expr.eval(env);
+      }
+    }
+    env.delete('__globalPlaceholder__');
 
     // Compute program info for the final statement
     const { root, env: finalEnv } = getFinalRootAstAndEnv(this);
@@ -1476,6 +1515,30 @@ function derefMacro(ast, env) {
     }
   }
   return ast;
+}
+
+class GlobalPlaceholder {
+  eval(env) {
+    if (env.has('__globalPlaceholder__')) {
+      return env.get('__globalPlaceholder__');
+    }
+    throw new Error('_ placeholder used outside of a global operation');
+  }
+}
+
+class GlobalOpStmt {
+  constructor(expr) {
+    this.expr = expr;
+  }
+  eval(_env) {
+    return new GlobalOpMarker(this.expr);
+  }
+}
+
+class GlobalOpMarker {
+  constructor(expr) {
+    this.expr = expr;
+  }
 }
 
 class FollowedBy {

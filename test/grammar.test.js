@@ -1578,3 +1578,94 @@ test('poly: ! still works as section separator', () => {
   assert.equal(sections[0], '[0, 1]');
   assert.equal(sections[1], '[2, 3]');
 });
+
+// === Global placeholder (_) tests ===
+
+test('global: binary op applied to all sections', () => {
+  const sections = evalAllSections('[0, 1, 2]\n!\n[3, 4, 5]\n!\n_ . [10]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 11, 12]');
+  assert.equal(sections[1], '[13, 14, 15]');
+});
+
+test('global: .j jam applied to all sections', () => {
+  const sections = evalAllSections('[0, 1, 2, 3]\n!\n[7, 6, 5, 4]\n!\n_ .j [|, |/2, |/2]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1 | /2, 2 | /2, 3]');
+  assert.equal(sections[1], '[7, 6 | /2, 5 | /2, 4]');
+});
+
+test('global: postfix repeat applied to all sections', () => {
+  const sections = evalAllSections('[0, 1]\n!\n[2, 3]\n!\n_:2');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 0, 1]');
+  assert.equal(sections[1], '[2, 3, 2, 3]');
+});
+
+test('global: postfix tie applied to all sections', () => {
+  const sections = evalAllSections('[0, 0, 1]\n!\n[2, 2, 3]\n!\n_ t');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0 | 2, 1]');
+  assert.equal(sections[1], '[2 | 2, 3]');
+});
+
+test('global: op applied from left side', () => {
+  const sections = evalAllSections('[0, 1]\n!\n[2, 3]\n!\n[10, 20] . _');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 21]');
+  assert.equal(sections[1], '[12, 23]');
+});
+
+test('global: chained ops in single expression', () => {
+  const sections = evalAllSections('[0, 1, 2]\n!\n[3, 4, 5]\n!\n(_ . [10]):2');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 11, 12, 10, 11, 12]');
+  assert.equal(sections[1], '[13, 14, 15, 13, 14, 15]');
+});
+
+test('global: multiple global ops compose in order', () => {
+  const sections = evalAllSections('[0, 1, 2]\n!\n[3, 4, 5]\n!\n_ . [10]\n_ . [100]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[110, 111, 112]');
+  assert.equal(sections[1], '[113, 114, 115]');
+});
+
+test('global: in same section as regular statement', () => {
+  const sections = evalAllSections('[0, 1]\n_ . [10]\n!\n[2, 3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 11]');
+  assert.equal(sections[1], '[12, 13]');
+});
+
+test('global: section with only global op produces no output', () => {
+  const sections = evalAllSections('[0, 1]\n!\n_ . [10]');
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0], '[10, 11]');
+});
+
+test('global: references variables from env', () => {
+  const sections = evalAllSections('R = [|, |/2, |/2]\n[0, 1, 2]\n!\n[3, 4, 5]\n!\n_ .j R');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1 | /2, 2 | /2]');
+  assert.equal(sections[1], '[3, 4 | /2, 5 | /2]');
+});
+
+test('global: _ with fan operator', () => {
+  const sections = evalAllSections('[0, 1]\n!\n[2, 3]\n!\n_ * [0, 10]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 10, 11]');
+  assert.equal(sections[1], '[2, 3, 12, 13]');
+});
+
+test('global: identifiers starting with _ are not placeholders', () => {
+  const sections = evalAllSections('_x = [10]\n[0, 1] . _x');
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0], '[10, 11]');
+});
+
+test('global: _ with mot timescale', () => {
+  const sections = evalAllSections('[0, 1]\n!\n[2, 3]\n!\n_ || [2]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0 | 2, 1 | 2]');
+  assert.equal(sections[1], '[2 | 2, 3 | 2]');
+});

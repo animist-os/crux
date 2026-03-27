@@ -70,6 +70,9 @@ result.forEach((section, i) => {
 - The `.` operator does element-wise (cog) operations
 - The `*` operator does fan/cartesian operations
 - Rests are indicated with `r`
+- The `&` operator creates diads (simultaneous pitches): `[0 & 4, 2 & 5]`
+- The `&&` operator creates polyphony (simultaneous independent voices): `[0,1] && [2,3]`
+- The `_` placeholder applies a global transformation to all sections' output: `_ . [10]`
 
 ### Further Exploration
 

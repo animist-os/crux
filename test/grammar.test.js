@@ -1422,3 +1422,159 @@ test('displace and mot timescale combined', () => {
 test('mot timescale then displace', () => {
   assert.equal(evalToString('[0, 1, 2] > [1] || [2]'), '[r | 2, 0 | 2, 1 | 2, 2 | 2]');
 });
+
+// === Diad tests (& for pip-level chords) ===
+
+function evalAllSections(input) {
+  const prog = parse(input);
+  const result = prog.interp();
+  return result.sections.map(s => s.toString());
+}
+
+test('diad: basic two-note chord', () => {
+  assert.equal(evalToString('[0 & 4]'), '[0 & 4]');
+});
+
+test('diad: multiple diads in a mot', () => {
+  assert.equal(evalToString('[0 & 4, 2 & 5, 4 & 7]'), '[0 & 4, 2 & 5, 4 & 7]');
+});
+
+test('diad: three-note chord', () => {
+  assert.equal(evalToString('[0 & 4 & 7]'), '[0 & 4 & 7]');
+});
+
+test('diad: mixed diads and plain pips', () => {
+  assert.equal(evalToString('[0 & 4, 2, 4 & 7]'), '[0 & 4, 2, 4 & 7]');
+});
+
+test('diad: cog-add distributes over diad steps', () => {
+  assert.equal(evalToString('[0 & 4] . [1]'), '[1 & 5]');
+});
+
+test('diad: fan-add distributes over diad steps', () => {
+  assert.equal(evalToString('[0 & 4] * [0, 1]'), '[0 & 4, 1 & 5]');
+});
+
+test('diad: cog with range expands diad across positions', () => {
+  assert.equal(evalToString('[0 -> 4] . [0 & 4, -7]'), '[0 & 4, -6, 2 & 6, -4, 4 & 8]');
+});
+
+test('diad: timeScale on left pip applies to diad', () => {
+  assert.equal(evalToString('[0 | 2 & 4]'), '[0 & 4 | 2]');
+});
+
+test('diad: timeScale on right pip is ignored (diad shares left timeScale)', () => {
+  // [0 & 4|2] parses as 0 & (4|2); the diad takes only the step from the right
+  assert.equal(evalToString('[0 & 4 | 2]'), '[0 & 4]');
+});
+
+// === Polyphony tests (&& for mot-level parallel voices) ===
+
+test('poly: basic two voices', () => {
+  const sections = evalAllSections('[0, 1, 2] && [3, 4, 5]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 2]');
+  assert.equal(sections[1], '[3, 4, 5]');
+});
+
+test('poly: three voices', () => {
+  const sections = evalAllSections('[0] && [1] && [2]');
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0], '[0]');
+  assert.equal(sections[1], '[1]');
+  assert.equal(sections[2], '[2]');
+});
+
+test('poly: voices with different lengths (independent)', () => {
+  const sections = evalAllSections('[0, 1, 2] && [3, 4]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 2]');
+  assert.equal(sections[1], '[3, 4]');
+});
+
+test('poly: displacement on second voice', () => {
+  const sections = evalAllSections('[0, 1, 2] && ([0, 1, 2] > [1])');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 2]');
+  assert.equal(sections[1], '[r, 0, 1, 2]');
+});
+
+test('poly: broadcast fan transposition', () => {
+  const sections = evalAllSections('([0, 1] && [2, 3]) * [0, 5]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 5, 6]');
+  assert.equal(sections[1], '[2, 3, 7, 8]');
+});
+
+test('poly: broadcast cog', () => {
+  const sections = evalAllSections('([0, 1, 2] && [3, 4, 5]) . [10]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 11, 12]');
+  assert.equal(sections[1], '[13, 14, 15]');
+});
+
+test('poly: broadcast mot timescale', () => {
+  const sections = evalAllSections('([0, 1] && [2, 3]) || [2]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0 | 2, 1 | 2]');
+  assert.equal(sections[1], '[2 | 2, 3 | 2]');
+});
+
+test('poly: broadcast displacement', () => {
+  const sections = evalAllSections('([0, 1] && [2, 3]) > [1]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[r, 0, 1]');
+  assert.equal(sections[1], '[r, 2, 3]');
+});
+
+test('poly: concatenation pairs voices', () => {
+  const sections = evalAllSections('([0, 1] && [2, 3]), ([4, 5] && [6, 7])');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 4, 5]');
+  assert.equal(sections[1], '[2, 3, 6, 7]');
+});
+
+test('poly: assigned to variable', () => {
+  const sections = evalAllSections('X = [0, 1] && [2, 3]\nX * [0, 5]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 5, 6]');
+  assert.equal(sections[1], '[2, 3, 7, 8]');
+});
+
+test('poly: canon with displacement', () => {
+  const sections = evalAllSections('A = [0, 2, 4]\nA && (A > [1]) && (A > [2])');
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0], '[0, 2, 4]');
+  assert.equal(sections[1], '[r, 0, 2, 4]');
+  assert.equal(sections[2], '[r | 2, 0, 2, 4]');
+});
+
+test('poly: precedence - && binds looser than binary ops', () => {
+  // A * [0,1] && B . [2] === (A * [0,1]) && (B . [2])
+  const sections = evalAllSections('[0, 1] * [0, 1] && [3, 4] . [2]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 1, 2]');
+  assert.equal(sections[1], '[5, 6]');
+});
+
+test('poly: precedence - && binds tighter than comma', () => {
+  // [0] && [1], [2] && [3] === ([0] && [1]), ([2] && [3])
+  const sections = evalAllSections('[0] && [1], [2] && [3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 2]');
+  assert.equal(sections[1], '[1, 3]');
+});
+
+test('poly: broadcast subdivide', () => {
+  const sections = evalAllSections('([0, 1, 2] && [3, 4, 5])/');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0 | /3, 1 | /3, 2 | /3]');
+  assert.equal(sections[1], '[3 | /3, 4 | /3, 5 | /3]');
+});
+
+test('poly: ! still works as section separator', () => {
+  const sections = evalAllSections('[0, 1]\n!\n[2, 3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1]');
+  assert.equal(sections[1], '[2, 3]');
+});

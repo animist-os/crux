@@ -47,6 +47,10 @@ const s = g.createSemantics().addOperation('parse', {
     return new FollowedBy(x.parse(), y.parse());
   },
 
+  PolyExpr_poly(x, _ampamp, y) {
+    return new PolyOp(x.parse(), y.parse());
+  },
+
   PostfixExpr_drop(expr, _h1, _backslash, _h2, n) {
     return new DropTransform(expr.parse(), Number(n.sourceString));
   },
@@ -351,6 +355,9 @@ const s = g.createSemantics().addOperation('parse', {
   SingleValue(x) {
     return x.parse();
   },
+  SingleValue_diad(left, _h1, _amp, _h2, right) {
+    return new DiadOp(left.parse(), right.parse());
+  },
   SingleValue_motSubdivide(node, _slash) {
     // node is a MotLiteral followed by /
     const body = node.children[1];
@@ -383,6 +390,12 @@ const s = g.createSemantics().addOperation('parse', {
   },
   SingleValue_exprInMot(_op, expr, _cp) {
     // Parenthesized expression inside Mot; subdivide its evaluated Mot
+    return new NestedMotExpr(expr.parse());
+  },
+  DiadValue_refInDiad(name) {
+    return new NestedMotExpr(new Ref(name.sourceString));
+  },
+  DiadValue_exprInDiad(_op, expr, _cp) {
     return new NestedMotExpr(expr.parse());
   },
   CurlyPip(_o, list, _c, seedOpt) {
@@ -734,6 +747,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  PolyExpr_poly(x, _ampamp, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   PostfixExpr(x) { return x.collectRepeatSuffixRewrites(); },
   MulExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Explicit handlers for MulExpr variants to ensure traversal
@@ -837,6 +851,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  PolyExpr_poly(x, _ampamp, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr(x) { return x.collectTs(); },
   MulExpr(x) { return x.collectTs(); },
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
@@ -898,12 +913,15 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   NestedElem_nested(nested) { return nested.collectTs(); },
 
   SingleValue(x) { return x.collectTs(); },
+  SingleValue_diad(left, _h1, _amp, _h2, right) { return [...left.collectTs(), ...right.collectTs()]; },
   SingleValue_motSubdivide(node, _slash) { return node.collectTs(); },
   SingleValue_nestedSubdivide(nested, _slash) { return nested.collectTs(); },
   SingleValue_inlineMulMots(mot1, _h1, _star, _h2, mot2) { return [...mot1.collectTs(), ...mot2.collectTs()]; },
   SingleValue_inlineMulRefMot(_ref, _h1, _star, _h2, mot) { return mot.collectTs(); },
   SingleValue_exprInMot(_op, expr, _cp) { return expr.collectTs(); },
   SingleValue_refInMot(_ref) { return []; },
+  DiadValue_refInDiad(_ref) { return []; },
+  DiadValue_exprInDiad(_op, expr, _cp) { return expr.collectTs(); },
 
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
@@ -1046,7 +1064,14 @@ class Prog {
       for (const stmt of stmts) {
         lastValue = stmt.eval(env);
       }
-      sections.push(lastValue);
+      // If the section result is a Poly, flatten its voices into separate sections
+      if (lastValue instanceof Poly) {
+        for (const voice of lastValue.voices) {
+          sections.push(voice);
+        }
+      } else {
+        sections.push(lastValue);
+      }
     }
 
     // Compute program info for the final statement
@@ -1155,8 +1180,31 @@ class FollowedBy {
   }
 
   eval(env) {
-    const xv = requireMot(this.x.eval(env));
-    const yv = requireMot(this.y.eval(env));
+    const left = this.x.eval(env);
+    const right = this.y.eval(env);
+
+    // If either side is a Poly, pair voices and concatenate
+    if (left instanceof Poly || right instanceof Poly) {
+      const lp = asPoly(left);
+      const rp = asPoly(right);
+      const maxVoices = Math.max(lp.voices.length, rp.voices.length);
+      const voices = [];
+      for (let i = 0; i < maxVoices; i++) {
+        const lv = i < lp.voices.length ? lp.voices[i] : null;
+        const rv = i < rp.voices.length ? rp.voices[i] : null;
+        if (lv && rv) {
+          voices.push(new Mot([...lv.values, ...rv.values]));
+        } else if (lv) {
+          voices.push(lv);
+        } else {
+          voices.push(rv);
+        }
+      }
+      return new Poly(voices);
+    }
+
+    const xv = requireMot(left);
+    const yv = requireMot(right);
     return new Mot([...xv.values, ...yv.values]);
   }
 }
@@ -2114,6 +2162,38 @@ class MotTimeScaleOp {
   }
 }
 
+// PolyOp: the && operator for mot-level polyphony
+// A && B creates a Poly with two independent voices
+// (A && B) && C flattens to a 3-voice Poly
+class PolyOp {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  eval(env) {
+    const left = this.x.eval(env);
+    const right = this.y.eval(env);
+
+    // Collect voices from left
+    const leftVoices = left instanceof Poly ? left.voices : [requireMot(left)];
+    // Collect voices from right
+    const rightVoices = right instanceof Poly ? right.voices : [requireMot(right)];
+
+    // Flatten into a single Poly
+    return new Poly([...leftVoices, ...rightVoices]);
+  }
+}
+
+// DiadOp: the & operator for pip-level chords within a mot
+// [0 & 4, 2 & 5] creates pips with multiple simultaneous steps
+class DiadOp {
+  constructor(left, right) {
+    this.left = left;   // left value (Pip, Mot, etc.)
+    this.right = right; // right value (Pip, Mot, etc.)
+  }
+}
+
 // Subdivide postfix operator: divides all timescales by the length of the mot
 // Example: [0,1,2]/ → [0|/3, 1|/3, 2|/3]
 // Example: [[2,2]]/ → [2|/2, 2|/2]
@@ -2253,6 +2333,28 @@ function requireMot(value) {
     throw new Error('Mot required!');
   }
   return value;
+}
+
+// Monkey-patch operator classes to broadcast over Poly.
+// If the primary operand evaluates to a Poly, the operator is applied to each voice independently.
+// propName is the property name for the primary operand ('x' or 'expr').
+function addPolyBroadcast(OpClass, propName = 'x') {
+  const originalEval = OpClass.prototype.eval;
+  OpClass.prototype.eval = function(env) {
+    const leftVal = this[propName].eval(env);
+    if (leftVal instanceof Poly) {
+      const voices = leftVal.voices.map(voice => {
+        const proxy = Object.create(this);
+        proxy[propName] = { eval: () => voice };
+        return originalEval.call(proxy, env);
+      });
+      return new Poly(voices);
+    }
+    // Not a Poly — delegate to original (but we've already evaluated the operand, so wrap it)
+    const proxy = Object.create(this);
+    proxy[propName] = { eval: () => leftVal };
+    return originalEval.call(proxy, env);
+  };
 }
 
 // Deterministic RNG factory (xorshift32 over a hashed seed)
@@ -2639,19 +2741,74 @@ class Pip {
     this.timeScale = timeScale;
     this.tag = tag; // string label for special tokens (e.g., 'x', 'r')
     this.sourcePos = sourcePos; // character position in source (for UI tracking)
+    this.diad = null; // array of additional simultaneous steps (for & chords), or null
+  }
+
+  // Create a clone of this pip with a new diad array
+  withDiad(extraSteps) {
+    const p = new Pip(this.step, this.timeScale, this.tag, this.sourcePos);
+    p.diad = extraSteps;
+    return p;
+  }
+
+  // Get all steps (primary + diad steps) as an array
+  allSteps() {
+    if (!this.diad) return [this.step];
+    return [this.step, ...this.diad];
   }
 
   mul(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    // Preserve source position from the left operand (primary contributor)
     const out = new Pip(this.step + that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
+    // Propagate diad: add that.step to each diad voice independently
+    if (this.diad || that.diad) {
+      const leftSteps = this.allSteps();
+      const rightSteps = that.allSteps();
+      // If both have diads, combine them element-wise (pad shorter with primary step)
+      if (this.diad && that.diad) {
+        const maxLen = Math.max(leftSteps.length, rightSteps.length);
+        const combined = [];
+        for (let i = 0; i < maxLen; i++) {
+          const ls = i < leftSteps.length ? leftSteps[i] : leftSteps[0];
+          const rs = i < rightSteps.length ? rightSteps[i] : rightSteps[0];
+          combined.push(ls + rs);
+        }
+        out.step = combined[0];
+        out.diad = combined.length > 1 ? combined.slice(1) : null;
+      } else if (this.diad) {
+        // Only left has diad: add that.step to each
+        out.diad = this.diad.map(s => s + that.step);
+      } else {
+        // Only right has diad: add this.step to each
+        out.diad = that.diad.map(s => this.step + s);
+      }
+    }
     return out;
   }
 
   expand(that) {
     const combinedTag = this.tag ?? that.tag ?? null;
-    // Preserve source position from the left operand (primary contributor)
     const out = new Pip(this.step * that.step, this.timeScale * that.timeScale, combinedTag, this.sourcePos);
+    // Propagate diad: multiply each diad voice independently
+    if (this.diad || that.diad) {
+      const leftSteps = this.allSteps();
+      const rightSteps = that.allSteps();
+      if (this.diad && that.diad) {
+        const maxLen = Math.max(leftSteps.length, rightSteps.length);
+        const combined = [];
+        for (let i = 0; i < maxLen; i++) {
+          const ls = i < leftSteps.length ? leftSteps[i] : leftSteps[0];
+          const rs = i < rightSteps.length ? rightSteps[i] : rightSteps[0];
+          combined.push(ls * rs);
+        }
+        out.step = combined[0];
+        out.diad = combined.length > 1 ? combined.slice(1) : null;
+      } else if (this.diad) {
+        out.diad = this.diad.map(s => s * that.step);
+      } else {
+        out.diad = that.diad.map(s => this.step * s);
+      }
+    }
     return out;
   }
 
@@ -2662,6 +2819,10 @@ class Pip {
       step_str = tag_str;
     } else {
       step_str = `${this.step}`;
+    }
+    // Append diad steps with &
+    if (this.diad && this.diad.length > 0) {
+      step_str = step_str + this.diad.map(s => ` & ${s}`).join('');
     }
     let ts = this.timeScale;
     // Handle unresolved fractional timeScales
@@ -2983,6 +3144,22 @@ class Mot {
         // Inline nested mot content
         const nm = value.eval(env);
         for (const p of nm.values) { resolved.push(p); }
+      } else if (value instanceof DiadOp) {
+        // Resolve diad: combine left and right into a single Pip with diad array
+        const leftMot = new Mot([value.left]).eval(env);
+        const rightMot = new Mot([value.right]).eval(env);
+        if (leftMot.values.length > 0) {
+          const basePip = leftMot.values[0];
+          // Collect all right-side steps as additional diad voices
+          const extraSteps = [];
+          for (const rp of rightMot.values) {
+            extraSteps.push(rp.step);
+            if (rp.diad) extraSteps.push(...rp.diad);
+          }
+          // Merge with any existing diad on the base pip
+          const allDiad = basePip.diad ? [...basePip.diad, ...extraSteps] : extraSteps;
+          resolved.push(basePip.withDiad(allDiad));
+        }
       } else {
         throw new Error('Unsupported mot value: ' + String(value));
       }
@@ -2997,6 +3174,39 @@ class Mot {
   toString() {
     return '[' + this.values.map(value => value.toString()).join(', ') + ']';
   }
+}
+
+// Poly: an ordered collection of simultaneous voices (Mots).
+// Operators applied to a Poly broadcast to each voice.
+// A bare Mot is treated as a 1-voice Poly when needed.
+class Poly {
+  constructor(voices) {
+    // voices is an array of Mots
+    this.voices = voices;
+  }
+
+  eval(env) {
+    return new Poly(this.voices.map(v => requireMot(v.eval ? v.eval(env) : v)));
+  }
+
+  toString() {
+    return this.voices.map(v => v.toString()).join(' && ');
+  }
+}
+
+// Helper: wrap a value as a Poly if it isn't already
+function asPoly(value) {
+  if (value instanceof Poly) return value;
+  return new Poly([value]);
+}
+
+// Helper: apply a binary operation that expects Mots to a value that might be a Poly.
+// If left is a Poly, broadcasts the operation across each voice.
+function polyBroadcast(left, right, fn) {
+  if (left instanceof Poly) {
+    return new Poly(left.voices.map(voice => fn(voice, right)));
+  }
+  return fn(left, right);
 }
 
 class NestedMot {
@@ -3595,6 +3805,30 @@ function parse(input) {
 }
 
 golden.parse = parse;
+
+// Apply Poly broadcasting to all binary operator classes.
+// When the left operand of any binary op evaluates to a Poly,
+// the operation is applied to each voice independently.
+// All operator classes that use this.x as their primary operand
+const polyBroadcastX = [
+  // Binary operators
+  Mul, Expand, Dot, DotExpand, Steps, DotSteps,
+  JamOp, DotJam, Mirror, DotMirror, Lens, DotLens,
+  DotTie, ConstraintOp, DotConstraint, DotZip,
+  GlassOp, DotGlass, ReichOp, DotReich, PaertOp,
+  FoldOp, RotateOp, DotRotate, AtIndexOp,
+  DisplaceOp, MotTimeScaleOp,
+  // Unary/postfix operators that use this.x
+  Subdivide, TieOp
+];
+for (const OpClass of polyBroadcastX) {
+  addPolyBroadcast(OpClass, 'x');
+}
+// Operators that use this.expr as their primary operand
+const polyBroadcastExpr = [DropTransform, RepeatByCount];
+for (const OpClass of polyBroadcastExpr) {
+  addPolyBroadcast(OpClass, 'expr');
+}
 
 golden.crux_interp = function (input) {
   const prog = parse(input);

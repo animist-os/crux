@@ -41,7 +41,12 @@ export const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," MulExpr   -- fby
+      = FollowedByExpr "," PolyExpr   -- fby
+      | PolyExpr
+
+  // Polyphony operator: binds looser than binary ops, tighter than comma
+  PolyExpr
+      = PolyExpr "&&" MulExpr  -- poly
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -136,7 +141,8 @@ export const g = ohm.grammar(String.raw`
       = SingleValue
 
     SingleValue
-      = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+      = SingleValue hspaces? "&" ~"&" hspaces? DiadValue  -- diad
+      | MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
       | MotLiteral "/"                                -- motSubdivide
       | NestedMotLiteral "/"                          -- nestedSubdivide
       | NestedMotLiteral
@@ -149,6 +155,15 @@ export const g = ohm.grammar(String.raw`
       | ident hspaces? "*" hspaces? MotLiteral      -- inlineMulRefMot
       | "(" Expr ")"                                -- exprInMot
       | ident                                   -- refInMot
+
+    // Values that can appear on the right side of a diad &
+    DiadValue
+      = Pip
+      | Range
+      | Curly
+      | CurlyPip
+      | ident                                   -- refInDiad
+      | "(" Expr ")"                            -- exprInDiad
 
     Range
       = RandNum "->" RandNum      -- inclusive
@@ -247,7 +262,7 @@ export const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+      | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?

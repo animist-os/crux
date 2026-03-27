@@ -268,12 +268,44 @@ Operators are left-associative unless otherwise noted.
 [0 -> 9] @ [@2 [1,0,-1], @5 -7]        -> [0, 1, 3, 2, 1, 3, 4, -2, 6, 7, 8, 9]  // @5 compensates for +2 length change at @2
 ```
 
-3) **Concatenation**:
+3) **Polyphony** (`&&`):
+   - Creates simultaneous independent voices. Each side of `&&` becomes a separate voice.
+   - Produces a `Poly` type: an ordered collection of Mots played simultaneously.
+   - Voices are independent in duration — no padding or truncation.
+   - Operators applied to a Poly broadcast to each voice:
+     `(A && B) * [0, 1]` = `(A * [0, 1]) && (B * [0, 1])`
+   - Concatenation pairs voices: `(A && B), (C && D)` = voice 1 is `A,C`, voice 2 is `B,D`.
+   - Poly is a first-class value (assignable to variables).
+   - `&&` on its own line is equivalent to `!` (section separator).
+   - Flat nesting: `(A && B) && C` = 3-voice Poly.
+   - Examples:
+```text
+[0, 2, 4] && [7, 5, 3]                -> two voices played simultaneously
+A = [0, 2, 4]
+A && (A > [1]) && (A > [2])           -> three-voice canon
+([0, 1] && [2, 3]) * [0, 5]           -> broadcast: both voices transposed
+([0, 1] && [2, 3]), ([4, 5] && [6, 7]) -> paired concat: v1=[0,1,4,5], v2=[2,3,6,7]
+```
+
+4) **Diads** (`&`, inside mots):
+   - Creates simultaneous pitches at a single time position (chords).
+   - `[0 & 4, 2 & 5]` — each pip has multiple steps sharing one timeScale.
+   - Operators distribute over diad steps: `[0 & 4] . [1]` = `[1 & 5]`.
+   - Three or more notes: `[0 & 4 & 7]`.
+   - TimeScale comes from the left pip: `[0 | 2 & 4]` = step 0 and 4, both duration 2.
+   - Examples:
+```text
+[0 & 4, 2 & 5, 4 & 7]                -> parallel thirds
+[0 & 4 & 7, 2, 4]                    -> opening chord, then melody
+[0 & 4] * [0, 1]                     -> [0 & 4, 1 & 5]
+```
+
+5) **Concatenation**:
    - Use `,` between expressions to concatenate mots.
    - Example: `[0, 1], [2, 3] -> [0, 1, 2, 3]`.
    - Note: Juxtaposition concatenation (space-separated expressions) is **not supported**; you must use explicit commas.
 
-4) **Grouping**: parentheses `(` `)` control evaluation order.
+6) **Grouping**: parentheses `(` `)` control evaluation order.
 ```text
 ([0, 1] ^ [2]) * [0] -> [0, 2]
 ```
@@ -283,8 +315,9 @@ Operators are left-associative unless otherwise noted.
 From highest to lowest binding:
 1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
 2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@`, `>`, `||` (all left-associative)
-3. Concatenation: `,` (left-associative)
-4. Assignment and section separators: `=`, `:=`, `!`
+3. Polyphony: `&&` (left-associative)
+4. Concatenation: `,` (left-associative)
+5. Assignment and section separators: `=`, `:=`, `!`
 
 ### Identifiers
 
@@ -343,6 +376,17 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 // Mot TimeScale
 [0, 1, 2] || [2]             -> [0 | 2, 1 | 2, 2 | 2]
 [0, 1, 2] || [1/2]           -> [0 | /2, 1 | /2, 2 | /2]
+
+// Diads (pip-level chords)
+[0 & 4, 2 & 5]               -> [0 & 4, 2 & 5]
+[0 & 4] . [1]                -> [1 & 5]
+[0 & 4] * [0, 1]             -> [0 & 4, 1 & 5]
+
+// Polyphony (mot-level parallel voices)
+[0, 1] && [2, 3]             -> voice 1: [0, 1], voice 2: [2, 3]
+([0, 1] && [2, 3]) * [0, 5]  -> both voices fan-transposed
+A = [0, 2, 4]
+A && (A > [1])               -> two-voice canon
 ```
 
 ### Ohm-JS grammar (reference)
@@ -386,7 +430,11 @@ Crux {
     = FollowedByExpr
 
   FollowedByExpr
-    = FollowedByExpr "," MulExpr   -- fby
+    = FollowedByExpr "," PolyExpr   -- fby
+    | PolyExpr
+
+  PolyExpr
+    = PolyExpr "&&" MulExpr  -- poly
     | MulExpr
 
   MulExpr
@@ -474,7 +522,8 @@ Crux {
     = SingleValue
 
   SingleValue
-    = MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
+    = SingleValue hspaces? "&" ~"&" hspaces? DiadValue  -- diad
+    | MotLiteral hspaces? "*" hspaces? MotLiteral   -- inlineMulMots
     | MotLiteral "/"                                -- motSubdivide
     | NestedMotLiteral "/"                          -- nestedSubdivide
     | NestedMotLiteral
@@ -487,6 +536,14 @@ Crux {
     | ident hspaces? "*" hspaces? MotLiteral        -- inlineMulRefMot
     | "(" Expr ")"                                  -- exprInMot
     | ident                                         -- refInMot
+
+  DiadValue
+    = Pip
+    | Range
+    | Curly
+    | CurlyPip
+    | ident                                         -- refInDiad
+    | "(" Expr ")"                                  -- exprInDiad
 
   Range
     = RandNum "->" RandNum         -- inclusive
@@ -555,7 +612,7 @@ Crux {
 
   OpSym
     = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
-    | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+    | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?

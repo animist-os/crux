@@ -33,6 +33,9 @@ The decomposer takes a flat evaluated Mot (a sequence of Pips with step and time
 - **Ranges** — Detect ±1 step runs (ascending/descending scales). Full-sequence ranges or segmented with literal gaps.
 - **Repeats** — Detect periodic repetition of a sub-pattern. Exact and truncated variants.
 - **Progressions** — Constant-delta arithmetic sequences (non-unit). Full-sequence or segmented.
+- **Kernels** — Find a short motif (the "kernel") whose transformations (identity, transposition, retrograde) cover the surface. Reveals thematic self-similarity even when the resulting program is longer than the literal. Constants: `MIN_KERNEL_LEN = 3`, `MAX_KERNEL_LEN_CAP = 8`, `MAX_KERNEL_CANDIDATES = 50`, `MIN_KERNEL_COVERAGE = 0.4`, `KERNEL_TRANSFORM_COUNT = 3` (phase 1). Kernel programs handle their own variable structure and skip the generic hoister; they use a kernel-specific scoring path (`kernelScore`).
+
+All four discoverers are aggregated by `discoverSteps`, which is the entry point used by the top-level `discover` (with or without rhythm factoring).
 
 ### Rhythm Factoring
 
@@ -100,21 +103,21 @@ If relationship rewrites break verification (the rewritten program doesn't produ
 - `corpus/midi_src/*.mid` — Curated MIDI files (source of truth for notes/rhythm).
 - `corpus/melodies.yaml` — Metadata + derived diatonic Crux notation.
 - `corpus/melodies_decomposed.yaml` — Generated. Each melody gets a `decompositions` array of scored candidates.
-- `modules/golden/golden_crux_corpus.js` — Generated Doh.Module for the GoldenCruxPanel examples browser.
+- `../modules/golden/golden_crux_corpus.js` — Generated Doh.Module for the GoldenCruxPanel examples browser (lives outside this repo, in the surrounding `disrupterbox/` checkout).
 
 ### Generation Steps
 
 ```
 corpus/midi_src/*.mid                           (source of truth)
-    ↓ reanalyze-corpus.js
+    ↓ tools/reanalyze-corpus.js
 corpus/melodies.yaml                            (metadata + derived crux)
-    ↓ generate_decomposed.js
+    ↓ corpus/generate_decomposed.js
 corpus/melodies_decomposed.yaml                 (scored decomposition candidates)
-    ↓ generate_crux_corpus.js
-modules/golden/golden_crux_corpus.js            (loadable Doh.Module)
+    ↓ corpus/generate_crux_corpus.js
+../modules/golden/golden_crux_corpus.js         (loadable Doh.Module)
 ```
 
-All three steps are run via `scripts/update_crux_corpus.sh`. Supports `--dry-run` (step 1 only, no writes) and `--verbose`.
+These three steps are intended to be driven by a top-level pipeline script in the surrounding `disrupterbox/` checkout (`disrupterbox/scripts/update_crux_corpus.sh`, per `CORPUS.MD`). The `scripts/` directory inside this repo contains only `update_crux_syntax.sh` (a syntax-migration helper), not the corpus pipeline.
 
 ### Directives
 

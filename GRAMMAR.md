@@ -68,7 +68,7 @@ Example with operator aliasing:
 splay = *
 [0, 1] splay [2, 3]
 ```
-Returns `[[0, 1, 2, 3]]`.
+Returns `[[2, 3, 3, 4]]` (same fan-add behavior as `*` — for each r in `[2,3]`, add r to all of `[0,1]`).
 
 ### Mots and values
 
@@ -78,10 +78,10 @@ Returns `[[0, 1, 2, 3]]`.
   - Use the `/` postfix operator to subdivide: `[[0,1,2]]/` → `[0|/3, 1|/3, 2|/3]`
   - Can be nested recursively: `[[[0,1],[2,3]]]`
 - **Value** can be:
-  - **Pip**: `number` optionally combined with a timeScale using `*` (multiply) or `/` (divide), or a special tag.
-    - `number` is the step (may be integer or float).
-    - `TimeScale` is either a plain number or a fraction `n/d`, combined with `*` or `/`.
-      - Examples: `[0, 1*2] -> [0, 1*2]`, `[1/4] -> [1/4]`.
+  - **Pip**: `number` optionally combined with a timeScale via a `|` pipe form, or a special tag.
+    - `number` is the step (may be integer or float; fractions `n/d` are also accepted and normalize to a decimal step).
+    - `TimeScale` is attached using the pipe forms documented under *Pipe forms* below — `value | ts`, `value | * factor`, `value | / divisor`.
+      - Examples: `[0, 1 | 2] -> [0, 1 | 2]`, `[1 | /4] -> [1 | /4]`. (Note: `[1/4]` is also valid, but parses as a fractional **step** `0.25` with timeScale 1.)
     - A single letter inside a mot is a tagged pip with step 0.
   - **Range**: `a->b` expands inclusively to integer steps. Examples:
     - `[0->3] -> [0, 1, 2, 3]`
@@ -167,7 +167,7 @@ Operators are left-associative unless otherwise noted.
      - For each value in the right mot, combine it with every value in the left mot; concatenate.
      - Steps add; timeScales multiply.
      - If the right value has a negative timeScale, the left mot is reversed for that right value.
-     - Example: `[1, 2, 3] * [0*-1] -> [3, 2, 1]`
+     - Example: `[1, 2, 3] * [0 | -1] -> [3, 2, 1]`
    - `^` fan-mul (expand steps):
      - Same outer pairing as `*`, but steps multiply instead of add.
      - Example: `[0, 1] ^ [2] -> [0, 2]`, `[1, 2] ^ [2] -> [2, 4]`
@@ -177,7 +177,7 @@ Operators are left-associative unless otherwise noted.
       - **Note**: Nested mots now preserve unit duration by default. Use the `/` postfix operator for subdivision.
       - Example (unit duration preserved): `[0,4,2] . [0, [1,0], 0] -> [0, 5, 4, 2]`.
       - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
-      - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 4 | /2, 5 | /2, 4 | /2, 4 | /2, 2]`.
+      - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 5 | /2, 4 | /2, 2]` (the nested `[1,0]/` subdivides position 1: left pip `4` combined with nested steps `[1, 0]` at half time gives `5|/2, 4|/2`).
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
   - '.,' cog-concatenate (element-wise zip with RHS cycling)
       - interleaves two mots by pairing each LHS element with a corresponding RHS element
@@ -219,8 +219,8 @@ Operators are left-associative unless otherwise noted.
      - Cog: Alternates durations (1/2, 1/4 for left; 1, 1/2 for right).
    - `p` paert (fan):
      - Pärt-inspired tintinnabulation operator with octave equivalence.
-     - Snaps LHS steps to nearest RHS scale degree (mod 7), avoiding unisons.
-     - Example: `[0,1,2,3] p [0,2,4] -> [4,0,2,2]` (0→4 down to avoid unison, 1→0, 2→2, 3→2).
+     - Snaps LHS steps to nearest RHS scale degree (mod 7), avoiding unisons. Ties are broken by the lowest scale degree.
+     - Example: `[0,1,2,3] p [0,2,4] -> [2, 0, 0, 2]` (0→2 nearest non-unison; 1→0 nearest; 2→0 skip unison, tie resolved low; 3→2 nearest, tie resolved low).
    - `f` fold (fan):
      - Concatenates the mot with its reverse, transposed by each RHS value. Steps add; timeScales multiply.
      - Creates palindrome/arch structures. Multiple RHS values produce multiple folds.
@@ -368,8 +368,9 @@ From highest to lowest binding:
 
 ### Identifiers
 
-- Names must start with a letter or `_`, followed by alphanumerics (`ident = (letter | "_") alnum*`).
-- Referencing an unknown name is an error: “undeclared identifier: Name”.
+- A name is either a single letter, or starts with a letter or `_` followed by one or more `(alnum | "_")` characters (`ident = (letter | "_") (alnum | "_")+ | letter`).
+- A bare `_` is **not** an identifier — it's reserved as the global placeholder.
+- Referencing an unknown name is an error: "undeclared identifier: Name".
 
 ### Errors and constraints
 
@@ -396,7 +397,7 @@ From highest to lowest binding:
 [0, 1], [2, 3]               -> [0, 1, 2, 3]
 
 // Multiplicative family
-[1, 2, 3] * [0*-1]           -> [3, 2, 1]
+[1, 2, 3] * [0 | -1]         -> [3, 2, 1]
 [1, 2] ^ [2]                 -> [2, 4]
 [0, 1, 2] . [10, 20]         -> [10, 21, 12]
 [0, 1, 2] .* [10, 20]        -> [10, 21, 12]
@@ -442,6 +443,7 @@ This is the actual grammar implemented in `src/grammar.js`.
 
 ```text
 Crux {
+
   Prog
     = nls? ListOf<Section, SectionSep> trailingSpace
 
@@ -467,6 +469,7 @@ Crux {
   MacroAssignStmt
     = ident "=" Expr
 
+  // Operator aliasing sugar, e.g.,  splay = *  -> [0,1] splay [1,2] == [0,1] * [1,2]
   OpAliasStmt
     = ident "=" OpSym
 
@@ -480,10 +483,12 @@ Crux {
     = FollowedByExpr "," PolyExpr   -- fby
     | PolyExpr
 
+  // Polyphony: binds looser than binary ops, tighter than comma
   PolyExpr
     = PolyExpr "&&" MulExpr  -- poly
     | MulExpr
 
+  // Binary operators (lower precedence than postfix operators)
   MulExpr
     = MulExpr ".*" PostfixExpr     -- dotStar
     | MulExpr ".^" PostfixExpr     -- dotExpand
@@ -516,18 +521,20 @@ Crux {
     | MulExpr "||" PostfixExpr     -- motTimeScale
     | PostfixExpr
 
+  // Postfix operators (tighter than binary; apply to immediate left operand)
   PostfixExpr
-    = PostfixExpr "/"                          -- subdivide
-    | PostfixExpr "z"                          -- zipColumns
-    | PostfixExpr "t"                          -- tiePostfix
+    = PostfixExpr "/"                            -- subdivide
+    | PostfixExpr "z"                            -- zipColumns
+    | PostfixExpr "t"                            -- tiePostfix
     | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
     | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
-    | PostfixExpr hspaces? "\\" hspaces? RandNum  -- dropRand
-    | PostfixExpr hspaces? "\\" hspaces? number   -- drop
+    | PostfixExpr hspaces? "\\" hspaces? RandNum -- dropRand
+    | PostfixExpr hspaces? "\\" hspaces? number  -- drop
     | PriExpr
 
   PriExpr
-    = globalPlaceholder             -- globalPlaceholder
+    = globalPlaceholder            -- globalPlaceholder
+    | Pip                          -- pipAsMot
     | ident                        -- ref
     | "[[" NestedBody "]]"         -- nestedMot
     | "[" AtIndexList "]"          -- atIndexMot
@@ -556,6 +563,7 @@ Crux {
 
   MotLiteral = "[" MotBody "]"
   NestedMotLiteral = "[[" NestedBody "]]"
+  // Abbreviated nested mot that closes with a single ']' so it can be followed by more values inside the same mot
   NestedMotAbbrev = "[[" MotBody "]"
 
   MotBody
@@ -585,6 +593,7 @@ Crux {
     | "(" Expr ")"                                  -- exprInMot
     | ident                                         -- refInMot
 
+  // Values that can appear on the right side of a diad &
   DiadValue
     = Pip
     | Range
@@ -597,21 +606,22 @@ Crux {
     = RandNum "->" RandNum         -- inclusive
 
   Pip
-    = StepValue hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
-    | StepValue hspaces? "|" hspaces? "*" hspaces? RandNum  -- withTimeMulPipe
-    | StepValue hspaces? "|" hspaces? "/" hspaces? RandNum  -- withTimeDivPipe
-    | StepValue hspaces? "|"                                 -- withPipeNoTs
+    = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
+    | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
+    | Range                                               -- rangeNoTimeScale
+    | StepValue hspaces? "|" hspaces? TimeScale           -- withTimeMulPipeImplicit
+    | StepValue hspaces? "|" hspaces? "*" hspaces? RandNum -- withTimeMulPipe
+    | StepValue hspaces? "|" hspaces? "/" hspaces? RandNum -- withTimeDivPipe
+    | StepValue hspaces? "|"                              -- withPipeNoTs
     | "|" hspaces? TimeScale                              -- pipeOnlyTs
     | "|" hspaces? "*" hspaces? RandNum                   -- pipeOnlyMul
     | "|" hspaces? "/" hspaces? RandNum                   -- pipeOnlyDiv
     | "|"                                                 -- pipeBare
     | StepValue                                           -- noTimeScale
     | Special hspaces? "|" hspaces? TimeScale             -- specialWithTimeMulPipeImplicit
-    | Special hspaces? "|" hspaces? "*" hspaces? RandNum -- specialWithTimeMulPipe
-    | Special hspaces? "|" hspaces? "/" hspaces? RandNum -- specialWithTimeDivPipe
+    | Special hspaces? "|" hspaces? "*" hspaces? RandNum  -- specialWithTimeMulPipe
+    | Special hspaces? "|" hspaces? "/" hspaces? RandNum  -- specialWithTimeDivPipe
     | Special                                             -- special
-    | Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
-    | Range hspaces? "|" hspaces? "/" hspaces? RandNum    -- rangeWithTimeDivPipe
     | Curly hspaces? "|" hspaces? TimeScale               -- curlyWithTimeMulPipeImplicit
     | Curly hspaces? "|" hspaces? "*" hspaces? RandNum    -- curlyWithTimeMulPipe
     | Curly hspaces? "|" hspaces? "/" hspaces? RandNum    -- curlyWithTimeDivPipe
@@ -622,11 +632,34 @@ Crux {
   StepValue
     = number hspaces? "/" hspaces? number  -- frac
     | PlainNumber                          -- plain
+    | ArithExpr                            -- arith
 
   RandNum
     = Curly
+    | ParenArithExpr
+    | MemberAccess
     | number
 
+  // Parenthesized arithmetic for use in numeric contexts (requires parens to avoid ambiguity)
+  ParenArithExpr
+    = "(" hspaces? ArithExpr hspaces? ")"
+
+  ArithExpr
+    = ArithExpr hspaces? "+" hspaces? ArithMulExpr  -- add
+    | ArithExpr hspaces? "-" hspaces? ArithMulExpr  -- sub
+    | ArithMulExpr
+
+  ArithMulExpr
+    = ArithMulExpr hspaces? "*" hspaces? ArithPrimary  -- mul
+    | ArithMulExpr hspaces? "/" hspaces? ArithPrimary  -- div
+    | ArithPrimary
+
+  ArithPrimary
+    = "(" hspaces? ArithExpr hspaces? ")"  -- parens
+    | MemberAccess
+    | number
+
+  // Curly-of-pips: choose one full pip-like value
   CurlyPip
     = "{" ListOf<Pip, ","> "}" Seed?
   Curly
@@ -634,10 +667,14 @@ Crux {
   CurlyBody
     = ListOf<CurlyEntry, ",">      -- list
   CurlyEntry
-    = Range          -- range
+    = Range              -- range
     | number "/" number  -- frac
-    | number         -- num
-    | ident          -- ref
+    | number             -- num
+    | MemberAccess       -- member
+    | ident              -- ref
+
+  MemberAccess
+    = ident "." ident  -- prop
 
   Seed = "$" SeedChars
   SeedChars = seedChar+
@@ -657,33 +694,41 @@ Crux {
 
   globalPlaceholder = "_" ~(alnum | "_")
 
-  ident = (letter | "_") alnum+  -- withChars
-        | letter                 -- single
+  ident = (letter | "_") (alnum | "_")+  -- withChars
+        | letter                          -- single
 
+  // Set of binary operator symbols that can be aliased
   OpSym
-    = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r" | ".~"
+    = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
     | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?
     | sign? digit* "." digit+
 
+  // Prevent a bare number from capturing the start of a range
   PlainNumber
     = number ~ (hspaces? "->")
 
   sign = "+" | "-"
 
+  // Index for [@index value] notation (lexical rule - no space skipping)
   index = sign? digit+
 
   hspace = " " | "\t"
   hspaces = hspace+
 
+  // Line comments
   comment = "//" (~nl any)*
 
+  // Make newlines significant by not skipping them as whitespace
+  // Override Ohm's built-in 'space' rule to skip spaces/tabs/comments but not newlines
   space := hspace | comment
 
+  // Newline separator (for statements)
   nl = "\r\n" | "\n" | "\r"
   nls = nl+
+
 }
 ```
 

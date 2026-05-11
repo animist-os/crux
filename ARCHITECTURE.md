@@ -2,128 +2,150 @@
 
 ## Overview
 
-Crux is a domain-specific language (DSL) for musical motif manipulation built on Ohm.js. This document describes the current architecture and module organization.
+Crux is a domain-specific language (DSL) for musical motif manipulation built on Ohm.js. This document describes the current source layout and module organization.
 
 ## Directory Structure
 
 ```
 crux/
 ├── src/
-│   ├── index.js           # Main implementation (2,757 lines)
-│   └── grammar.js         # Ohm grammar definition (222 lines)
+│   ├── grammar.js         # Ohm grammar definition (~300 lines)
+│   ├── index.js           # Interpreter, AST, public API (~4,000 lines)
+│   ├── decompose.js       # Decomposition engine (~1,200 lines)
+│   └── experiments.js     # Experimental / scratch code (not in default build)
 ├── dist/
-│   └── crux.cjs           # Bundled output (96KB)
-├── test/
-│   ├── grammar.test.js    # Main test suite (96 tests)
-│   └── depth.test.js      # Depth analysis tests
+│   └── crux.cjs           # Bundled CommonJS output
+├── test/                  # node:test suite (10 files)
+├── tools/                 # MIDI ↔ Crux conversion and corpus helpers
+├── corpus/                # Curated MIDI sources + generators + YAML
+├── scripts/               # Maintenance shell scripts
 ├── build.js               # Build script
-├── package.json           # NPM configuration
-└── docs/                  # Documentation
+└── package.json
 ```
 
 ## Current Architecture
 
-The project uses a **minimal modular structure** with only two source files:
+The project uses a minimal modular structure with three source files participating in the build (`grammar.js`, `index.js`, `decompose.js`); `experiments.js` is intentionally left out of the bundle.
 
-### 1. Grammar Module (`src/grammar.js` - 222 lines)
-- Ohm.js grammar definition for the Crux DSL
-- Defines complete syntax for motifs, operators, and expressions
-- **Single export**: `g` (Ohm grammar object)
-- **Independent** - no dependencies on other modules
+### 1. Grammar Module (`src/grammar.js`)
 
-### 2. Main Module (`src/index.js` - 2,757 lines)
-Contains the complete interpreter implementation:
+- Ohm.js grammar definition for the Crux DSL.
+- Single export: `g` (Ohm grammar object).
+- No dependencies on other Crux modules.
 
-#### AST Node Classes
-- `Prog`, `Assign`, `OpAliasAssign`, `Ref`, `FollowedBy`
+See `GRAMMAR.md` for the full rule reference.
 
-#### Core Data Classes
-- `Pip` - single note (step, timeScale, tag)
-- `Mot` - motif (collection of pips)
-- `NestedMot` - hierarchically subdivided motif
-- `NestedMotExpr` - expression evaluated as nested motif
-- `PadValue` - ellipsis pad marker
+### 2. Main Module (`src/index.js`)
 
-#### Binary Transform Operators (23 total)
+The interpreter implementation.
 
-**Fan operators** (expand across RHS):
-- `Mul`, `Expand`, `Steps`, `JamOp`, `Mirror`, `Lens`
-- `ConstraintOp`, `RotateOp`, `GlassOp`, `ReichOp`, `PaertOp`
+#### AST / statement classes
 
-**Cog operators** (per-position pairing):
-- `Dot`, `DotExpand`, `DotSteps`, `DotJam`, `DotMirror`, `DotLens`
-- `DotTie`, `DotConstraint`, `DotRotate`, `DotZip`, `DotGlass`, `DotReich`
+- `Prog`, `FollowedBy` (comma concatenation)
+- `EvalAssign` (`:=`), `MacroAssign` (`=`), `MacroBinding`, `OpAliasAssign`
+- `Ref`, `GlobalPlaceholder`, `GlobalOpStmt`, `GlobalOpMarker`
+- `AliasCall` (resolves aliased binary operators)
 
-#### Unary Operators
-- `TieOp`, `SegmentTransform`, `RepeatByCount`
+#### Core data classes
 
-#### Random Value Classes
-- `Range`, `RandomRange`, `RandomChoice`, `RandomRefChoice`
-- `RandomPip`, `RandomPipChoiceFromPips`, `RangePipe`
+- `Pip` — single note (`step`, `timeScale`, `tag`, optional `diad` array of additional simultaneous steps)
+- `Mot` — motif (collection of pips)
+- `Poly` — ordered collection of mots played simultaneously
+- `NestedMot`, `NestedMotExpr` — hierarchical grouping
+- `AtIndexMot` — RHS payload for the `@` operator
+- `PadValue`, `RepeatPip` — internal markers for `:` pad/repeat
+- `Range`, `RandomRange`, `RandomChoice`, `RandomRefChoice`, `RandomMemberChoice`, `RandomPip`, `RandomPipChoiceFromPips`, `RangePipe` — range / random-value classes
 
-#### Utility Functions (inline)
-- **Provenance tracking**: `_provAddEdge()`, `_provAddPipToMot()`, `FindAncestorPips()`, `getCruxUUID()`
-- **RNG**: `createSeededRng()`, `hashSeedTo32Bit()`, `warmUpRng()`, `resolveRandNumToNumber()`
-- **Seed utilities**: `stringToSeed()`, `formatSeed4()`, `generateSeed4()`
-- **Helpers**:  `requireMot()`, `opKey()`, `instantiateOpNodeBySymbol()`
+#### Binary operator classes
 
-#### Semantic Operations
-- `parse` - AST construction from CST
-- `collectRepeatSuffixRewrites` - find `:N` suffixes for desugaring
-- `collectTs` - find all timescale positions in source
+Fan operators (expand across RHS):
 
-#### Analysis Functions
-- `collectMotLeavesWithDepth()`, `computeExprHeight()`
-- `computeMotDepthsFromRoot()`, `computeHeightFromLeaves()`
-- `findAllTimescaleIndices()`, `findNumericValueIndicesAtDepth()`
+- `Mul` (`*`), `Expand` (`^`), `Steps` (`->`)
+- `JamOp` (`j`), `Mirror` (`m`), `Lens` (`l`), `ConstraintOp` (`c`)
+- `RotateOp` (`~`), `GlassOp` (`g`), `ReichOp` (`r`), `PaertOp` (`p`), `FoldOp` (`f`)
 
-#### Public API (via `golden` global)
-All functions above are exposed through the `golden` object for external use.
+Cog operators (per-position pairing, RHS cycles):
+
+- `Dot` (`.` and `.*`), `DotExpand` (`.^`), `DotSteps` (`.->`)
+- `DotJam` (`.j`), `DotMirror` (`.m`), `DotLens` (`.l`)
+- `DotTie` (`.t`), `DotConstraint` (`.c`), `DotZip` (`.,`)
+- `DotRotate` (`.~`), `DotGlass` (`.g`), `DotReich` (`.r`)
+
+Other binary operators (own semantics, not fan/cog):
+
+- `DisplaceOp` (`>`) — shift in time
+- `MotTimeScaleOp` (`||`) — multiply every pip's timeScale
+- `AtIndexOp` (`@`) — apply at specific indices
+- `PolyOp` (`&&`) — parallel voices
+- `DiadOp` (`&`, pip-internal) — simultaneous pitches at one position
+
+#### Unary / postfix classes
+
+- `TieOp` (`t`), `Subdivide` (`/`), `ZipColumns` (`z`)
+- `RepeatByCount` (`: N`), `DropTransform` (`\ N`)
+
+#### Utility functions (inline)
+
+- Provenance tracking: `_provAddEdge`, `_provAddPipToMot`, `FindAncestorPips`, `golden.getCruxUUID`
+- RNG: `createSeededRng`, `hashSeedTo32Bit`, `warmUpRng`, `resolveRandNumToNumber`
+- Seed utilities: `stringToSeed`, `formatSeed4`, `generateSeed4`, `collectCurlySeedsFromAst`, `collectCurlySeedsFromSource`, `rewriteCurlySeeds`
+- Arithmetic AST: `ArithAdd`, `ArithSub`, `ArithMul`, `ArithDiv`, `ArithNumber`, `MemberAccess`
+- Helpers: `requireMot`, `opKey`, `instantiateOpNodeBySymbol`, `addPolyBroadcast`, `asPoly`, `polyBroadcast`, `subdivide`, `derefMacro`, `wrapArithNode`
+
+#### Semantic / public API (on `golden`)
+
+- `golden.parse`, `golden.crux_interp`
+- `golden.CruxRewriteCurlySeeds`, `golden.CruxDesugarRepeats`, `golden.CruxProgramInfo`
+- `golden.collectMotLeavesWithDepth`, `golden.computeExprHeight`
+- `golden.computeMotDepthsFromRoot`, `golden.computeHeightFromLeaves`
+- `golden.findAllTimescaleIndices`, `golden.findNumericValueIndicesAtDepth`, `golden.findNumericValueIndicesAtDepthOrAbove`
+- `golden.findPipAtPosition`, `golden.findAllPipsWithPositions`
+
+### 3. Decomposition Module (`src/decompose.js`)
+
+Decomposes a flat pip sequence into candidate Crux programs that reproduce it. See `DECOMPOSITION.md`.
+
+- Decomposition AST: `DLiteral`, `DRange`, `DBinOp`, `DConcat`, `DRepeat`, `DRhythmMask`, `DAssign`, `DRef`, `DProgram`
+- Discoverers: `discoverRanges`, `discoverRepeats`, `discoverProgressions`, `discoverKernels`, `discoverSteps`
+- Public API: `golden.decompose`
+
+### 4. Experimental Module (`src/experiments.js`)
+
+Scratch / experimental code. Not included in the bundled output.
 
 ## Why This Structure?
 
 ### Design Decision: Minimal Extraction
 
-The project uses a **deliberately minimal** modular structure:
-
-✅ **Only grammar is extracted** - Clear separation of syntax definition
-✅ **All implementation in one file** - Avoids circular dependency issues
-✅ **No intermediate abstractions** - Simpler build process
-✅ **Golden global pattern** - All code accesses shared state directly
+- ✅ Grammar is in its own file — clean separation of syntax definition.
+- ✅ Interpreter is one large file — avoids circular dependency issues between AST classes, semantic operations, and analysis functions.
+- ✅ Decomposition is in its own file — depends on `index.js` only via the `golden` global and `golden.crux_interp`.
+- ✅ Golden global pattern — all shared state (provenance, UUID, RNG, public API) hangs off `golden`.
 
 ### Why Not More Modules?
 
-Further extraction was **intentionally avoided** because:
+Further extraction has been deliberately avoided because:
 
-1. **Tight coupling** - AST classes, semantic operations, and analysis functions are deeply interdependent
-2. **Golden global** - Provenance, RNG, and UUID functions all access `golden._prov`, `golden.getCruxUUID()`, etc.
-3. **Circular dependencies** - Would require complex dependency injection or major refactoring
-4. **Working system** - Current structure has 100% test coverage and works reliably
-
-### Benefits of Current Approach
-
-- ✅ **Simple** - Two files, minimal imports
-- ✅ **Maintainable** - Everything in one place when debugging
-- ✅ **Performant** - No module loading overhead
-- ✅ **Tested** - All 95 tests passing
-- ✅ **Documented** - Clear architecture, no hidden complexity
+1. **Tight coupling** — AST classes, semantic operations, and analysis functions are deeply interdependent.
+2. **Golden global** — Provenance, RNG, UUID, and the public API all access `golden._prov`, `golden.getCruxUUID()`, etc.
+3. **Circular dependencies** — Splitting `index.js` further would require dependency injection or significant refactoring.
+4. **Working system** — Current structure keeps the entire test suite green.
 
 ## Build Process
 
-The build process (`build.js`) bundles the modular source into a single CommonJS file:
+`build.js` concatenates the three participating source files into a single CommonJS bundle:
 
-1. Read `src/grammar.js`
-2. Read `src/index.js`
-3. Remove ES6 import/export statements
-4. Prepend ohm-js require statement
-5. Concatenate: grammar + implementation
-6. Output to `dist/crux.cjs` (96KB)
+1. Read `src/grammar.js`, `src/index.js`, `src/decompose.js`.
+2. Strip ES6 `import` / `export` statements.
+3. Prepend an `ohm-js` `require` shim.
+4. Append CommonJS / global exports for `golden`.
+5. Write `dist/crux.cjs`.
 
 The bundle is designed to be loaded in environments where `golden` is a pre-existing global object.
 
 ## Testing
 
-Tests use Node's built-in test runner:
+Tests use Node's built-in test runner.
 
 ```bash
 npm test           # run tests
@@ -131,64 +153,88 @@ npm run build      # build bundle
 npm run build:test # build and test
 ```
 
-**Test Coverage**: 95/95 passing (1 intentionally skipped)
+Test files in `test/`:
+
+- `grammar.test.js` — DSL parsing and operator behavior (largest suite)
+- `decompose.test.js` — decomposition engine
+- `depth.test.js`, `program-info.test.js`, `interp-metadata.test.js` — analysis helpers
+- `utils.test.js` — internal utilities
+- `corpus.test.js`, `find-regime.test.js`, `midi-to-crux.test.js`, `roundtrip-midi.test.js` — corpus / MIDI pipeline
 
 ## Operator Classification
 
 ### Fan vs Cog Semantics
 
 **Fan operators** apply the RHS to the entire LHS:
-- For each RHS value, process all LHS values
-- Output length: `|LHS| × |RHS|`
-- Example: `[0,1,2] * [1,2]` → `[1,2,3,2,4,6]`
+- For each RHS value, process all LHS values.
+- Output length: `|LHS| × |RHS|`.
+- Example: `[0,1,2] * [1,2]` → `[1,2,3,2,3,4]`.
 
 **Cog operators** pair LHS and RHS positionally:
-- Tile RHS to match LHS length, pair by index
-- Output length: `|LHS|`
-- Example: `[0,1,2] .* [1,2]` → `[0,2,2]`
+- Tile RHS to match LHS length, pair by index.
+- Output length: `|LHS|`.
+- Example: `[0,1,2] .* [1,2]` → `[1,3,3]`.
 
 ### Operator Symbols
 
-| Symbol | Fan Operator | Cog Operator |
-|--------|-------------|--------------|
-| `*` / `.*` | Mul | Dot |
-| `^` / `.^` | Expand | DotExpand |
-| `->` / `.->` | Steps | DotSteps |
-| `j` / `.j` | JamOp | DotJam |
-| `m` / `.m` | Mirror | DotMirror |
-| `l` / `.l` | Lens | DotLens |
-| `t` / `.t` | TieOp (unary) | DotTie |
-| `c` / `.c` | ConstraintOp | DotConstraint |
-| `~` / `.~` | RotateOp | DotRotate |
-| `.,` | - | DotZip |
-| `g` / `.g` | GlassOp | DotGlass |
-| `r` / `.r` | ReichOp | DotReich |
-| `p` | PaertOp | *(no cog version - semantically invalid)* |
+| Symbol | Fan operator class | Cog operator class |
+|--------|--------------------|--------------------|
+| `*` / `.*` | `Mul` | `Dot` |
+| `^` / `.^` | `Expand` | `DotExpand` |
+| `->` / `.->` | `Steps` | `DotSteps` |
+| `j` / `.j` | `JamOp` | `DotJam` |
+| `m` / `.m` | `Mirror` | `DotMirror` |
+| `l` / `.l` | `Lens` | `DotLens` |
+| `t` (postfix) / `.t` | `TieOp` (unary) | `DotTie` |
+| `c` / `.c` | `ConstraintOp` | `DotConstraint` |
+| `~` / `.~` | `RotateOp` | `DotRotate` |
+| `g` / `.g` | `GlassOp` | `DotGlass` |
+| `r` / `.r` | `ReichOp` | `DotReich` |
+| `.,` | — | `DotZip` |
+| `p` | `PaertOp` | *(no cog version — semantically invalid)* |
+| `f` | `FoldOp` | *(no cog version)* |
+
+Other binary operators with their own semantics (not fan/cog):
+
+| Symbol | Class | Role |
+|--------|-------|------|
+| `>` | `DisplaceOp` | Time displacement |
+| `\|\|` | `MotTimeScaleOp` | Scale all pip durations |
+| `@` | `AtIndexOp` | Apply at specific indices |
+| `&&` | `PolyOp` | Parallel voices |
+| `&` | `DiadOp` | Simultaneous pitches in one pip |
+| `,` | `FollowedBy` | Concatenation |
+
+`.~` is implemented and parsed but is **not** in the `OpSym` set, so it cannot currently be used in an operator alias (`name = .~` will fail).
 
 ## Design Patterns
 
 ### Evaluation Model
-- Two-phase: parse → evaluate
-- Environment (`Map`) stores variable bindings
-- Motifs evaluated lazily during interpretation
-- Random values resolved during evaluation using seeded RNG
+
+- Two-phase: parse → evaluate.
+- Environment (`Map`) stores variable bindings.
+- Motifs are evaluated lazily during interpretation.
+- Random values are resolved during evaluation using seeded RNG.
 
 ### Provenance Tracking
-- Optional DAG tracking (enabled by default via `golden._prov`)
-- Each pip gets unique ID from `golden.getCruxUUID()`
-- Tracks parent pips for operations
-- Useful for music analysis and debugging
+
+- Optional DAG tracking (enabled by default via `golden._prov`).
+- Each pip gets a unique ID from `golden.getCruxUUID()`.
+- Tracks parent pips for operations.
+- Useful for music analysis and debugging.
 
 ### Random Number Generation
-- Deterministic by default (seeded xorshift32)
-- Seeds can be specified with `$hhhh` syntax
-- Warmup phase for better randomness distribution
-- Falls back to `Math.random` when no seed provided
+
+- Deterministic by default (seeded xorshift32).
+- Seeds can be specified with `$hhhh` syntax.
+- Warmup phase for better randomness distribution.
+- Falls back to `Math.random` when no seed is provided.
 
 ### Global State Pattern
-- All code uses `golden` global object
-- Provenance state: `golden._prov`
-- UUID counter: `golden._crux_uuid_cnt`
+
+- All code uses the `golden` global object.
+- Provenance state: `golden._prov`.
+- UUID counter: `golden._crux_uuid_cnt`.
 - Public API: `golden.parse()`, `golden.crux_interp()`, etc.
 
 ## Future Refactoring Considerations
@@ -200,17 +246,11 @@ If the codebase grows significantly, potential extractions could include:
 3. **Semantic operations** → `src/semantics.js`
 4. **Analysis functions** → `src/analysis.js`
 
-However, this would require:
-- ❌ Refactoring the `golden` global object pattern
-- ❌ Careful dependency injection to avoid circular imports
-- ❌ Potentially splitting the build process
-- ❌ More complex module resolution
-
-**Current recommendation**: Keep the minimal two-file structure unless the project grows beyond 5,000 lines or requires plugin extensibility.
+These would require refactoring the `golden` global pattern, careful dependency injection to avoid circular imports, and possibly splitting the build process.
 
 ## Key Principles
 
-1. **Simplicity over abstraction** - Two files are easier to navigate than 20
-2. **Working code beats perfect structure** - 100% test coverage matters more than module purity
-3. **Document trade-offs** - Be honest about architectural compromises
-4. **Pragmatic refactoring** - Only extract when it solves a real problem
+1. **Simplicity over abstraction** — A few large files are easier to navigate than many small ones when classes are densely interdependent.
+2. **Working code beats perfect structure.**
+3. **Document trade-offs honestly** — Be explicit about the global-state pattern and why splitting hasn't happened.
+4. **Pragmatic refactoring** — Only extract when it solves a real problem.

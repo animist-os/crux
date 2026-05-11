@@ -1,0 +1,13 @@
+// Canonic imitation with voice-level transformations applied per entry.
+// Voice 1: subject. Voice 2 (enters at 4): subject in augmentation.
+// Voice 3 (enters at 12): subject in diminution.
+//
+// !N places each voice in absolute time. Per-voice transformations like ||
+// and > operate on the voice's content, independently of its entry offset.
+
+subject = [0, 2, 4, 5, 4, 2]
+subject
+!4
+subject || [2]
+!12
+subject || [1/2]

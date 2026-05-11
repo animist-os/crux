@@ -1,0 +1,6 @@
+// Fractional displacement: offset by a half-beat to produce a swing feel.
+// Combined with z (zip columns) you get a sub-beat interleave inside one voice
+// — useful for Reich-style phasing or syncopated grooves.
+
+riff = [0, 3, 5, 7]
+(riff, riff > [1/2])z

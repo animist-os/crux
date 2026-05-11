@@ -1,0 +1,6 @@
+// Mot-level timescale (||): scale every pip's duration in a mot by a factor.
+// Classical augmentation (slow down) and diminution (speed up) are expressed
+// this way. The original subject, then half-speed, then double-speed.
+
+subject = [0, 1, 2, 3, 4]
+subject, subject || [1/2], subject || [2]

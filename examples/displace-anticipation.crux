@@ -1,0 +1,6 @@
+// Negative displacement: trim from the front of a mot to create an
+// "early entrance" effect. This has no equivalent in !N voice-offset —
+// it's a genuinely mot-level operation that changes what plays, not when.
+
+phrase = [0, 2, 4, 5, 7]
+phrase > [-1]

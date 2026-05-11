@@ -1,0 +1,11 @@
+// Voice offset (!N): introduce a parallel voice at absolute time N.
+// First voice anchors at t=0. Each subsequent voice's entry time is
+// measured from t=0, not from the prior voice's entry. Bare ! is !0.
+
+// Three-voice canon: same subject, staggered entries 4 and 8 units apart.
+subject = [0, 2, 4, 5, 4, 2, 0, -1, 0]
+subject
+!4
+subject
+!8
+subject

@@ -1,0 +1,7 @@
+// Polyrhythm via mot timescale: same melody at different speeds.
+// 3-against-4 lives in the ratio of timescales applied to a shared figure.
+
+fig = [0, 2, 4, 5]
+fast = fig || [3/4]
+slow = fig || [4/3]
+(fig, fast)z

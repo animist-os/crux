@@ -1,0 +1,16 @@
+// Fugal exposition: subject in voice 1, answer (transposed up a fifth) in
+// voice 2, third entry of the subject in voice 3, fourth entry as another
+// answer. Entries spaced by the length of the subject. This is the standard
+// SATB exposition layout.
+
+subject = [0, 2, 4, 5, 7, 5, 4, 2]
+answer = subject * [4]
+S_length = 8
+
+subject
+!8
+answer
+!16
+subject * [7]
+!24
+answer * [7]

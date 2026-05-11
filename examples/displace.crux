@@ -1,0 +1,7 @@
+// Displace operator (>): time-shift a mot forward or backward within a voice.
+// This is a mot-level transformation — distinct from !N voice-offset, which
+// places a whole voice at an absolute time in the arrangement.
+
+// Basic delay: prepend a rest of N units to the front of the mot.
+melody = [0, 2, 4, 5]
+melody > [1]

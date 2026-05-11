@@ -50,7 +50,6 @@ The interpreter implementation.
 
 - `Pip` — single note (`step`, `timeScale`, `tag`, optional `diad` array of additional simultaneous steps)
 - `Mot` — motif (collection of pips)
-- `Poly` — ordered collection of mots played simultaneously
 - `NestedMot`, `NestedMotExpr` — hierarchical grouping
 - `AtIndexMot` — RHS payload for the `@` operator
 - `PadValue`, `RepeatPip` — internal markers for `:` pad/repeat
@@ -73,11 +72,13 @@ Cog operators (per-position pairing, RHS cycles):
 
 Other binary operators (own semantics, not fan/cog):
 
-- `DisplaceOp` (`>`) — shift in time
+- `DisplaceOp` (`>`) — shift in time (delay with positive RHS, anticipation with negative)
 - `MotTimeScaleOp` (`||`) — multiply every pip's timeScale
 - `AtIndexOp` (`@`) — apply at specific indices
-- `PolyOp` (`&&`) — parallel voices
 - `DiadOp` (`&`, pip-internal) — simultaneous pitches at one position
+
+Parallel voices are not a binary operator — they live at the program level
+via the `!N` section separator (see Section/Voice handling in `Prog.interp`).
 
 #### Unary / postfix classes
 
@@ -90,7 +91,7 @@ Other binary operators (own semantics, not fan/cog):
 - RNG: `createSeededRng`, `hashSeedTo32Bit`, `warmUpRng`, `resolveRandNumToNumber`
 - Seed utilities: `stringToSeed`, `formatSeed4`, `generateSeed4`, `collectCurlySeedsFromAst`, `collectCurlySeedsFromSource`, `rewriteCurlySeeds`
 - Arithmetic AST: `ArithAdd`, `ArithSub`, `ArithMul`, `ArithDiv`, `ArithNumber`, `MemberAccess`
-- Helpers: `requireMot`, `opKey`, `instantiateOpNodeBySymbol`, `addPolyBroadcast`, `asPoly`, `polyBroadcast`, `subdivide`, `derefMacro`, `wrapArithNode`
+- Helpers: `requireMot`, `opKey`, `instantiateOpNodeBySymbol`, `subdivide`, `derefMacro`, `wrapArithNode`
 
 #### Semantic / public API (on `golden`)
 
@@ -198,12 +199,14 @@ Other binary operators with their own semantics (not fan/cog):
 
 | Symbol | Class | Role |
 |--------|-------|------|
-| `>` | `DisplaceOp` | Time displacement |
+| `>` | `DisplaceOp` | Time displacement within one voice |
 | `\|\|` | `MotTimeScaleOp` | Scale all pip durations |
 | `@` | `AtIndexOp` | Apply at specific indices |
-| `&&` | `PolyOp` | Parallel voices |
 | `&` | `DiadOp` | Simultaneous pitches in one pip |
 | `,` | `FollowedBy` | Concatenation |
+
+Parallel voices use the section-level `!N` syntax rather than a binary
+operator; each `!`-separated section becomes one voice in the arrangement.
 
 `.~` is implemented and parsed but is **not** in the `OpSym` set, so it cannot currently be used in an operator alias (`name = .~` will fail).
 

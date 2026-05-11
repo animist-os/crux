@@ -1,83 +1,54 @@
 # Crux Examples
 
-This directory contains example Crux compositions demonstrating various musical techniques and styles.
+Each `.crux` file in this directory is a complete, runnable Crux program.
 
-## Balinese Gamelan (balinese-gamelan.crux)
+## Voice composition
 
-A multi-section composition demonstrating the polyrhythmic and interlocking patterns characteristic of Balinese gamelan music.
+A Crux program is one or more voices that play simultaneously. The `!`
+separator introduces a new voice, optionally with an absolute entry offset
+`!N` (in time units, measured from t=0). Bare `!` is equivalent to `!0`.
 
-### Key Concepts Demonstrated
+| File | Topic |
+|------|-------|
+| `voice-offset.crux` | Three-voice canon with staggered entries |
+| `fugal-exposition.crux` | SATB-style fugal exposition with tonal answers |
+| `canon-with-transformations.crux` | Per-voice timescale transforms inside a canon |
+| `balinese-gamelan.crux` | Layered gamelan composition (gong, kempur, kempli, gangsa kotekan) |
 
-#### 1. Kotekan (Interlocking Patterns)
-Gamelan uses two complementary parts:
-- **Polos**: The lower, "on-beat" pattern
-- **Sangsih**: The upper, "off-beat" pattern
+## Temporal operators on a single voice
 
-These interlock to create a single, complex melodic line. Example:
-```crux
-polos = [0, 3, 5, 3]
-sangsih = [5, 7, 8, 7]
-(polos, sangsih)z  // Interleave using zip operator
-```
+These demonstrate `>` (displace) and `||` (mot timescale), which transform a
+mot's content. They are independent of `!N` and operate within one voice.
 
-#### 2. Colotomic Structure
-Gamelan uses gongs of different sizes to mark time:
-- **Gong**: Largest, marks major cycles (every 8-16 beats)
-- **Kempur**: Medium, marks mid-cycles (every 4-8 beats)
-- **Kempli**: Small, steady time-keeper (every 1-2 beats)
+| File | Topic |
+|------|-------|
+| `displace.crux` | Basic delay via a leading rest |
+| `displace-fractional.crux` | Half-beat displacement for swing or phase |
+| `displace-anticipation.crux` | Negative displacement: trim from the front |
+| `mot-timescale.crux` | Augmentation and diminution |
+| `polyrhythm.crux` | Same figure at different speeds |
 
-#### 3. Polyrhythms
-Multiple simultaneous rhythmic cycles of different lengths:
-```crux
-// 3 against 4 polyrhythm
-melody_3 = [0, 5, 7] : 4    // Pattern of 3, repeated 4 times = 12 beats
-melody_4 = [0, 3, 5, 8] : 3  // Pattern of 4, repeated 3 times = 12 beats
-```
-
-#### 4. Scale
-Traditional pelog scale approximated as: `[0, 1, 3, 5, 7, 8, 10]`
-
-#### 5. Gilak
-Fast, syncopated pattern using rests (`r`) and interlocking:
-```crux
-polos_gilak = [0, r, 5, r, 3, r, 5, r]
-sangsih_gilak = [r, 5, r, 8, r, 5, r, 7]
-```
-
-#### 6. Kebyar
-"To flare up" - explosive, dramatic opening style with sudden dynamic shifts.
-
-### Running the Examples
-
-Each section is separated by `!` and produces independent output. To run:
+## Running
 
 ```javascript
 import { parseAndEvaluate } from './dist/index.js';
+import fs from 'fs';
 
-const code = fs.readFileSync('examples/balinese-gamelan.crux', 'utf8');
+const code = fs.readFileSync('examples/voice-offset.crux', 'utf8');
 const result = parseAndEvaluate(code);
 
-// result is an array of outputs, one per section
-result.forEach((section, i) => {
-  console.log(`Section ${i + 1}:`, section.map(pip => pip.toString()));
+// result.sections is an array of mots, one per voice.
+result.sections.forEach((voice, i) => {
+  console.log(`Voice ${i + 1}:`, voice.toString());
 });
 ```
 
-### Musical Notes
+## Key syntax referenced in these examples
 
-- Time scales use `|*n` (multiply) or `|/n` (divide) notation
-- The `z` operator zips columns (round-robin interleaving)
-- The `.` operator does element-wise (cog) operations
-- The `*` operator does fan/cartesian operations
-- Rests are indicated with `r`
-- The `&` operator creates diads (simultaneous pitches): `[0 & 4, 2 & 5]`
-- The `&&` operator creates polyphony (simultaneous independent voices): `[0,1] && [2,3]`
-- The `_` placeholder applies a global transformation to all sections' output: `_ . [10]`
-
-### Further Exploration
-
-Try modifying:
-- Scale degrees to explore different pelog or slendro tunings
-- Time scales to speed up or slow down patterns
-- Interlocking patterns to create new kotekan
-- Polyrhythmic ratios (try 5:7, 4:9, etc.)
+- `[ ... ]` is a mot; entries are pips with optional `| timescale` and tags
+- `r` is a rest
+- `*` fan-transpose, `.` cog-add elementwise, `,` concatenate
+- `z` postfix zips columns (round-robin interleave) within one voice
+- `||` scales every pip's duration in a mot
+- `>` displaces a mot in time (delay with positive N, anticipation with negative)
+- `!` separates voices; `!N` enters the next voice at absolute time N

@@ -1468,115 +1468,89 @@ test('diad: timeScale on right pip is ignored (diad shares left timeScale)', () 
   assert.equal(evalToString('[0 & 4 | 2]'), '[0 & 4]');
 });
 
-// === Polyphony tests (&& for mot-level parallel voices) ===
+// === Voice-offset (!N) tests ===
+// Sections separated by `!` are parallel voices. Bare `!` (or `!0`) means
+// simultaneous entry. `!N` introduces the next voice at absolute time N,
+// implemented by prepending a leading rest of duration N to that voice.
 
-test('poly: basic two voices', () => {
-  const sections = evalAllSections('[0, 1, 2] && [3, 4, 5]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 2]');
-  assert.equal(sections[1], '[3, 4, 5]');
-});
-
-test('poly: three voices', () => {
-  const sections = evalAllSections('[0] && [1] && [2]');
-  assert.equal(sections.length, 3);
-  assert.equal(sections[0], '[0]');
-  assert.equal(sections[1], '[1]');
-  assert.equal(sections[2], '[2]');
-});
-
-test('poly: voices with different lengths (independent)', () => {
-  const sections = evalAllSections('[0, 1, 2] && [3, 4]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 2]');
-  assert.equal(sections[1], '[3, 4]');
-});
-
-test('poly: displacement on second voice', () => {
-  const sections = evalAllSections('[0, 1, 2] && ([0, 1, 2] > [1])');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 2]');
-  assert.equal(sections[1], '[r, 0, 1, 2]');
-});
-
-test('poly: broadcast fan transposition', () => {
-  const sections = evalAllSections('([0, 1] && [2, 3]) * [0, 5]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 5, 6]');
-  assert.equal(sections[1], '[2, 3, 7, 8]');
-});
-
-test('poly: broadcast cog', () => {
-  const sections = evalAllSections('([0, 1, 2] && [3, 4, 5]) . [10]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[10, 11, 12]');
-  assert.equal(sections[1], '[13, 14, 15]');
-});
-
-test('poly: broadcast mot timescale', () => {
-  const sections = evalAllSections('([0, 1] && [2, 3]) || [2]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0 | 2, 1 | 2]');
-  assert.equal(sections[1], '[2 | 2, 3 | 2]');
-});
-
-test('poly: broadcast displacement', () => {
-  const sections = evalAllSections('([0, 1] && [2, 3]) > [1]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[r, 0, 1]');
-  assert.equal(sections[1], '[r, 2, 3]');
-});
-
-test('poly: concatenation pairs voices', () => {
-  const sections = evalAllSections('([0, 1] && [2, 3]), ([4, 5] && [6, 7])');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 4, 5]');
-  assert.equal(sections[1], '[2, 3, 6, 7]');
-});
-
-test('poly: assigned to variable', () => {
-  const sections = evalAllSections('X = [0, 1] && [2, 3]\nX * [0, 5]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 5, 6]');
-  assert.equal(sections[1], '[2, 3, 7, 8]');
-});
-
-test('poly: canon with displacement', () => {
-  const sections = evalAllSections('A = [0, 2, 4]\nA && (A > [1]) && (A > [2])');
-  assert.equal(sections.length, 3);
-  assert.equal(sections[0], '[0, 2, 4]');
-  assert.equal(sections[1], '[r, 0, 2, 4]');
-  assert.equal(sections[2], '[r | 2, 0, 2, 4]');
-});
-
-test('poly: precedence - && binds looser than binary ops', () => {
-  // A * [0,1] && B . [2] === (A * [0,1]) && (B . [2])
-  const sections = evalAllSections('[0, 1] * [0, 1] && [3, 4] . [2]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 1, 1, 2]');
-  assert.equal(sections[1], '[5, 6]');
-});
-
-test('poly: precedence - && binds tighter than comma', () => {
-  // [0] && [1], [2] && [3] === ([0] && [1]), ([2] && [3])
-  const sections = evalAllSections('[0] && [1], [2] && [3]');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0, 2]');
-  assert.equal(sections[1], '[1, 3]');
-});
-
-test('poly: broadcast subdivide', () => {
-  const sections = evalAllSections('([0, 1, 2] && [3, 4, 5])/');
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0], '[0 | /3, 1 | /3, 2 | /3]');
-  assert.equal(sections[1], '[3 | /3, 4 | /3, 5 | /3]');
-});
-
-test('poly: ! still works as section separator', () => {
+test('voice: bare ! separates voices at t=0', () => {
   const sections = evalAllSections('[0, 1]\n!\n[2, 3]');
   assert.equal(sections.length, 2);
   assert.equal(sections[0], '[0, 1]');
   assert.equal(sections[1], '[2, 3]');
+});
+
+test('voice: !0 is identical to bare !', () => {
+  const sections = evalAllSections('[0, 1]\n!0\n[2, 3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1]');
+  assert.equal(sections[1], '[2, 3]');
+});
+
+test('voice: !N prepends a leading rest of duration N', () => {
+  const sections = evalAllSections('[0, 1, 2]\n!16\n[3, 4, 5]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 2]');
+  assert.equal(sections[1], '[r | 16, 3, 4, 5]');
+});
+
+test('voice: !N with space after bang parses', () => {
+  const sections = evalAllSections('[0, 1]\n! 8\n[2, 3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1]');
+  assert.equal(sections[1], '[r | 8, 2, 3]');
+});
+
+test('voice: !N integer offset of 1 produces a unit rest', () => {
+  const sections = evalAllSections('[0, 1, 2]\n!1\n[3, 4, 5]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1, 2]');
+  assert.equal(sections[1], '[r, 3, 4, 5]');
+});
+
+test('voice: fractional offset !1/2', () => {
+  const sections = evalAllSections('[0, 1]\n!1/2\n[2, 3]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[0, 1]');
+  assert.equal(sections[1], '[r | /2, 2, 3]');
+});
+
+test('voice: three-voice fugal exposition with staggered entries', () => {
+  const sections = evalAllSections('A = [0, 2, 4]\nA\n!4\nA\n!8\nA');
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0], '[0, 2, 4]');
+  assert.equal(sections[1], '[r | 4, 0, 2, 4]');
+  assert.equal(sections[2], '[r | 8, 0, 2, 4]');
+});
+
+test('voice: !N is absolute (not relative to prior voice)', () => {
+  // Voice 2 at 4, voice 3 at 8 — both measured from t=0.
+  const sections = evalAllSections('[0]\n!4\n[1]\n!8\n[2]');
+  assert.equal(sections.length, 3);
+  assert.equal(sections[0], '[0]');
+  assert.equal(sections[1], '[r | 4, 1]');
+  assert.equal(sections[2], '[r | 8, 2]');
+});
+
+test('voice: > still works for anticipation inside a voice', () => {
+  // Anticipation (negative displace) is independent of the voice-offset system.
+  const sections = evalAllSections('[0, 1, 2, 3] > [-1]\n!2\n[4, 5, 6]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[1, 2, 3]');
+  assert.equal(sections[1], '[r | 2, 4, 5, 6]');
+});
+
+test('voice: negative !N is rejected at parse time', () => {
+  assert.throws(() => evalAllSections('[0]\n!-4\n[1]'), /non-negative/i);
+});
+
+test('voice: global op applies before voice offset is prepended', () => {
+  // The leading rest from !N should not be transformed by global ops.
+  const sections = evalAllSections('[0, 1]\n!4\n[2, 3]\n!\n_ . [10]');
+  assert.equal(sections.length, 2);
+  assert.equal(sections[0], '[10, 11]');
+  // Voice 2 was transformed by _ . [10] to [12, 13], then offset-prepended.
+  assert.equal(sections[1], '[r | 4, 12, 13]');
 });
 
 // === Global placeholder (_) tests ===

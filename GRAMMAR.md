@@ -9,8 +9,9 @@ Cog (elementwise): Pair positions; RHS cycles as needed to cover LHS.  Length wi
 
 ### Program
 
-- **Program**: one or more sections separated by `!`. Each section contains one or more statements separated by newlines. The program returns an array of the final statement value from each section.
-- **Section**: A group of statements that share an environment. The `!` separator marks the boundary between sections.
+- **Program**: one or more sections separated by `!`. Each section is one parallel voice; the sections in a program play simultaneously as an arrangement. The program returns an array of the final statement value from each section, ordered by appearance.
+- **Section**: A group of statements that share an environment. The `!` separator marks the boundary between sections (= voices).
+- **Section separator**: `!` introduces the next voice. Bare `!` (and `!0`) means the voice enters at t=0 simultaneously with the prior voices. `!N` introduces the voice at absolute time N — measured from t=0 of the arrangement, not relative to the prior voice. Implemented by prepending a rest of duration N to the voice's resulting mot. Fractional offsets are allowed (`!1/2`). Negative offsets are not supported.
 - **Statement**: either an assignment, an operator alias, or an expression.
 - **Macro Assignment**: `Name = Expr` — stores the expression AST for later substitution (macro-like behavior). When referenced, the original expression structure is preserved and evaluated in place.
 - **Evaluating Assignment**: `Name := Expr` — evaluates the expression immediately and stores the resulting Mot. The stored value is flattened and deterministic.
@@ -44,7 +45,7 @@ A, [2]
 ```
 Returns `[[0, 1, 2]]` (array with one section result).
 
-Example (multiple sections):
+Example (multiple voices, simultaneous entry):
 ```text
 [0, 2, 4]
 !
@@ -52,7 +53,18 @@ Example (multiple sections):
 !
 [10, 12, 14]
 ```
-Returns `[[0, 2, 4], [5, 7, 9], [10, 12, 14]]` (array with three section results).
+Returns `[[0, 2, 4], [5, 7, 9], [10, 12, 14]]` — three voices all entering at t=0.
+
+Example (staggered entries with `!N`):
+```text
+A = [0, 2, 4]
+A
+!4
+A
+!8
+A
+```
+Returns three voices: `[[0, 2, 4], [r | 4, 0, 2, 4], [r | 8, 0, 2, 4]]`. The second voice enters at t=4 (4 units after t=0), the third at t=8 — both absolute, both implemented as a leading rest of the given duration.
 
 Example (sections with shared environment):
 ```text
@@ -268,23 +280,24 @@ Operators are left-associative unless otherwise noted.
 [0 -> 9] @ [@2 [1,0,-1], @5 -7]        -> [0, 1, 3, 2, 1, 3, 4, -2, 6, 7, 8, 9]  // @5 compensates for +2 length change at @2
 ```
 
-3) **Polyphony** (`&&`):
-   - Creates simultaneous independent voices. Each side of `&&` becomes a separate voice.
-   - Produces a `Poly` type: an ordered collection of Mots played simultaneously.
+3) **Voice composition** (`!`, top-level):
+   - `!` separates sections; each section becomes a voice in the arrangement.
+   - Bare `!` introduces the next voice at t=0 (simultaneous with prior voices).
+   - `!N` introduces the next voice at absolute time N (measured from t=0 of the arrangement, not relative to the prior voice). `!0` is equivalent to bare `!`. Fractional offsets are allowed (`!1/2`); negative offsets are not.
+   - Implemented by prepending a leading rest of duration N to the voice's evaluated mot. The voice's musical content is otherwise untouched.
    - Voices are independent in duration — no padding or truncation.
-   - Operators applied to a Poly broadcast to each voice:
-     `(A && B) * [0, 1]` = `(A * [0, 1]) && (B * [0, 1])`
-   - Concatenation pairs voices: `(A && B), (C && D)` = voice 1 is `A,C`, voice 2 is `B,D`.
-   - Poly is a first-class value (assignable to variables).
-   - `&&` on its own line is equivalent to `!` (section separator).
-   - Flat nesting: `(A && B) && C` = 3-voice Poly.
    - Examples:
 ```text
-[0, 2, 4] && [7, 5, 3]                -> two voices played simultaneously
+[0, 2, 4]
+!
+[5, 7, 9]                             -> two voices, both entering at t=0
+
 A = [0, 2, 4]
-A && (A > [1]) && (A > [2])           -> three-voice canon
-([0, 1] && [2, 3]) * [0, 5]           -> broadcast: both voices transposed
-([0, 1] && [2, 3]), ([4, 5] && [6, 7]) -> paired concat: v1=[0,1,4,5], v2=[2,3,6,7]
+A
+!4
+A
+!8
+A                                     -> three-voice canon, entries at 0, 4, 8
 ```
 
 4) **Diads** (`&`, inside mots):
@@ -311,8 +324,8 @@ A && (A > [1]) && (A > [2])           -> three-voice canon
 ```
 
 7) **Global placeholder** (`_`):
-   - `_` is a placeholder meaning "each section's output."
-   - Any expression statement containing `_` is a **global op** — it does not contribute to the section's value, but is applied as a post-processing step to every section's output after all sections have been evaluated.
+   - `_` is a placeholder meaning "each voice's output."
+   - Any expression statement containing `_` is a **global op** — it does not contribute to its own voice's value, but is applied as a post-processing step to every voice after all voices have been evaluated. The `!N` voice offset is prepended *after* global ops, so a leading rest from `!N` is never transformed by `_`.
    - `_` participates in normal Crux expressions: it can appear on either side of binary ops and with postfix ops.
    - Multiple global op statements compose in declaration order (first applied first, result feeds into next).
    - A section containing only global ops produces no output.
@@ -362,9 +375,9 @@ _ .j R
 From highest to lowest binding:
 1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
 2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@`, `>`, `||` (all left-associative)
-3. Polyphony: `&&` (left-associative)
-4. Concatenation: `,` (left-associative)
-5. Assignment and section separators: `=`, `:=`, `!`
+3. Concatenation: `,` (left-associative)
+4. Assignment: `=`, `:=`
+5. Section/voice separator: `!`, `!N` (top-level only)
 
 ### Identifiers
 
@@ -430,11 +443,14 @@ A = [0, 1]\nA, [2]           -> [0, 1, 2]
 [0 & 4] . [1]                -> [1 & 5]
 [0 & 4] * [0, 1]             -> [0 & 4, 1 & 5]
 
-// Polyphony (mot-level parallel voices)
-[0, 1] && [2, 3]             -> voice 1: [0, 1], voice 2: [2, 3]
-([0, 1] && [2, 3]) * [0, 5]  -> both voices fan-transposed
+// Voice composition (parallel voices via !)
+[0, 1]
+!
+[2, 3]                       -> two voices, both entering at t=0
 A = [0, 2, 4]
-A && (A > [1])               -> two-voice canon
+A
+!4
+A                            -> two-voice canon, second voice enters at t=4
 ```
 
 ### Ohm-JS grammar (reference)
@@ -445,7 +461,11 @@ This is the actual grammar implemented in `src/grammar.js`.
 Crux {
 
   Prog
-    = nls? ListOf<Section, SectionSep> trailingSpace
+    = nls? Section ProgRest* trailingSpace      -- withContent
+    | nls? trailingSpace                         -- empty
+
+  ProgRest
+    = SectionSep Section
 
   trailingSpace = (nl | hspace | comment)*
 
@@ -453,7 +473,13 @@ Crux {
     = nls* ListOf<Stmt, nls+>
 
   SectionSep
-    = (nls | hspace | comment)* "!" (nls | hspace | comment)*
+    = (nls | hspace | comment)* "!" SectionOffset? (nls | hspace | comment)*
+
+  // Optional absolute-time offset on a section separator: !N introduces the
+  // next section as a parallel voice entering at time N. Bare ! is !0.
+  SectionOffset
+    = hspaces? number hspaces? "/" hspaces? number  -- frac
+    | hspaces? number                               -- num
 
   Stmt
     = EvalAssignStmt
@@ -480,12 +506,7 @@ Crux {
     = FollowedByExpr
 
   FollowedByExpr
-    = FollowedByExpr "," PolyExpr   -- fby
-    | PolyExpr
-
-  // Polyphony: binds looser than binary ops, tighter than comma
-  PolyExpr
-    = PolyExpr "&&" MulExpr  -- poly
+    = FollowedByExpr "," MulExpr   -- fby
     | MulExpr
 
   // Binary operators (lower precedence than postfix operators)
@@ -700,7 +721,7 @@ Crux {
   // Set of binary operator symbols that can be aliased
   OpSym
     = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-    | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+    | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
   number
     = sign? digit+ ("." digit+)?

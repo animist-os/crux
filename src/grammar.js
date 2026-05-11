@@ -4,7 +4,14 @@ export const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Section, SectionSep> trailingSpace
+      = nls? Section ProgRest* trailingSpace      -- withContent
+      | nls? trailingSpace                         -- empty
+
+    // A "rest" of the program: a SectionSep followed by another Section.
+    // Modeled this way so the parse visitor can recover each section's
+    // entry offset from its preceding separator.
+    ProgRest
+      = SectionSep Section
 
     trailingSpace = (nl | hspace | comment)*
 
@@ -12,7 +19,15 @@ export const g = ohm.grammar(String.raw`
       = nls* ListOf<Stmt, nls+>
 
     SectionSep
-      = (nls | hspace | comment)* "!" (nls | hspace | comment)*
+      = (nls | hspace | comment)* "!" SectionOffset? (nls | hspace | comment)*
+
+    // Optional absolute-time offset on a section separator: !N introduces the next
+    // section as a parallel voice entering at time N (measured from t=0). Bare !
+    // is equivalent to !0. Fractional offsets allowed (e.g. !1/2). Negative
+    // offsets are not currently supported and are rejected at AST construction.
+    SectionOffset
+      = hspaces? number hspaces? "/" hspaces? number  -- frac
+      | hspaces? number                               -- num
 
     Stmt
       = EvalAssignStmt
@@ -41,12 +56,7 @@ export const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," PolyExpr   -- fby
-      | PolyExpr
-
-  // Polyphony operator: binds looser than binary ops, tighter than comma
-  PolyExpr
-      = PolyExpr "&&" MulExpr  -- poly
+      = FollowedByExpr "," MulExpr   -- fby
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -265,7 +275,7 @@ export const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+      | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?

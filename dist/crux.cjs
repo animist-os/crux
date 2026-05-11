@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-05-11T14:52:22.791Z
+// Generated: 2026-05-11T16:35:15.544Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -15,7 +15,14 @@ const g = ohm.grammar(String.raw`
   Crux {
 
     Prog
-      = nls? ListOf<Section, SectionSep> trailingSpace
+      = nls? Section ProgRest* trailingSpace      -- withContent
+      | nls? trailingSpace                         -- empty
+
+    // A "rest" of the program: a SectionSep followed by another Section.
+    // Modeled this way so the parse visitor can recover each section's
+    // entry offset from its preceding separator.
+    ProgRest
+      = SectionSep Section
 
     trailingSpace = (nl | hspace | comment)*
 
@@ -23,7 +30,15 @@ const g = ohm.grammar(String.raw`
       = nls* ListOf<Stmt, nls+>
 
     SectionSep
-      = (nls | hspace | comment)* "!" (nls | hspace | comment)*
+      = (nls | hspace | comment)* "!" SectionOffset? (nls | hspace | comment)*
+
+    // Optional absolute-time offset on a section separator: !N introduces the next
+    // section as a parallel voice entering at time N (measured from t=0). Bare !
+    // is equivalent to !0. Fractional offsets allowed (e.g. !1/2). Negative
+    // offsets are not currently supported and are rejected at AST construction.
+    SectionOffset
+      = hspaces? number hspaces? "/" hspaces? number  -- frac
+      | hspaces? number                               -- num
 
     Stmt
       = EvalAssignStmt
@@ -52,12 +67,7 @@ const g = ohm.grammar(String.raw`
       = FollowedByExpr
 
   FollowedByExpr
-      = FollowedByExpr "," PolyExpr   -- fby
-      | PolyExpr
-
-  // Polyphony operator: binds looser than binary ops, tighter than comma
-  PolyExpr
-      = PolyExpr "&&" MulExpr  -- poly
+      = FollowedByExpr "," MulExpr   -- fby
       | MulExpr
 
   // Binary operators at lower precedence than postfix operators
@@ -276,7 +286,7 @@ const g = ohm.grammar(String.raw`
     // Set of binary operator symbols that can be aliased
     OpSym
       = ".*" | ".^" | ".->" | ".j" | ".m" | ".l" | ".t" | ".c" | ".," | ".g" | ".r"
-      | "->" | "||" | "&&" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
+      | "->" | "||" | ">" | "j" | "m" | "l" | "c" | "g" | "r" | "p" | "f" | "*" | "^" | "." | "~" | "@"
 
     number
       = sign? digit+ ("." digit+)?
@@ -333,8 +343,46 @@ function wrapArithNode(node) {
 let _hasGlobalPlaceholder = false;
 
 const s = g.createSemantics().addOperation('parse', {
-  Prog(_leadingNls, sections, _trailingNls) {
-    return new Prog(sections.parse());
+  Prog_empty(_leadingNls, _trailingNls) {
+    return new Prog([], []);
+  },
+
+  Prog_withContent(_leadingNls, firstSection, rests, _trailingNls) {
+    const sections = [firstSection.parse()];
+    const offsets = [0];
+    for (const r of rests.children) {
+      const { offset, stmts } = r.parse();
+      sections.push(stmts);
+      offsets.push(offset);
+    }
+    return new Prog(sections, offsets);
+  },
+
+  ProgRest(sep, section) {
+    return { offset: sep.parse(), stmts: section.parse() };
+  },
+
+  SectionSep(_pre, _bang, offsetOpt, _post) {
+    // offsetOpt is an iteration of zero or one SectionOffset
+    if (offsetOpt.numChildren === 0) return 0;
+    return offsetOpt.child(0).parse();
+  },
+
+  SectionOffset_num(_h, num) {
+    const n = Number(num.sourceString);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(`Section offset must be a non-negative finite number, got ${num.sourceString}`);
+    }
+    return n;
+  },
+
+  SectionOffset_frac(_h1, num, _h2, _slash, _h3, denom) {
+    const a = Number(num.sourceString);
+    const b = Number(denom.sourceString);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b <= 0) {
+      throw new Error(`Section offset must be a non-negative finite number, got ${num.sourceString}/${denom.sourceString}`);
+    }
+    return a / b;
   },
 
   Section(_leadingNls, stmts) {
@@ -365,10 +413,6 @@ const s = g.createSemantics().addOperation('parse', {
 
   FollowedByExpr_fby(x, _comma, y) {
     return new FollowedBy(x.parse(), y.parse());
-  },
-
-  PolyExpr_poly(x, _ampamp, y) {
-    return new PolyOp(x.parse(), y.parse());
   },
 
   PostfixExpr_drop(expr, _h1, _backslash, _h2, n) {
@@ -1048,14 +1092,21 @@ const s = g.createSemantics().addOperation('parse', {
 // Collect text rewrite edits for ": N" repeat sugar using CST spans (no re-parsing).
 // We rewrite only the suffix ": N" (or ": <number>") to " * [0, 0, ...]" and leave the left expr as-is.
 const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRewrites', {
-  Prog(_leadingNls, sections, _trailingNls) {
+  Prog_empty(_leadingNls, _trailingNls) {
+    return [];
+  },
+  Prog_withContent(_leadingNls, firstSection, rests, _trailingNls) {
     const out = [];
-    for (const sec of sections.children) {
-      const v = sec.collectRepeatSuffixRewrites();
+    const first = firstSection.collectRepeatSuffixRewrites();
+    if (Array.isArray(first)) out.push(...first);
+    for (const r of rests.children) {
+      const v = r.collectRepeatSuffixRewrites();
       if (Array.isArray(v)) out.push(...v);
     }
     return out;
   },
+  ProgRest(_sep, section) { return section.collectRepeatSuffixRewrites(); },
+  SectionSep(_pre, _bang, _offsetOpt, _post) { return []; },
   Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
@@ -1071,7 +1122,6 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   ExprStmt(expr) { return expr.collectRepeatSuffixRewrites(); },
   Expr(e) { return e.collectRepeatSuffixRewrites(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
-  PolyExpr_poly(x, _ampamp, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   PostfixExpr(x) { return x.collectRepeatSuffixRewrites(); },
   MulExpr(x) { return x.collectRepeatSuffixRewrites(); },
   // Explicit handlers for MulExpr variants to ensure traversal
@@ -1152,14 +1202,21 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
 // Collect all source indices of timescale numbers across the entire program.
 // This inspects syntactic forms only (no evaluation), so indices map to original source.
 const tsSemantics = g.createSemantics().addOperation('collectTs', {
-  Prog(_leadingNls, sections, _trailingNls) {
+  Prog_empty(_leadingNls, _trailingNls) {
+    return [];
+  },
+  Prog_withContent(_leadingNls, firstSection, rests, _trailingNls) {
     const out = [];
-    for (const sec of sections.children) {
-      const v = sec.collectTs();
+    const first = firstSection.collectTs();
+    if (Array.isArray(first)) out.push(...first);
+    for (const r of rests.children) {
+      const v = r.collectTs();
       if (Array.isArray(v)) out.push(...v);
     }
     return out;
   },
+  ProgRest(_sep, section) { return section.collectTs(); },
+  SectionSep(_pre, _bang, _offsetOpt, _post) { return []; },
   Section(_leadingNls, stmts) {
     const out = [];
     for (const s of stmts.children) {
@@ -1175,7 +1232,6 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   ExprStmt(expr) { return expr.collectTs(); },
   Expr(e) { return e.collectTs(); },
   FollowedByExpr_fby(x, _comma, y) { return [...x.collectTs(), ...y.collectTs()]; },
-  PolyExpr_poly(x, _ampamp, y) { return [...x.collectTs(), ...y.collectTs()]; },
   PostfixExpr(x) { return x.collectTs(); },
   MulExpr(x) { return x.collectTs(); },
   // Explicit handlers for each MulExpr variant to satisfy environments that don't use defaults
@@ -1377,16 +1433,24 @@ function getFinalRootAstAndEnv(prog) {
 }
 
 class Prog {
-  constructor(sections) {
-    this.sections = sections; // array of arrays of statements
+  constructor(sections, offsets) {
+    this.sections = sections; // array of arrays of statements (one entry per voice)
+    // Parallel array of voice entry offsets, in absolute time. offsets[0] is
+    // always 0 (first voice anchors the arrangement at t=0). Each subsequent
+    // entry corresponds to the !N value that precedes its section. Bare !
+    // produces an offset of 0 (simultaneous entry).
+    this.offsets = Array.isArray(offsets) ? offsets : sections.map(() => 0);
   }
 
   interp() {
     const env = new Map();
     const sections = [];
+    const sectionOffsets = [];
     const globalOps = [];
 
-    for (const stmts of this.sections) {
+    for (let secIdx = 0; secIdx < this.sections.length; secIdx++) {
+      const stmts = this.sections[secIdx];
+      const offset = this.offsets[secIdx] || 0;
       let lastValue = new Mot([]);
       let hasNonGlobalStmt = false;
       for (const stmt of stmts) {
@@ -1401,13 +1465,8 @@ class Prog {
 
       if (!hasNonGlobalStmt) continue;
 
-      if (lastValue instanceof Poly) {
-        for (const voice of lastValue.voices) {
-          sections.push(voice);
-        }
-      } else {
-        sections.push(lastValue);
-      }
+      sections.push(lastValue);
+      sectionOffsets.push(offset);
     }
 
     for (const { expr } of globalOps) {
@@ -1417,6 +1476,18 @@ class Prog {
       }
     }
     env.delete('__globalPlaceholder__');
+
+    // Prepend a leading rest to each voice that has a positive entry offset.
+    // This places the voice at absolute time N in the arrangement timeline by
+    // consuming N units of silence at the head of the voice mot. Done after
+    // global ops so the offset never gets transformed by them.
+    for (let i = 0; i < sections.length; i++) {
+      const offset = sectionOffsets[i] || 0;
+      if (offset > 0 && sections[i] && Array.isArray(sections[i].values)) {
+        const restPip = new Pip(0, offset, 'r');
+        sections[i] = new Mot([restPip, ...sections[i].values]);
+      }
+    }
 
     // Compute program info for the final statement
     const { root, env: finalEnv } = getFinalRootAstAndEnv(this);
@@ -1550,26 +1621,6 @@ class FollowedBy {
   eval(env) {
     const left = this.x.eval(env);
     const right = this.y.eval(env);
-
-    // If either side is a Poly, pair voices and concatenate
-    if (left instanceof Poly || right instanceof Poly) {
-      const lp = asPoly(left);
-      const rp = asPoly(right);
-      const maxVoices = Math.max(lp.voices.length, rp.voices.length);
-      const voices = [];
-      for (let i = 0; i < maxVoices; i++) {
-        const lv = i < lp.voices.length ? lp.voices[i] : null;
-        const rv = i < rp.voices.length ? rp.voices[i] : null;
-        if (lv && rv) {
-          voices.push(new Mot([...lv.values, ...rv.values]));
-        } else if (lv) {
-          voices.push(lv);
-        } else {
-          voices.push(rv);
-        }
-      }
-      return new Poly(voices);
-    }
 
     const xv = requireMot(left);
     const yv = requireMot(right);
@@ -2530,29 +2581,6 @@ class MotTimeScaleOp {
   }
 }
 
-// PolyOp: the && operator for mot-level polyphony
-// A && B creates a Poly with two independent voices
-// (A && B) && C flattens to a 3-voice Poly
-class PolyOp {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-  }
-
-  eval(env) {
-    const left = this.x.eval(env);
-    const right = this.y.eval(env);
-
-    // Collect voices from left
-    const leftVoices = left instanceof Poly ? left.voices : [requireMot(left)];
-    // Collect voices from right
-    const rightVoices = right instanceof Poly ? right.voices : [requireMot(right)];
-
-    // Flatten into a single Poly
-    return new Poly([...leftVoices, ...rightVoices]);
-  }
-}
-
 // DiadOp: the & operator for pip-level chords within a mot
 // [0 & 4, 2 & 5] creates pips with multiple simultaneous steps
 class DiadOp {
@@ -2701,28 +2729,6 @@ function requireMot(value) {
     throw new Error('Mot required!');
   }
   return value;
-}
-
-// Monkey-patch operator classes to broadcast over Poly.
-// If the primary operand evaluates to a Poly, the operator is applied to each voice independently.
-// propName is the property name for the primary operand ('x' or 'expr').
-function addPolyBroadcast(OpClass, propName = 'x') {
-  const originalEval = OpClass.prototype.eval;
-  OpClass.prototype.eval = function(env) {
-    const leftVal = this[propName].eval(env);
-    if (leftVal instanceof Poly) {
-      const voices = leftVal.voices.map(voice => {
-        const proxy = Object.create(this);
-        proxy[propName] = { eval: () => voice };
-        return originalEval.call(proxy, env);
-      });
-      return new Poly(voices);
-    }
-    // Not a Poly — delegate to original (but we've already evaluated the operand, so wrap it)
-    const proxy = Object.create(this);
-    proxy[propName] = { eval: () => leftVal };
-    return originalEval.call(proxy, env);
-  };
 }
 
 // Deterministic RNG factory (xorshift32 over a hashed seed)
@@ -3544,39 +3550,6 @@ class Mot {
   }
 }
 
-// Poly: an ordered collection of simultaneous voices (Mots).
-// Operators applied to a Poly broadcast to each voice.
-// A bare Mot is treated as a 1-voice Poly when needed.
-class Poly {
-  constructor(voices) {
-    // voices is an array of Mots
-    this.voices = voices;
-  }
-
-  eval(env) {
-    return new Poly(this.voices.map(v => requireMot(v.eval ? v.eval(env) : v)));
-  }
-
-  toString() {
-    return this.voices.map(v => v.toString()).join(' && ');
-  }
-}
-
-// Helper: wrap a value as a Poly if it isn't already
-function asPoly(value) {
-  if (value instanceof Poly) return value;
-  return new Poly([value]);
-}
-
-// Helper: apply a binary operation that expects Mots to a value that might be a Poly.
-// If left is a Poly, broadcasts the operation across each voice.
-function polyBroadcast(left, right, fn) {
-  if (left instanceof Poly) {
-    return new Poly(left.voices.map(voice => fn(voice, right)));
-  }
-  return fn(left, right);
-}
-
 class NestedMot {
   constructor(values) {
     this.values = values;
@@ -4173,30 +4146,6 @@ function parse(input) {
 }
 
 golden.parse = parse;
-
-// Apply Poly broadcasting to all binary operator classes.
-// When the left operand of any binary op evaluates to a Poly,
-// the operation is applied to each voice independently.
-// All operator classes that use this.x as their primary operand
-const polyBroadcastX = [
-  // Binary operators
-  Mul, Expand, Dot, DotExpand, Steps, DotSteps,
-  JamOp, DotJam, Mirror, DotMirror, Lens, DotLens,
-  DotTie, ConstraintOp, DotConstraint, DotZip,
-  GlassOp, DotGlass, ReichOp, DotReich, PaertOp,
-  FoldOp, RotateOp, DotRotate, AtIndexOp,
-  DisplaceOp, MotTimeScaleOp,
-  // Unary/postfix operators that use this.x
-  Subdivide, TieOp
-];
-for (const OpClass of polyBroadcastX) {
-  addPolyBroadcast(OpClass, 'x');
-}
-// Operators that use this.expr as their primary operand
-const polyBroadcastExpr = [DropTransform, RepeatByCount];
-for (const OpClass of polyBroadcastExpr) {
-  addPolyBroadcast(OpClass, 'expr');
-}
 
 golden.crux_interp = function (input) {
   const prog = parse(input);

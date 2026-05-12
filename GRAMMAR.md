@@ -392,6 +392,68 @@ From highest to lowest binding:
 - Delta mots support only simple numeric pips (no tags/ranges/choices inside semicolon form).
 - Many operators require mots; attempting to use a non-mot where a mot is required is an error.
 
+### Directives
+
+Lines of the form `// #name value...` are *directives* — convention-based
+metadata extracted from comments and returned alongside the program's
+sections. The Crux interpreter ignores them syntactically (they sit inside
+comments) and the directive system is open: any `#name` is recognized.
+
+**Sampler-scoping rule.** Tokens after `#name` are split on whitespace. If
+there are two or more tokens **and** the last token is a positive integer
+(matching `[1-9]\d*`), the directive is sampler-scoped: the trailing integer
+is the sampler index, and the prior tokens (joined with spaces) are the
+value. Otherwise the directive is global and the value is the full
+post-name remainder.
+
+Three names get structural treatment:
+
+- `// #target SECTION SAMPLER` — routes section `SECTION` (1-based) to
+  `Sampler-SAMPLER`. Out-of-range sections are recorded without error.
+- `// #preset NAME SAMPLER` — preset name for `Sampler-SAMPLER`.
+- `// #octave VALUE SAMPLER` — octave offset for `Sampler-SAMPLER`.
+
+The latter two follow the generic sampler-scoping rule; they are not
+special-cased beyond appearing in `samplers` rather than `directives`. Any
+future directive that follows the same shape (e.g. `// #volume 0.7 2`,
+`// #pan -0.5 3`) lands in `samplers` automatically.
+
+**Output shape.** `golden.crux_interp(source)` returns the existing fields
+plus:
+
+```text
+{
+  routing:    { 1: 4, 2: 2, 3: 3, ... },   // sectionIndex -> samplerIndex
+  samplers:   { 2: { preset: 'Marimba', octave: '-1' } },
+  directives: { bpm: '90', ... },          // global, sampler-less
+  ...
+}
+```
+
+`routing` is populated for every section that exists. Sections without an
+explicit `#target` get the default mapping `N -> N` (section 1 to Sampler-1,
+etc.). Explicit `#target` entries for non-existent sections are kept as-is.
+
+**Last-wins.** Duplicate directives (`#target 1 4` then `#target 1 7`)
+overwrite — the last one in source order takes effect. This is intentional;
+it lets you override a header directive from later in the file.
+
+**Examples.**
+
+```text
+// #target 1 4              -> routing: { 1: 4 }
+// #preset Marimba 2        -> samplers: { 2: { preset: 'Marimba' } }
+// #octave -1 2             -> samplers: { 2: { octave: '-1' } }
+// #bpm 90                  -> directives: { bpm: '90' }
+// #preset Grand Piano      -> directives: { preset: 'Grand Piano' }  (no trailing int)
+// #volume 0.7 3            -> samplers: { 3: { volume: '0.7' } }     (unknown name, same rule)
+// #octave -1               -> directives: { octave: '-1' }           (one token; -1 is not positive)
+```
+
+Values are returned as raw strings; downstream renderers parse them however
+they need. Crux itself only enforces the sampler-scoping rule and the
+`#target` routing semantics.
+
 ### Mixed examples
 
 ```text

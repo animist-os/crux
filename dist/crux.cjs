@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-05-11T16:35:15.544Z
+// Generated: 2026-05-12T03:06:09.795Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4147,10 +4147,94 @@ function parse(input) {
 
 golden.parse = parse;
 
+// Extract `// #name value...` directives from source.
+//
+// Each directive is a comment line of the form `// #name value-tokens...` where
+// value-tokens are whitespace-separated. If two or more tokens are present and
+// the LAST token is a positive integer, the line is treated as sampler-scoped:
+// the trailing integer is the sampler index, and the remaining tokens (joined
+// with spaces) are the value. Otherwise the directive is global with the full
+// token sequence as its value.
+//
+// Three directive names get structural treatment:
+//   #target SECTION SAMPLER   - routes section SECTION to Sampler-SAMPLER
+//   #preset NAME SAMPLER      - preset for Sampler-SAMPLER (same shape, no special handling beyond sampler scoping)
+//   #octave VALUE SAMPLER     - octave offset for Sampler-SAMPLER (same)
+//
+// Out-of-range section indices on #target are recorded verbatim (no error).
+// Duplicate directives are last-wins. Unknown directive names follow the same
+// sampler-scoping rule and live alongside the known ones in the result.
+//
+// Returns { routing, samplers, directives } where:
+//   routing    = { sectionIndex: samplerIndex }  (1-based, from #target)
+//   samplers   = { samplerIndex: { name: value, ... } }  (sampler-scoped)
+//   directives = { name: value }  (global, sampler-less)
+function extractDirectives(source) {
+  const routing = {};
+  const samplers = {};
+  const directives = {};
+  if (typeof source !== 'string') return { routing, samplers, directives };
+
+  // Match a directive line: optional leading whitespace, //, optional space,
+  // #, word name, whitespace, value (lazy up to optional trailing comment or
+  // end of line).
+  const pattern = /^\s*\/\/\s*#(\w+)\s+(.+?)\s*$/;
+
+  for (const line of source.split('\n')) {
+    const m = line.match(pattern);
+    if (!m) continue;
+    const name = m[1];
+    const rest = m[2];
+    const tokens = rest.split(/\s+/).filter(t => t.length > 0);
+    if (tokens.length === 0) continue;
+
+    // Decide whether this is sampler-scoped (2+ tokens, trailing positive int).
+    let samplerIdx = null;
+    let valueTokens = tokens;
+    if (tokens.length >= 2) {
+      const last = tokens[tokens.length - 1];
+      if (/^[1-9]\d*$/.test(last)) {
+        samplerIdx = Number(last);
+        valueTokens = tokens.slice(0, -1);
+      }
+    }
+    const value = valueTokens.join(' ');
+
+    if (name === 'target' && samplerIdx !== null) {
+      // #target SECTION SAMPLER - value is the section index.
+      const sectionIdx = Number(value);
+      if (Number.isFinite(sectionIdx) && Number.isInteger(sectionIdx) && sectionIdx >= 1) {
+        routing[sectionIdx] = samplerIdx;
+      }
+      // Out-of-range or non-integer section: silently ignored (no-error policy).
+      continue;
+    }
+
+    if (samplerIdx !== null) {
+      if (!samplers[samplerIdx]) samplers[samplerIdx] = {};
+      samplers[samplerIdx][name] = value;
+    } else {
+      directives[name] = value;
+    }
+  }
+
+  return { routing, samplers, directives };
+}
+
+golden.CruxExtractDirectives = extractDirectives;
+
 golden.crux_interp = function (input) {
   const prog = parse(input);
   const value = prog.interp();
-  return value;
+  const { routing, samplers, directives } = extractDirectives(input);
+
+  // Fill in default routing for any section without an explicit #target.
+  // Sections are 1-based externally to match the Sampler-N naming scheme.
+  for (let i = 1; i <= value.sections.length; i++) {
+    if (!(i in routing)) routing[i] = i;
+  }
+
+  return { ...value, routing, samplers, directives };
 }
 
 // Find the pip at a specific character position in the source code.
@@ -4286,6 +4370,10 @@ golden.findAllPipsWithPositions = function(source) {
 
 
 
+
+// === Version (stamped by crux/build.js from crux/package.json) ===
+golden.cruxVersion = "1.1.0";
+golden.cruxBuiltAt = "2026-05-12T03:06:09.795Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine

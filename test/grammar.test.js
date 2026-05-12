@@ -1643,3 +1643,89 @@ test('global: _ with mot timescale', () => {
   assert.equal(sections[0], '[0 | 2, 1 | 2]');
   assert.equal(sections[1], '[2 | 2, 3 | 2]');
 });
+
+// === Directive tests (// #name args) ===
+// Directives live in comment lines and are extracted alongside interpretation.
+// Output: { routing, samplers, directives } sit alongside `sections`.
+// Sampler-scoping rule: if 2+ tokens and the last is a positive integer, it's
+// the sampler index. Otherwise the directive is global.
+
+function interp(input) {
+  return golden.crux_interp(input);
+}
+
+test('directive: default routing fills section N -> sampler N', () => {
+  const r = interp('[0]\n!\n[1]\n!\n[2]');
+  assert.deepEqual(r.routing, { 1: 1, 2: 2, 3: 3 });
+  assert.deepEqual(r.samplers, {});
+  assert.deepEqual(r.directives, {});
+});
+
+test('directive: #target routes a section to a specific sampler', () => {
+  const r = interp('// #target 1 4\n[0]\n!\n[1]\n!\n[2]');
+  assert.deepEqual(r.routing, { 1: 4, 2: 2, 3: 3 });
+});
+
+test('directive: #target last-wins on duplicate section', () => {
+  const r = interp('// #target 1 4\n// #target 1 7\n[0]');
+  assert.equal(r.routing[1], 7);
+});
+
+test('directive: out-of-range #target is recorded without error', () => {
+  const r = interp('// #target 5 9\n[0]');
+  assert.equal(r.routing[1], 1);
+  assert.equal(r.routing[5], 9);
+});
+
+test('directive: sampler-scoped #preset and #octave land in samplers map', () => {
+  const r = interp('// #preset Marimba 2\n// #octave -1 2\n[0]\n!\n[1]');
+  assert.deepEqual(r.samplers, { 2: { preset: 'Marimba', octave: '-1' } });
+  assert.deepEqual(r.directives, {});
+});
+
+test('directive: global directive (1 token value, no trailing int)', () => {
+  const r = interp('// #bpm 90\n[0]');
+  assert.equal(r.directives.bpm, '90');
+  assert.deepEqual(r.samplers, {});
+});
+
+test('directive: multi-word value when last token is not a positive int', () => {
+  const r = interp('// #preset Grand Piano\n[0]');
+  assert.equal(r.directives.preset, 'Grand Piano');
+  assert.deepEqual(r.samplers, {});
+});
+
+test('directive: extra whitespace around //, #, and tokens is tolerated', () => {
+  const r = interp('//  #target  1  4  \n[0]');
+  assert.equal(r.routing[1], 4);
+});
+
+test('directive: global and sampler-scoped directives coexist', () => {
+  const r = interp('// #bpm 120\n// #preset Marimba 4\n// #target 2 4\n[0]\n!\n[1]');
+  assert.equal(r.directives.bpm, '120');
+  assert.deepEqual(r.samplers, { 4: { preset: 'Marimba' } });
+  assert.equal(r.routing[2], 4);
+});
+
+test('directive: unknown directive name is captured (open set)', () => {
+  const r = interp('// #volume 0.7 2\n// #reverb 0.4\n[0]');
+  assert.equal(r.samplers[2].volume, '0.7');
+  assert.equal(r.directives.reverb, '0.4');
+});
+
+test('directive: 0 as sampler index is treated as a value, not a sampler', () => {
+  // Only positive integers (1+) qualify as sampler indices per the Sampler-N
+  // naming scheme. "0" is not a valid sampler, so this is a global directive
+  // with value "Marimba 0".
+  const r = interp('// #preset Marimba 0\n[0]');
+  assert.equal(r.directives.preset, 'Marimba 0');
+  assert.deepEqual(r.samplers, {});
+});
+
+test('directive: negative-value second token is still treated as the value', () => {
+  // Negative integers don't match the positive-integer sampler rule, so this
+  // is a 2-token global directive.
+  const r = interp('// #octave -1\n[0]');
+  assert.equal(r.directives.octave, '-1');
+  assert.deepEqual(r.samplers, {});
+});

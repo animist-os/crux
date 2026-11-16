@@ -443,9 +443,13 @@ node tools/reduction-score.js program.crux
 
 | Number | Meaning | Reference |
 |---|---|---|
-| **saving** | 1 - bits / literal bits. The headline number. | Hand analyses of Inventions 5, 8, 14: 72% to 77% |
-| **leverage** | Sounding notes per pip written | 2.7 to 3.3 by hand, up to 6.2 by search |
+| **saving** | 1 - bits / literal bits, with the literal on its best grid. The headline number. | Hand analyses of Inventions 5, 8, 14: 49% to 61% |
+| **leverage** | Sounding notes per pip written | 2.7 to 3.3 by hand, up to 4.7 by search |
 | **reuse** | References per definition | Not a quality score by itself |
+
+The saving does not depend on `#quanta`, but the program's bits do. Set
+`#quanta` so that the most common note has length 1. A program that writes
+sixteenths as `| 1/4` is larger and scores lower.
 
 `tools/survey-kern.js` runs the automatic search over a folder of kern files.
 Results for the 15 Inventions and 48 WTC fugues are in

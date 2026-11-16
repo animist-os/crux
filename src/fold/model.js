@@ -12,6 +12,9 @@
 //   3  mirror, reverse and stretch removed: each instance takes its source's shape
 //   4  repetition removed: equal instances stack on the first one in the voice
 //   5  nesting removed: one copy of each shape, side by side (one shared layout)
+//   6  unstated exact repeats removed (thematic.js)
+//   7  near-misses folded onto the program's definitions (thematic.js)
+//   8  themes only, with a residue group for what no theme explains (thematic.js)
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -21,6 +24,7 @@
 // operator is used as its source.
 import '../index.js';
 import './trace.js';
+import { thematicFolds } from './thematic.js';
 
 const EPS = 1e-9;
 const r9 = x => Math.round(x / EPS) * EPS;
@@ -51,6 +55,18 @@ function apply(f, s, d, mode) {
 
 const FULL = { transpose: true, mirror: true, stretch: true };
 const NO_TRANSPOSE = { transpose: false, mirror: true, stretch: true };
+
+// Step map from rec's owner body to the body of definition use `use`, as
+// { a, b } (step -> a * step + b), or null when rec is not inside that use.
+function relate(rec, use) {
+  const fr = rec.a.frames;
+  const o = fr.indexOf(rec.a.owner);
+  const j = fr.findIndex(f => f.kind === 'ref' && f.use === use);
+  if (o < 0 || j <= o) return null;
+  const f = s => { for (let i = o + 1; i < j; i++) [s] = apply(fr[i], s, 1, FULL); return s; };
+  const b = f(0);
+  return { a: f(1) - b, b };
+}
 
 function frameKey(f) {
   if (f.kind === 'ref') return 'r' + f.use;
@@ -184,25 +200,36 @@ export function foldModel(trace, options = {}) {
     const p3 = { t: I.t0 + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
     const p4 = { t: E.firstInVoice.get(rec.voice) + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
     const p5 = { t: E.slot.x + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
-    notes.push({
+    rec.note = {
       id: notes.length, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
       step: rec.step, edited: rec.a.edited, owner: I.name, entry: E.id, instance: rec.instance,
       litPos: rec.a.lit ? rec.a.lit.pos : null, refPos: I.ownerPos,
       pos: [null, p1, p2, p3, p4, p5],
-    });
+    };
+    notes.push(rec.note);
   }
+
+  // Stops 6 to 8.
+  const th = thematicFolds({ notes, recs: all, entries: entryList, relate }, { gap, minLength: options.minLength, themeLength: options.themeLength });
+  notes.forEach((n, k) => {
+    n.pos.push(...th.notes[k].pos);
+    n.bent = th.notes[k].bent;
+    n.explainedBy = th.notes[k].explainedBy;
+  });
 
   // Counts.
   const distinct = (fn) => new Set(notes.map(fn)).size;
-  const pk = (n, s) => `${s === 5 ? '' : n.voice}|${r9(n.pos[s].t)}|${r9(n.pos[s].step)}`;
+  const pk = (n, s) => `${s >= 5 ? '' : n.voice}|${r9(n.pos[s].t)}|${r9(n.pos[s].step)}`;
   const instanceCount = distinct(n => n.instance);
   const counts = {
     notes: notes.length,
     edited: notes.filter(n => n.edited).length,
-    positions: [null, 1, 2, 3, 4, 5].map(s => (s === null ? null : distinct(n => pk(n, s)))),
-    shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length],
+    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8].map(s => (s === null ? null : distinct(n => pk(n, s)))),
+    shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length,
+      th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length],
     pipsWritten: distinct(n => pk(n, 5)),
     entries: entryList.length,
+    explained: th.summary.explained,
   };
   counts.positions[0] = counts.positions[1];
   counts.leverage = counts.pipsWritten ? counts.notes / counts.pipsWritten : 0;
@@ -216,7 +243,9 @@ export function foldModel(trace, options = {}) {
       litPos: E.litPos, refPos: E.refPos, slot: E.slot, instances: E.instances,
     })),
     counts,
-    stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting'],
+    thematic: th.summary,
+    stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
+      'no unstated repeats', 'near-misses folded', 'themes only'],
   };
 }
 

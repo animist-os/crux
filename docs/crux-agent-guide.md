@@ -197,6 +197,11 @@ the program has random choices without a seed.
 - The stops: 1 scale steps; 2 transposition removed; 3 mirror, reverse and
   stretch removed; 4 equal instances stacked on the first in the voice; 5 one
   copy of each shape, side by side in source order (one layout for all voices).
+- Widths from stop 5 on: `d` compares the notes of one shape only. Each shape
+  is scaled so that its most common duration is 1, and no note is wider than
+  `capWidth` (default 4, an option of `crux_fold`). A note cut by the cap has
+  `capped: true` in that `pos`. Stops 1 to 4 keep the durations as played or
+  as written. `dictionary[].slot.unit` is the written duration that became 1.
 - `dictionary`: one entry per distinct shape, with `count`, `pips`, `slot`
   (stop 5 position) and `residue` (no definition, used once).
 - `instances`: one tree per voice. Nodes are definition uses (`ref`),
@@ -249,7 +254,7 @@ seven-note regime.
 
 In Golden, `#pitchRegime` also takes a custom scale: semitones above the
 tonic, ascending, from 0 to 11, such as `// #pitchRegime 0 1 3 5 6 8 11`.
-Wad does not read this form.
+Wad reads it too (0.6.5).
 
 `#scaleDeformation` was removed from Golden in November 2026. Golden ignores
 it and logs one warning. Use a key lane, a half step or a custom scale.
@@ -260,7 +265,7 @@ There are two mechanisms. Know which one a file uses.
 
 | Mechanism | Where | Status |
 |---|---|---|
-| **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Golden plays it as the degree below raised a semitone, added on top of any key lane. Wad rounds it down, so it plays as the natural degree. |
+| **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Golden and Wad (0.6.5) play it as the degree below raised a semitone, added on top of any key lane. |
 | **Key lane** | A `// #keyLane` directive. Voices keep integer steps. | Golden (3.4) and Wad (4.3). |
 
 The design intent: voices hold plain scale steps, so one mot can be transposed
@@ -400,7 +405,10 @@ Wad is a native DAW. The facts below are from its `DESIGN.md` and
   the note is pitched in (the project key, or the program's own). Wad does not
   read the older `[degree | length]` form or `#meter` (it uses the project's
   meter map). Code: `Sources/Wad/CruxKeyLane.swift`.
-- **Not in Wad:** half-step playback, custom `#pitchRegime` scales.
+- **Half steps and custom scales.** As in Golden: `Regime.halfStep` and
+  `Regime.custom` in `Sources/Wad/Regime.swift`. A custom scale is named
+  "Custom 0 1 3 5 6 8 11". An invalid list plays steps as semitones, like an
+  unknown regime name; Golden ignores it with a warning.
 - **Self-test:** `CruxSelfTest.swift`.
 
 ## 5. Working method

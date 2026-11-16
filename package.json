@@ -6,8 +6,17 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test",
+    "represent": "node tools/midi-to-representations.js",
+    "benchmark:representations": "node tools/benchmark-representations.js",
+    "score-to-crux": "node tools/score-to-crux.js",
+    "benchmark:chorales": "node tools/benchmark-chorales.js",
+    "learn-library": "node tools/learn-library.js",
+    "search-study": "node tools/search-study.js",
+    "chorale-examples": "node tools/make-chorale-examples.js",
     "build": "node build.js",
-    "build:test": "npm run build && node --test"
+    "build:test": "npm run build && node --test",
+    "build:scripter": "node scripter/build-scripter.js",
+    "fit-kernel": "node tools/fit-kernel.js"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",

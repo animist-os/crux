@@ -1,0 +1,20 @@
+// bwv227.1: Jesu, meine Freude
+// #pitchRegime Minor
+// #tonic 4
+// #tonicMidi 64
+// #lens diatonic
+// #keyFifths 1
+// kernel k1=2 k2=0: 25 numbers for 59 notes (A 3 mots 3 numbers, R 6 mots 11 numbers, voice lines 11)
+// fit: 97.4% of sounding time at the right pitch, 88.1% of notes struck right, 0.0% extra onsets
+// wiggle: 25 step numbers. Raising one moves 3 notes (median), 5.8 (mean), up to 34. 4 move 10 or more notes, 0 move more than one voice
+A1 = [0]
+A2 = [0 | 2]
+A3 = [0 | 4]
+R1 = A1, (A2 * [-1])
+R2 = A1, A1
+R3 = A1, (R1 * [-1])
+R4 = R2, (R3 * [-1])
+R5 = A1, (A1 * [3/2]), (A1 * [2]), A1
+R6 = R4, (A2 * [-4]), R5, (A2 * [3]), (A2 * [5/2]), (A1 * [3]), (R1 * [5]), (A3 * [3])
+// S
+(R6 * [4, 4]), (R2 * [4]), (R3 * [5]), (A2 * [2]), (R5 * [4]), (A1 * [7, 6]), (A2 * [11/2, 4]), (R4 * [4]), A3

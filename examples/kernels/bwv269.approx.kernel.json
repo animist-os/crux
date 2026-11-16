@@ -1,0 +1,805 @@
+{
+ "pieces": [
+  "bwv269"
+ ],
+ "notes": 225,
+ "options": {
+  "k1": 2,
+  "k2": 0,
+  "k3": 0,
+  "group3": 2,
+  "invert": false,
+  "harmony": false,
+  "phrases": true,
+  "stagger": false,
+  "lossy": 1
+ },
+ "fit": {
+  "pitch": 0.9186507936507936,
+  "notes": 0.8088888888888889,
+  "extra": 0.0044444444444444444,
+  "sounding": 6048,
+  "noteCount": 225
+ },
+ "exact": false,
+ "controls": {
+  "perLevel": [
+   {
+    "level": "A",
+    "prototypes": 3,
+    "numbers": 3
+   },
+   {
+    "level": "R",
+    "prototypes": 27,
+    "numbers": 23
+   }
+  ],
+  "top": 68,
+  "total": 94
+ },
+ "wiggle": {
+  "params": 94,
+  "notes": 190,
+  "median": 3,
+  "mean": 5.138297872340425,
+  "max": 130,
+  "wide": 4,
+  "single": 12,
+  "multiVoice": 19
+ },
+ "knobs": [
+  {
+   "line": 10,
+   "column": 6,
+   "text": "0",
+   "def": "A1",
+   "moved": 130,
+   "voices": 4
+  },
+  {
+   "line": 11,
+   "column": 6,
+   "text": "0",
+   "def": "A2",
+   "moved": 58,
+   "voices": 4
+  },
+  {
+   "line": 13,
+   "column": 16,
+   "text": "1",
+   "def": "R1",
+   "moved": 22,
+   "voices": 4
+  },
+  {
+   "line": 14,
+   "column": 16,
+   "text": "-1",
+   "def": "R2",
+   "moved": 15,
+   "voices": 4
+  },
+  {
+   "line": 26,
+   "column": 18,
+   "text": "2",
+   "def": "R14",
+   "moved": 8,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 45,
+   "text": "9",
+   "def": null,
+   "moved": 8,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 163,
+   "text": "9",
+   "def": null,
+   "moved": 8,
+   "voices": 1
+  },
+  {
+   "line": 16,
+   "column": 16,
+   "text": "-1",
+   "def": "R4",
+   "moved": 6,
+   "voices": 3
+  },
+  {
+   "line": 22,
+   "column": 17,
+   "text": "-2",
+   "def": "R10",
+   "moved": 6,
+   "voices": 2
+  },
+  {
+   "line": 24,
+   "column": 17,
+   "text": "1",
+   "def": "R12",
+   "moved": 6,
+   "voices": 2
+  },
+  {
+   "line": 25,
+   "column": 17,
+   "text": "-1",
+   "def": "R13",
+   "moved": 6,
+   "voices": 2
+  },
+  {
+   "line": 41,
+   "column": 58,
+   "text": "9",
+   "def": null,
+   "moved": 5,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 101,
+   "text": "-7",
+   "def": null,
+   "moved": 5,
+   "voices": 1
+  },
+  {
+   "line": 27,
+   "column": 17,
+   "text": "2",
+   "def": "R15",
+   "moved": 4,
+   "voices": 2
+  },
+  {
+   "line": 29,
+   "column": 17,
+   "text": "-1",
+   "def": "R17",
+   "moved": 4,
+   "voices": 2
+  },
+  {
+   "line": 31,
+   "column": 17,
+   "text": "2",
+   "def": "R19",
+   "moved": 4,
+   "voices": 2
+  },
+  {
+   "line": 35,
+   "column": 17,
+   "text": "3",
+   "def": "R23",
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 36,
+   "column": 18,
+   "text": "2",
+   "def": "R24",
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 157,
+   "text": "7",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 232,
+   "text": "7",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 62,
+   "text": "1",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 80,
+   "text": "4",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 178,
+   "text": "2",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 181,
+   "text": "2",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 206,
+   "text": "5",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 74,
+   "text": "-6",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 129,
+   "text": "-2",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 19,
+   "column": 16,
+   "text": "-2",
+   "def": "R7",
+   "moved": 3,
+   "voices": 3
+  },
+  {
+   "line": 21,
+   "column": 16,
+   "text": "-2",
+   "def": "R9",
+   "moved": 3,
+   "voices": 2
+  },
+  {
+   "line": 23,
+   "column": 17,
+   "text": "2",
+   "def": "R11",
+   "moved": 3,
+   "voices": 2
+  },
+  {
+   "line": 41,
+   "column": 96,
+   "text": "10",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 7,
+   "text": "4",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 44,
+   "text": "7",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 69,
+   "text": "6",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 119,
+   "text": "7",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 131,
+   "text": "5",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 144,
+   "text": "8",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 182,
+   "text": "6",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 207,
+   "text": "7",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 7,
+   "text": "2",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 36,
+   "text": "3",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 117,
+   "text": "2",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 41,
+   "text": "-3",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 60,
+   "text": "-7",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 157,
+   "text": "-5",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 171,
+   "text": "-7",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 185,
+   "text": "-6",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 212,
+   "text": "-4",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 243,
+   "text": "-4",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 12,
+   "column": 6,
+   "text": "0",
+   "def": "A3",
+   "moved": 2,
+   "voices": 2
+  },
+  {
+   "line": 26,
+   "column": 30,
+   "text": "-2",
+   "def": "R14",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 32,
+   "column": 17,
+   "text": "-1",
+   "def": "R20",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 33,
+   "column": 17,
+   "text": "1",
+   "def": "R21",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 34,
+   "column": 17,
+   "text": "-3/2",
+   "def": "R22",
+   "moved": 2,
+   "voices": 2
+  },
+  {
+   "line": 34,
+   "column": 32,
+   "text": "-2",
+   "def": "R22",
+   "moved": 2,
+   "voices": 2
+  },
+  {
+   "line": 37,
+   "column": 17,
+   "text": "-1",
+   "def": "R25",
+   "moved": 2,
+   "voices": 2
+  },
+  {
+   "line": 38,
+   "column": 17,
+   "text": "-3",
+   "def": "R26",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 39,
+   "column": 17,
+   "text": "4",
+   "def": "R27",
+   "moved": 2,
+   "voices": 2
+  },
+  {
+   "line": 41,
+   "column": 7,
+   "text": "7",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 19,
+   "text": "11",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 32,
+   "text": "7",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 70,
+   "text": "9",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 83,
+   "text": "7",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 134,
+   "text": "9",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 146,
+   "text": "10",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 150,
+   "text": "8",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 19,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 32,
+   "text": "2",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 56,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 93,
+   "text": "7",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 106,
+   "text": "5",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 195,
+   "text": "6",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 49,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 92,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 104,
+   "text": "2",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 165,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 193,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 23,
+   "text": "-2",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 115,
+   "text": "-7",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 143,
+   "text": "-3",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 198,
+   "text": "-3",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 229,
+   "text": "-1",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 109,
+   "text": "9",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 41,
+   "column": 121,
+   "text": "7",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 81,
+   "text": "4",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 169,
+   "text": "8",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 44,
+   "column": 219,
+   "text": "8",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 19,
+   "text": "1",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 129,
+   "text": "4",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 141,
+   "text": "4",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 47,
+   "column": 153,
+   "text": "3",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 7,
+   "text": "-7",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 11,
+   "text": "0",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 50,
+   "column": 87,
+   "text": "-7",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  }
+ ]
+}

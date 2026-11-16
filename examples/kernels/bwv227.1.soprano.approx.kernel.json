@@ -1,0 +1,252 @@
+{
+ "pieces": [
+  "bwv227.1"
+ ],
+ "notes": 59,
+ "options": {
+  "k1": 2,
+  "k2": 0,
+  "k3": 0,
+  "group3": 2,
+  "invert": false,
+  "harmony": false,
+  "phrases": true,
+  "stagger": false
+ },
+ "fit": {
+  "pitch": 0.9736842105263158,
+  "notes": 0.8813559322033898,
+  "extra": 0,
+  "sounding": 1824,
+  "noteCount": 59
+ },
+ "exact": false,
+ "controls": {
+  "perLevel": [
+   {
+    "level": "A",
+    "prototypes": 3,
+    "numbers": 3
+   },
+   {
+    "level": "R",
+    "prototypes": 6,
+    "numbers": 11
+   }
+  ],
+  "top": 11,
+  "total": 25
+ },
+ "wiggle": {
+  "params": 25,
+  "notes": 52,
+  "median": 3,
+  "mean": 5.84,
+  "max": 34,
+  "wide": 4,
+  "single": 5,
+  "multiVoice": 0
+ },
+ "knobs": [
+  {
+   "line": 10,
+   "column": 6,
+   "text": "0",
+   "def": "A1",
+   "moved": 34,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 7,
+   "text": "4",
+   "def": null,
+   "moved": 16,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 10,
+   "text": "4",
+   "def": null,
+   "moved": 16,
+   "voices": 1
+  },
+  {
+   "line": 11,
+   "column": 6,
+   "text": "0",
+   "def": "A2",
+   "moved": 15,
+   "voices": 1
+  },
+  {
+   "line": 16,
+   "column": 16,
+   "text": "-1",
+   "def": "R4",
+   "moved": 9,
+   "voices": 1
+  },
+  {
+   "line": 15,
+   "column": 16,
+   "text": "-1",
+   "def": "R3",
+   "moved": 8,
+   "voices": 1
+  },
+  {
+   "line": 13,
+   "column": 16,
+   "text": "-1",
+   "def": "R1",
+   "moved": 6,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 103,
+   "text": "4",
+   "def": null,
+   "moved": 5,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 71,
+   "text": "5",
+   "def": "R6",
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 58,
+   "text": "4",
+   "def": null,
+   "moved": 4,
+   "voices": 1
+  },
+  {
+   "line": 12,
+   "column": 6,
+   "text": "0",
+   "def": "A3",
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 17,
+   "column": 16,
+   "text": "3/2",
+   "def": "R5",
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 17,
+   "column": 30,
+   "text": "2",
+   "def": "R5",
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 34,
+   "text": "5",
+   "def": null,
+   "moved": 3,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 16,
+   "text": "-4",
+   "def": "R6",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 33,
+   "text": "3",
+   "def": "R6",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 45,
+   "text": "5/2",
+   "def": "R6",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 59,
+   "text": "3",
+   "def": "R6",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 18,
+   "column": 83,
+   "text": "3",
+   "def": "R6",
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 22,
+   "text": "4",
+   "def": null,
+   "moved": 2,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 46,
+   "text": "2",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 70,
+   "text": "7",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 73,
+   "text": "6",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 85,
+   "text": "11/2",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  },
+  {
+   "line": 20,
+   "column": 91,
+   "text": "4",
+   "def": null,
+   "moved": 1,
+   "voices": 1
+  }
+ ]
+}

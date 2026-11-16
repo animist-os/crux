@@ -1,0 +1,2179 @@
+{
+  "source": "Local music21 Bach MusicXML corpus",
+  "part": "named soprano",
+  "policy": "written form, repeats once, ties merged, 480 PPQ",
+  "pieces": [
+    {
+      "id": "bwv1.6",
+      "sourceFile": "bwv1.6.mxl",
+      "sourceSha256": "54915cba7b1dd0e2a10e973d2365c0342e1ed3616ca28b5e54fd6c5c2c20c6d4",
+      "notes": [
+        {
+          "midi": 65,
+          "ticks": 0,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 2400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 77,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 6240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 7680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 9120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 10080,
+          "durationTicks": 960
+        },
+        {
+          "midi": 65,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 14880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 15360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 15840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 16320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 77,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 17760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 18240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 18720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 19200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 19680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 20160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 20640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 21120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 21600,
+          "durationTicks": 960
+        },
+        {
+          "midi": 65,
+          "ticks": 22560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 23520,
+          "durationTicks": 960
+        },
+        {
+          "midi": 69,
+          "ticks": 24480,
+          "durationTicks": 960
+        },
+        {
+          "midi": 72,
+          "ticks": 25440,
+          "durationTicks": 960
+        },
+        {
+          "midi": 69,
+          "ticks": 26400,
+          "durationTicks": 960
+        },
+        {
+          "midi": 69,
+          "ticks": 27360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 27840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 28320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 28800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 29280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 29760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 30240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 30720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 31200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 31680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 32160,
+          "durationTicks": 960
+        },
+        {
+          "midi": 65,
+          "ticks": 33120,
+          "durationTicks": 960
+        },
+        {
+          "midi": 77,
+          "ticks": 34080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 34560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 35040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 35520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 36000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 36480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 36960,
+          "durationTicks": 960
+        },
+        {
+          "midi": 65,
+          "ticks": 37920,
+          "durationTicks": 480
+        }
+      ]
+    },
+    {
+      "id": "bwv2.6",
+      "sourceFile": "bwv2.6.mxl",
+      "sourceSha256": "ff11ed06a29513445dd2045068da2e8bf1ea5608690e3379b6d127572de0a47d",
+      "notes": [
+        {
+          "midi": 69,
+          "ticks": 0,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 2400,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 2640,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 6240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 7680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 9120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 62,
+          "ticks": 9600,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 9840,
+          "durationTicks": 240
+        },
+        {
+          "midi": 65,
+          "ticks": 10080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 10560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 12000,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 12240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 14880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 15360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 15840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 16320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 17760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 18240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 18720,
+          "durationTicks": 960
+        },
+        {
+          "midi": 69,
+          "ticks": 19680,
+          "durationTicks": 1440
+        }
+      ]
+    },
+    {
+      "id": "bwv3.6",
+      "sourceFile": "bwv3.6.mxl",
+      "sourceSha256": "4fb0f42afda0da9b4795e0118d4d532f8428f99c9b07efa9d2f4ed3f441c3b90",
+      "notes": [
+        {
+          "midi": 69,
+          "ticks": 0,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 1440,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 1680,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 2400,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 2640,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 68,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 5760,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 6000,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 6240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 6480,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 7680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 9120,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 9360,
+          "durationTicks": 240
+        },
+        {
+          "midi": 73,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 10080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 10560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 68,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 14880,
+          "durationTicks": 480
+        }
+      ]
+    },
+    {
+      "id": "bwv4.8",
+      "sourceFile": "bwv4.8.mxl",
+      "sourceSha256": "4d918a88ecaa22359bcc2f21a4d5415082f2b11750aac7ec0fdba6c697a42b75",
+      "notes": [
+        {
+          "midi": 69,
+          "ticks": 0,
+          "durationTicks": 480
+        },
+        {
+          "midi": 68,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 1200,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 2400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 5760,
+          "durationTicks": 240
+        },
+        {
+          "midi": 65,
+          "ticks": 6000,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 6240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 62,
+          "ticks": 6480,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 62,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 62,
+          "ticks": 7680,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 7920,
+          "durationTicks": 240
+        },
+        {
+          "midi": 65,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 62,
+          "ticks": 9120,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 9360,
+          "durationTicks": 240
+        },
+        {
+          "midi": 65,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 10080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 10560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 12960,
+          "durationTicks": 240
+        },
+        {
+          "midi": 74,
+          "ticks": 13200,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 14880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 15360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 15840,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 16080,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 16320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 17760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 62,
+          "ticks": 18240,
+          "durationTicks": 960
+        },
+        {
+          "midi": 69,
+          "ticks": 19200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 19680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 65,
+          "ticks": 20160,
+          "durationTicks": 960
+        },
+        {
+          "midi": 64,
+          "ticks": 21120,
+          "durationTicks": 960
+        },
+        {
+          "midi": 62,
+          "ticks": 22080,
+          "durationTicks": 960
+        }
+      ]
+    },
+    {
+      "id": "bwv5.7",
+      "sourceFile": "bwv5.7.mxl",
+      "sourceSha256": "ffbc99245a1a491b843b4452a99aadbede8dc8af9bf02a538821c5e547658a71",
+      "notes": [
+        {
+          "midi": 67,
+          "ticks": 0,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 2400,
+          "durationTicks": 1440
+        },
+        {
+          "midi": 74,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 6240,
+          "durationTicks": 1440
+        },
+        {
+          "midi": 69,
+          "ticks": 7680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 9120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 10080,
+          "durationTicks": 960
+        },
+        {
+          "midi": 74,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 13920,
+          "durationTicks": 960
+        },
+        {
+          "midi": 70,
+          "ticks": 14880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 15360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 77,
+          "ticks": 15840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 16320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 17760,
+          "durationTicks": 960
+        },
+        {
+          "midi": 72,
+          "ticks": 18720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 19200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 19680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 20160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 20640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 21120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 21600,
+          "durationTicks": 960
+        },
+        {
+          "midi": 67,
+          "ticks": 22560,
+          "durationTicks": 480
+        }
+      ]
+    },
+    {
+      "id": "bwv6.6",
+      "sourceFile": "bwv6.6.mxl",
+      "sourceSha256": "3c36bac424225f1e246387d04a30fd560b7783513fcf4f3c2cb12498de7443b4",
+      "notes": [
+        {
+          "midi": 67,
+          "ticks": 0,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 1200,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 1920,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 2160,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 2400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 6240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 7680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 75,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 8640,
+          "durationTicks": 240
+        },
+        {
+          "midi": 75,
+          "ticks": 8880,
+          "durationTicks": 240
+        },
+        {
+          "midi": 77,
+          "ticks": 9120,
+          "durationTicks": 240
+        },
+        {
+          "midi": 75,
+          "ticks": 9360,
+          "durationTicks": 240
+        },
+        {
+          "midi": 74,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 10080,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 10320,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 10560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 14880,
+          "durationTicks": 960
+        }
+      ]
+    },
+    {
+      "id": "bwv7.7",
+      "sourceFile": "bwv7.7.mxl",
+      "sourceSha256": "48b55e50482f4adbf7c1ac252bedc7821af60efe5520691af346882ec9c7c7f1",
+      "notes": [
+        {
+          "midi": 64,
+          "ticks": 0,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 2400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 2880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 3360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 4800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 5280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 6240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 6720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 7200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 7680,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 7920,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 8640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 9120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 10080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 10560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 11040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 11520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 12000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 13440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 67,
+          "ticks": 13920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 14400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 14880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 15360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 15840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 16320,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 16560,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 17760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 18240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 18720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 19200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 19680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 20160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 78,
+          "ticks": 20640,
+          "durationTicks": 240
+        },
+        {
+          "midi": 76,
+          "ticks": 20880,
+          "durationTicks": 240
+        },
+        {
+          "midi": 74,
+          "ticks": 21120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 21600,
+          "durationTicks": 240
+        },
+        {
+          "midi": 74,
+          "ticks": 21840,
+          "durationTicks": 240
+        },
+        {
+          "midi": 73,
+          "ticks": 22080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 22560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 23040,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 23520,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 24000,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 24480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 24960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 25440,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 25680,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 25920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 26400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 26880,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 27120,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 27360,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 27840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 28320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 28800,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 29040,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 29280,
+          "durationTicks": 240
+        },
+        {
+          "midi": 67,
+          "ticks": 29520,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 29760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 30240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 30720,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 31200,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 31680,
+          "durationTicks": 480
+        },
+        {
+          "midi": 78,
+          "ticks": 32160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 76,
+          "ticks": 32640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 74,
+          "ticks": 33120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 33600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 34080,
+          "durationTicks": 480
+        }
+      ]
+    },
+    {
+      "id": "bwv8.6",
+      "sourceFile": "bwv8.6.mxl",
+      "sourceSha256": "07348f503dbcb77a459c9a6fd2a179558f2aec0e1f2aa245e5d61dd691de050b",
+      "notes": [
+        {
+          "midi": 71,
+          "ticks": 480,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 720,
+          "durationTicks": 240
+        },
+        {
+          "midi": 76,
+          "ticks": 960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 1440,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 1920,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 2400,
+          "durationTicks": 480
+        },
+        {
+          "midi": 69,
+          "ticks": 2880,
+          "durationTicks": 720
+        },
+        {
+          "midi": 71,
+          "ticks": 3600,
+          "durationTicks": 120
+        },
+        {
+          "midi": 69,
+          "ticks": 3720,
+          "durationTicks": 120
+        },
+        {
+          "midi": 68,
+          "ticks": 3840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 4320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 5280,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 5520,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 5760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 6240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 6480,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 6720,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 6960,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 7200,
+          "durationTicks": 960
+        },
+        {
+          "midi": 70,
+          "ticks": 8160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 8640,
+          "durationTicks": 960
+        },
+        {
+          "midi": 71,
+          "ticks": 9600,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 10080,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 10560,
+          "durationTicks": 960
+        },
+        {
+          "midi": 66,
+          "ticks": 12000,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 12240,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 12480,
+          "durationTicks": 480
+        },
+        {
+          "midi": 68,
+          "ticks": 12960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 13440,
+          "durationTicks": 720
+        },
+        {
+          "midi": 75,
+          "ticks": 14160,
+          "durationTicks": 240
+        },
+        {
+          "midi": 72,
+          "ticks": 14400,
+          "durationTicks": 960
+        },
+        {
+          "midi": 73,
+          "ticks": 15840,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 16080,
+          "durationTicks": 240
+        },
+        {
+          "midi": 70,
+          "ticks": 16320,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 16800,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 17280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 70,
+          "ticks": 17760,
+          "durationTicks": 480
+        },
+        {
+          "midi": 71,
+          "ticks": 18240,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 18720,
+          "durationTicks": 240
+        },
+        {
+          "midi": 66,
+          "ticks": 18960,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 19200,
+          "durationTicks": 720
+        },
+        {
+          "midi": 69,
+          "ticks": 19920,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 20160,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 20640,
+          "durationTicks": 480
+        },
+        {
+          "midi": 72,
+          "ticks": 21120,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 21600,
+          "durationTicks": 960
+        },
+        {
+          "midi": 72,
+          "ticks": 22560,
+          "durationTicks": 480
+        },
+        {
+          "midi": 73,
+          "ticks": 23040,
+          "durationTicks": 960
+        },
+        {
+          "midi": 76,
+          "ticks": 24480,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 24720,
+          "durationTicks": 240
+        },
+        {
+          "midi": 73,
+          "ticks": 24960,
+          "durationTicks": 480
+        },
+        {
+          "midi": 68,
+          "ticks": 25440,
+          "durationTicks": 240
+        },
+        {
+          "midi": 69,
+          "ticks": 25680,
+          "durationTicks": 240
+        },
+        {
+          "midi": 71,
+          "ticks": 25920,
+          "durationTicks": 720
+        },
+        {
+          "midi": 69,
+          "ticks": 26640,
+          "durationTicks": 240
+        },
+        {
+          "midi": 68,
+          "ticks": 26880,
+          "durationTicks": 480
+        },
+        {
+          "midi": 66,
+          "ticks": 27360,
+          "durationTicks": 240
+        },
+        {
+          "midi": 64,
+          "ticks": 27600,
+          "durationTicks": 240
+        },
+        {
+          "midi": 63,
+          "ticks": 27840,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 28320,
+          "durationTicks": 960
+        },
+        {
+          "midi": 63,
+          "ticks": 29280,
+          "durationTicks": 480
+        },
+        {
+          "midi": 64,
+          "ticks": 29760,
+          "durationTicks": 960
+        }
+      ]
+    }
+  ],
+  "skipped": []
+}

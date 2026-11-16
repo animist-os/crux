@@ -1,5 +1,10 @@
 # Crux Decomposition Engine
 
+For the newer MIDI-to-ranked-vocabulary API, see [REPRESENTATIONS.md](REPRESENTATIONS.md).
+It searches multiple motifs jointly, shares them across voices, preserves MIDI
+note events, and uses an explicit reuse cost instead of the scoring below.
+The existing `golden.decompose()` API described here retains its behavior.
+
 Notes on the design and development of `src/decompose.js` and the corpus pipeline.
 
 ## Purpose

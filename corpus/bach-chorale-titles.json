@@ -1,0 +1,2527 @@
+{
+  "source": "music21 corpus.chorales.ChoraleListRKBWV",
+  "pieces": {
+    "bwv269": {
+      "title": "Aus meines Herzens Grunde",
+      "aliases": [],
+      "riemenschneider": [
+        1
+      ]
+    },
+    "bwv347": {
+      "title": "Ich dank’ dir, lieber Herre",
+      "aliases": [],
+      "riemenschneider": [
+        2
+      ]
+    },
+    "bwv153.1": {
+      "title": "Ach Gott, vom Himmel sieh’ darein",
+      "aliases": [],
+      "riemenschneider": [
+        3
+      ]
+    },
+    "bwv86.6": {
+      "title": "Es ist das Heil uns kommen her",
+      "aliases": [],
+      "riemenschneider": [
+        4
+      ]
+    },
+    "bwv267": {
+      "title": "An Wasserflüssen Babylon",
+      "aliases": [
+        "Ein Lämmlein geht und trägt die Schuld"
+      ],
+      "riemenschneider": [
+        5,
+        309
+      ]
+    },
+    "bwv281": {
+      "title": "Christus, der ist mein Leben",
+      "aliases": [],
+      "riemenschneider": [
+        6
+      ]
+    },
+    "bwv17.7": {
+      "title": "Nun lob’, mein’ Seel’, den Herren",
+      "aliases": [],
+      "riemenschneider": [
+        7
+      ]
+    },
+    "bwv40.8": {
+      "title": "Freuet euch, ihr Christen alle",
+      "aliases": [],
+      "riemenschneider": [
+        8
+      ]
+    },
+    "bwv248.12-2": {
+      "title": "Ermuntre dich, mein schwacher Geist",
+      "aliases": [
+        "Du Lebensfürst, Herr Jesu Christ"
+      ],
+      "riemenschneider": [
+        9,
+        361
+      ]
+    },
+    "bwv38.6": {
+      "title": "Aus tiefer Not schrei’ ich zu dir",
+      "aliases": [],
+      "riemenschneider": [
+        10
+      ]
+    },
+    "bwv41.6": {
+      "title": "Jesu, nun sei gepreiset",
+      "aliases": [],
+      "riemenschneider": [
+        11
+      ]
+    },
+    "bwv65.2": {
+      "title": "Puer natus in Bethlehem",
+      "aliases": [],
+      "riemenschneider": [
+        12
+      ]
+    },
+    "bwv33.6": {
+      "title": "Allein zu dir, Herr Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        13
+      ]
+    },
+    "bwv184.5": {
+      "title": "O Herre Gott, dein göttlich Wort",
+      "aliases": [],
+      "riemenschneider": [
+        14
+      ]
+    },
+    "bwv277": {
+      "title": "Christ lag in Todesbanden",
+      "aliases": [],
+      "riemenschneider": [
+        15
+      ]
+    },
+    "bwv311": {
+      "title": "Es woll’ uns Gott genädig sein",
+      "aliases": [],
+      "riemenschneider": [
+        16
+      ]
+    },
+    "bwv145.5": {
+      "title": "Erschienen ist der herrliche Tag",
+      "aliases": [],
+      "riemenschneider": [
+        17
+      ]
+    },
+    "bwv318": {
+      "title": "Gottes Sohn ist kommen",
+      "aliases": [],
+      "riemenschneider": [
+        18
+      ]
+    },
+    "bwv351": {
+      "title": "Ich hab’ mein’ Sach’ Gott heimgestellt",
+      "aliases": [],
+      "riemenschneider": [
+        19
+      ]
+    },
+    "bwv302": {
+      "title": "Ein’ feste Burg ist unser Gott",
+      "aliases": [],
+      "riemenschneider": [
+        20
+      ]
+    },
+    "bwv153.5": {
+      "title": "Herzlich tut mich verlangen",
+      "aliases": [],
+      "riemenschneider": [
+        21
+      ]
+    },
+    "bwv180.7": {
+      "title": "Schmücke dich, o liebe Seele",
+      "aliases": [],
+      "riemenschneider": [
+        22
+      ]
+    },
+    "bwv28.6": {
+      "title": "Zeuch ein zu deinen Toren",
+      "aliases": [
+        "Helft mir Gott’s Güte preisen"
+      ],
+      "riemenschneider": [
+        23,
+        88
+      ]
+    },
+    "bwv415": {
+      "title": "Valet will ich dir geben",
+      "aliases": [],
+      "riemenschneider": [
+        24
+      ]
+    },
+    "bwv148.6": {
+      "title": "Wo soll ich fliehen hin",
+      "aliases": [],
+      "riemenschneider": [
+        25
+      ]
+    },
+    "bwv20.7": {
+      "title": "O Ewigkeit, du Donnerwort",
+      "aliases": [],
+      "riemenschneider": [
+        26
+      ]
+    },
+    "bwv20.11": {
+      "title": "O Ewigkeit, du Donnerwort",
+      "aliases": [],
+      "riemenschneider": [
+        26
+      ]
+    },
+    "bwv308": {
+      "title": "Es spricht der Unweisen Mund",
+      "aliases": [],
+      "riemenschneider": [
+        27
+      ]
+    },
+    "bwv36.8-2": {
+      "title": "Nun komm, der Heiden Heiland",
+      "aliases": [],
+      "riemenschneider": [
+        28
+      ]
+    },
+    "bwv32.6": {
+      "title": "Freu’ dich sehr, o meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        29
+      ]
+    },
+    "bwv363": {
+      "title": "Jesus Christus, unser Heiland",
+      "aliases": [],
+      "riemenschneider": [
+        30
+      ]
+    },
+    "bwv256": {
+      "title": "Ach lieben Christen, seid getrost",
+      "aliases": [],
+      "riemenschneider": [
+        31
+      ]
+    },
+    "bwv386": {
+      "title": "Nun danket alle Gott",
+      "aliases": [],
+      "riemenschneider": [
+        32
+      ]
+    },
+    "bwv330": {
+      "title": "Herr, ich habe mißgehandelt",
+      "aliases": [],
+      "riemenschneider": [
+        33
+      ]
+    },
+    "bwv305": {
+      "title": "Erbarm’ dich mein, o Herre Gott",
+      "aliases": [],
+      "riemenschneider": [
+        34
+      ]
+    },
+    "bwv248.53-5": {
+      "title": "Gott des Himmels und der Erden",
+      "aliases": [],
+      "riemenschneider": [
+        35
+      ]
+    },
+    "bwv385": {
+      "title": "Nun bitten wir den heiligen Geist",
+      "aliases": [],
+      "riemenschneider": [
+        36
+      ]
+    },
+    "bwv352": {
+      "title": "Jesu, der du meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        37
+      ]
+    },
+    "bwv115.6": {
+      "title": "Straf’ mich nicht in deinem Zorn",
+      "aliases": [],
+      "riemenschneider": [
+        38
+      ]
+    },
+    "bwv259": {
+      "title": "Ach was soll ich Sünder machen",
+      "aliases": [],
+      "riemenschneider": [
+        39
+      ]
+    },
+    "bwv255": {
+      "title": "Ach Gott und Herr",
+      "aliases": [],
+      "riemenschneider": [
+        40
+      ]
+    },
+    "bwv65.7": {
+      "title": "Was mein Gott will, das g’scheh’ allzeit",
+      "aliases": [],
+      "riemenschneider": [
+        41
+      ]
+    },
+    "bwv67.7": {
+      "title": "Du Friedefürst, Herr Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        42
+      ]
+    },
+    "bwv8.6": {
+      "title": "Liebster Gott, wann werd’ ich sterben",
+      "aliases": [],
+      "riemenschneider": [
+        43
+      ]
+    },
+    "bwv377": {
+      "title": "Mach’s mit mir, Gott, nach deiner Güt’",
+      "aliases": [],
+      "riemenschneider": [
+        44
+      ]
+    },
+    "bwv108.6": {
+      "title": "Kommt her zu mir, spricht Gottes Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        45
+      ]
+    },
+    "bwv248.9-1": {
+      "title": "Vom Himmel hoch, da komm’ ich her",
+      "aliases": [],
+      "riemenschneider": [
+        46
+      ]
+    },
+    "bwv416": {
+      "title": "Vater unser im Himmelreich",
+      "aliases": [],
+      "riemenschneider": [
+        47
+      ]
+    },
+    "bwv26.6": {
+      "title": "Ach wie nichtig, ach wie flüchtig",
+      "aliases": [],
+      "riemenschneider": [
+        48
+      ]
+    },
+    "bwv382": {
+      "title": "Mit Fried’ und Freud’ ich fahr’ dahin",
+      "aliases": [],
+      "riemenschneider": [
+        49
+      ]
+    },
+    "bwv244.37": {
+      "title": "In allen meinen Taten",
+      "aliases": [],
+      "riemenschneider": [
+        50
+      ]
+    },
+    "bwv91.6": {
+      "title": "Gelobet seist du, Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        51
+      ]
+    },
+    "bwv429": {
+      "title": "Wenn mein Stündlein vorhanden ist",
+      "aliases": [],
+      "riemenschneider": [
+        52
+      ]
+    },
+    "bwv122.6": {
+      "title": "Das neugeborne Kindelein",
+      "aliases": [],
+      "riemenschneider": [
+        53,
+        178
+      ]
+    },
+    "bwv151.5": {
+      "title": "Lobt Gott, ihr Christen, allzugleich",
+      "aliases": [],
+      "riemenschneider": [
+        54
+      ]
+    },
+    "bwv110.7": {
+      "title": "Wir Christenleut’",
+      "aliases": [],
+      "riemenschneider": [
+        55
+      ]
+    },
+    "bwv121.6": {
+      "title": "Christum wir sollen loben schon",
+      "aliases": [],
+      "riemenschneider": [
+        56
+      ]
+    },
+    "bwv404": {
+      "title": "O Traurigkeit, o Herzeleid",
+      "aliases": [],
+      "riemenschneider": [
+        57
+      ]
+    },
+    "bwv174.5": {
+      "title": "Herzlich lieb hab’ ich dich, o Herr",
+      "aliases": [],
+      "riemenschneider": [
+        58
+      ]
+    },
+    "bwv245.3": {
+      "title": "Herzliebster Jesu, was hast du verbrochen",
+      "aliases": [],
+      "riemenschneider": [
+        59
+      ]
+    },
+    "bwv133.6": {
+      "title": "Ich freue mich in dir",
+      "aliases": [],
+      "riemenschneider": [
+        60
+      ]
+    },
+    "bwv159.5": {
+      "title": "Jesu Leiden, Pein und Tod",
+      "aliases": [],
+      "riemenschneider": [
+        61
+      ]
+    },
+    "bwv197.10": {
+      "title": "Wer nur den lieben Gott läßt walten",
+      "aliases": [],
+      "riemenschneider": [
+        62
+      ]
+    },
+    "bwv245.11": {
+      "title": "Nun ruhen alle Wälder",
+      "aliases": [],
+      "riemenschneider": [
+        63
+      ]
+    },
+    "bwv194.6": {
+      "title": "Freu’ dich sehr, o meine Seele",
+      "aliases": [
+        "Jesu, deine tiefen Wunden"
+      ],
+      "riemenschneider": [
+        64,
+        256
+      ]
+    },
+    "bwv144.3": {
+      "title": "Was Gott tut, das ist wohlgetan",
+      "aliases": [],
+      "riemenschneider": [
+        65
+      ]
+    },
+    "bwv280": {
+      "title": "Christ, unser Herr, zum Jordan kam",
+      "aliases": [],
+      "riemenschneider": [
+        66
+      ]
+    },
+    "bwv39.7": {
+      "title": "Freu’ dich sehr, o meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        67
+      ]
+    },
+    "bwv431": {
+      "title": "Wenn wir in höchsten Nöten sein",
+      "aliases": [],
+      "riemenschneider": [
+        68
+      ]
+    },
+    "bwv226.2": {
+      "title": "Komm, heiliger Geist, Herre Gott",
+      "aliases": [],
+      "riemenschneider": [
+        69
+      ]
+    },
+    "bwv322": {
+      "title": "Gott sei gelobet und gebenedeiet",
+      "aliases": [],
+      "riemenschneider": [
+        70
+      ]
+    },
+    "bwv177.5": {
+      "title": "Ich ruf’ zu dir, Herr Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        71
+      ]
+    },
+    "bwv6.6": {
+      "title": "Erhalt’ uns, Herr, bei deinem Wort",
+      "aliases": [],
+      "riemenschneider": [
+        72
+      ]
+    },
+    "bwv334": {
+      "title": "Herr Jesu Christ, du höchstes Gut",
+      "aliases": [],
+      "riemenschneider": [
+        73
+      ]
+    },
+    "bwv244.54": {
+      "title": "O Haupt voll Blut und Wunden",
+      "aliases": [],
+      "riemenschneider": [
+        74
+      ]
+    },
+    "bwv291": {
+      "title": "Das walt’ mein Gott",
+      "aliases": [],
+      "riemenschneider": [
+        75
+      ]
+    },
+    "bwv30.6": {
+      "title": "Freu’ dich sehr, o meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        76
+      ]
+    },
+    "bwv248.46-5": {
+      "title": "In dich hab’ ich gehoffet, Herr",
+      "aliases": [],
+      "riemenschneider": [
+        77
+      ]
+    },
+    "bwv244.3": {
+      "title": "Herzliebster Jesu, was hast du verbrochen",
+      "aliases": [],
+      "riemenschneider": [
+        78
+      ]
+    },
+    "bwv342": {
+      "title": "Heut’ triumphieret Gottes Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        79
+      ]
+    },
+    "bwv244.44": {
+      "title": "O Haupt voll Blut und Wunden",
+      "aliases": [],
+      "riemenschneider": [
+        80
+      ]
+    },
+    "bwv245.15": {
+      "title": "Christus, der uns selig macht",
+      "aliases": [],
+      "riemenschneider": [
+        81
+      ]
+    },
+    "bwv46.6": {
+      "title": "O großer Gott von Macht",
+      "aliases": [],
+      "riemenschneider": [
+        82
+      ]
+    },
+    "bwv245.14": {
+      "title": "Jesu Leiden, Pein und Tod",
+      "aliases": [],
+      "riemenschneider": [
+        83
+      ]
+    },
+    "bwv197.5": {
+      "title": "Nun bitten wir den heiligen Geist",
+      "aliases": [],
+      "riemenschneider": [
+        84
+      ]
+    },
+    "bwv45.7": {
+      "title": "O Gott, du frommer Gott",
+      "aliases": [],
+      "riemenschneider": [
+        85
+      ]
+    },
+    "bwv36.4-2": {
+      "title": "Wie schön leuchtet der Morgenstern",
+      "aliases": [],
+      "riemenschneider": [
+        86,
+        195,
+        305
+      ]
+    },
+    "bwv56.5": {
+      "title": "Du, o schönes Weltgebäude",
+      "aliases": [],
+      "riemenschneider": [
+        87
+      ]
+    },
+    "bwv244.62": {
+      "title": "O Haupt voll Blut und Wunden",
+      "aliases": [],
+      "riemenschneider": [
+        89
+      ]
+    },
+    "bwv57.8": {
+      "title": "Hast du denn, Jesu, dein Angesicht gänzlich verborgen",
+      "aliases": [],
+      "riemenschneider": [
+        90
+      ]
+    },
+    "bwv42.7": {
+      "title": "Verleih’ uns Frieden gnädiglich",
+      "aliases": [],
+      "riemenschneider": [
+        91,
+        91,
+        259,
+        259
+      ]
+    },
+    "bwv168.6": {
+      "title": "O Jesu Christ, du höchstes Gut",
+      "aliases": [],
+      "riemenschneider": [
+        92
+      ]
+    },
+    "bwv194.12": {
+      "title": "Wach’ auf, mein Herz, und singe",
+      "aliases": [
+        "Nun laßt uns Gott, dem Herren"
+      ],
+      "riemenschneider": [
+        93,
+        257
+      ]
+    },
+    "bwv47.5": {
+      "title": "Warum betrübst du dich, mein Herz",
+      "aliases": [],
+      "riemenschneider": [
+        94
+      ]
+    },
+    "bwv55.5": {
+      "title": "Werde munter, mein Gemüte",
+      "aliases": [],
+      "riemenschneider": [
+        95
+      ]
+    },
+    "bwv87.7": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        96
+      ]
+    },
+    "bwv169.7": {
+      "title": "Nun bitten wir den heiligen Geist",
+      "aliases": [],
+      "riemenschneider": [
+        97
+      ]
+    },
+    "bwv244.15": {
+      "title": "O Haupt voll Blut und Wunden",
+      "aliases": [],
+      "riemenschneider": [
+        98
+      ]
+    },
+    "bwv16.6": {
+      "title": "Helft mir Gott’s Güte preisen",
+      "aliases": [],
+      "riemenschneider": [
+        99
+      ]
+    },
+    "bwv18.5-w": {
+      "title": "Durch Adams Fall ist ganz verderbt",
+      "aliases": [],
+      "riemenschneider": [
+        100
+      ]
+    },
+    "bwv164.6": {
+      "title": "Herr Christ, der ein’ge Gott’s-Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        101
+      ]
+    },
+    "bwv43.11": {
+      "title": "Ermuntre dich, mein schwacher Geist",
+      "aliases": [],
+      "riemenschneider": [
+        102
+      ]
+    },
+    "bwv13.6": {
+      "title": "Nun ruhen alle Wälder",
+      "aliases": [],
+      "riemenschneider": [
+        103
+      ]
+    },
+    "bwv88.7": {
+      "title": "Wer nur den lieben Gott läßt walten",
+      "aliases": [],
+      "riemenschneider": [
+        104
+      ]
+    },
+    "bwv244.46": {
+      "title": "Herzliebster Jesu, was hast du verbrochen",
+      "aliases": [],
+      "riemenschneider": [
+        105
+      ]
+    },
+    "bwv245.28": {
+      "title": "Jesu Leiden, Pein und Tod",
+      "aliases": [],
+      "riemenschneider": [
+        106
+      ]
+    },
+    "bwv245.40": {
+      "title": "Herzlich lieb hab’ ich dich, o Herr",
+      "aliases": [],
+      "riemenschneider": [
+        107
+      ]
+    },
+    "bwv245.26": {
+      "title": "Valet will ich dir geben",
+      "aliases": [],
+      "riemenschneider": [
+        108
+      ]
+    },
+    "bwv187.7": {
+      "title": "Singen wir aus Herzensgrund",
+      "aliases": [],
+      "riemenschneider": [
+        109
+      ]
+    },
+    "bwv102.7": {
+      "title": "Vater unser im Himmelreich",
+      "aliases": [],
+      "riemenschneider": [
+        110
+      ]
+    },
+    "bwv245.17": {
+      "title": "Herzliebster Jesu, was hast du verbrochen",
+      "aliases": [],
+      "riemenschneider": [
+        111
+      ]
+    },
+    "bwv84.5": {
+      "title": "Wer nur den lieben Gott läßt walten",
+      "aliases": [],
+      "riemenschneider": [
+        112
+      ]
+    },
+    "bwv245.37": {
+      "title": "Christus, der uns selig macht",
+      "aliases": [],
+      "riemenschneider": [
+        113
+      ]
+    },
+    "bwv419": {
+      "title": "Von Gott will ich nicht lassen",
+      "aliases": [],
+      "riemenschneider": [
+        114
+      ]
+    },
+    "bwv244.25": {
+      "title": "Was mein Gott will, das g’scheh’ allezeit",
+      "aliases": [],
+      "riemenschneider": [
+        115
+      ]
+    },
+    "bwv29.8": {
+      "title": "Nun lob’, mein’ Seel’, den Herren",
+      "aliases": [],
+      "riemenschneider": [
+        116
+      ]
+    },
+    "bwv244.10": {
+      "title": "Nun ruhen alle Wälder",
+      "aliases": [],
+      "riemenschneider": [
+        117
+      ]
+    },
+    "bwv244.32": {
+      "title": "In dich hab’ ich gehoffet, Herr",
+      "aliases": [],
+      "riemenschneider": [
+        118
+      ]
+    },
+    "bwv176.6": {
+      "title": "Christ, unser Herr, zum Jordan kam",
+      "aliases": [],
+      "riemenschneider": [
+        119
+      ]
+    },
+    "bwv103.6": {
+      "title": "Was mein Gott will, das g’scheh’ allzeit",
+      "aliases": [
+        "Ich hab’ in Gottes Herz und Sinn"
+      ],
+      "riemenschneider": [
+        120,
+        349
+      ]
+    },
+    "bwv244.40": {
+      "title": "Werde munter, mein Gemüte",
+      "aliases": [],
+      "riemenschneider": [
+        121
+      ]
+    },
+    "bwv85.6": {
+      "title": "Ist Gott mein Schild und Helfersmann",
+      "aliases": [],
+      "riemenschneider": [
+        122
+      ]
+    },
+    "bwv183.5": {
+      "title": "Helft mir Gott’s Güte preisen",
+      "aliases": [],
+      "riemenschneider": [
+        123
+      ]
+    },
+    "bwv268": {
+      "title": "Auf, auf, mein Herz, und du, mein ganzer Sinn",
+      "aliases": [],
+      "riemenschneider": [
+        124
+      ]
+    },
+    "bwv104.6": {
+      "title": "Allein Gott in der Höh’ sei Ehr’",
+      "aliases": [],
+      "riemenschneider": [
+        125,
+        326
+      ]
+    },
+    "bwv18.5-l": {
+      "title": "Durch Adams Fall ist ganz verderbt",
+      "aliases": [],
+      "riemenschneider": [
+        126
+      ]
+    },
+    "bwv298": {
+      "title": "Dies sind die heil’gen zehn Gebot’",
+      "aliases": [],
+      "riemenschneider": [
+        127
+      ]
+    },
+    "bwv263": {
+      "title": "Alles ist an Gottes Segen",
+      "aliases": [],
+      "riemenschneider": [
+        128
+      ]
+    },
+    "bwv369": {
+      "title": "Keinen hat Gott verlassen",
+      "aliases": [],
+      "riemenschneider": [
+        129
+      ]
+    },
+    "bwv324": {
+      "title": "Meine Seel erhebet den Herrn",
+      "aliases": [],
+      "riemenschneider": [
+        130
+      ]
+    },
+    "bwv373": {
+      "title": "Liebster Jesu, wir sind hier",
+      "aliases": [],
+      "riemenschneider": [
+        131,
+        328
+      ]
+    },
+    "bwv371": {
+      "title": "Kyrie, Gott Vater in Ewigkeit",
+      "aliases": [],
+      "riemenschneider": [
+        132
+      ]
+    },
+    "bwv437": {
+      "title": "Wir glauben all’ an einen Gott",
+      "aliases": [],
+      "riemenschneider": [
+        133
+      ]
+    },
+    "bwv301": {
+      "title": "Du, o schönes Weltgebäude",
+      "aliases": [],
+      "riemenschneider": [
+        134
+      ]
+    },
+    "bwv317": {
+      "title": "Gott der Vater wohn’ uns bei",
+      "aliases": [],
+      "riemenschneider": [
+        135
+      ]
+    },
+    "bwv332": {
+      "title": "Herr Jesu Christ, dich zu uns wend’",
+      "aliases": [],
+      "riemenschneider": [
+        136
+      ]
+    },
+    "bwv433": {
+      "title": "Wer Gott vertraut, hat wohl gebaut",
+      "aliases": [],
+      "riemenschneider": [
+        137
+      ]
+    },
+    "bwv64.8": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        138
+      ]
+    },
+    "bwv248.33-3": {
+      "title": "Warum sollt’ ich mich denn grämen",
+      "aliases": [],
+      "riemenschneider": [
+        139
+      ]
+    },
+    "bwv367": {
+      "title": "In allen meinen Taten",
+      "aliases": [],
+      "riemenschneider": [
+        140
+      ]
+    },
+    "bwv409": {
+      "title": "Seelenbräutigam",
+      "aliases": [],
+      "riemenschneider": [
+        141
+      ]
+    },
+    "bwv40.6": {
+      "title": "Schwing’ dich auf zu deinem Gott",
+      "aliases": [],
+      "riemenschneider": [
+        142
+      ]
+    },
+    "bwv368": {
+      "title": "In dulci jubilo",
+      "aliases": [],
+      "riemenschneider": [
+        143
+      ]
+    },
+    "bwv339": {
+      "title": "Wer in dem Schutz des Höchsten ist",
+      "aliases": [
+        "Herr, wie du willst, so schick’s mit mir"
+      ],
+      "riemenschneider": [
+        144,
+        318
+      ]
+    },
+    "bwv420": {
+      "title": "Warum betrübst du dich, mein Herz",
+      "aliases": [],
+      "riemenschneider": [
+        145
+      ]
+    },
+    "bwv434": {
+      "title": "Wer nur den lieben Gott läßt walten",
+      "aliases": [],
+      "riemenschneider": [
+        146
+      ]
+    },
+    "bwv427": {
+      "title": "Wenn ich in Angst und Not",
+      "aliases": [],
+      "riemenschneider": [
+        147
+      ]
+    },
+    "bwv414": {
+      "title": "Uns ist ein Kindlein heut’ gebor’n",
+      "aliases": [],
+      "riemenschneider": [
+        148
+      ]
+    },
+    "bwv384": {
+      "title": "Nicht so traurig, nicht so sehr",
+      "aliases": [],
+      "riemenschneider": [
+        149
+      ]
+    },
+    "bwv27.6": {
+      "title": "Welt, ade! ich bin dein müde",
+      "aliases": [],
+      "riemenschneider": [
+        150
+      ]
+    },
+    "bwv379": {
+      "title": "Meinen Jesum laß’ ich nicht, Jesus",
+      "aliases": [],
+      "riemenschneider": [
+        151
+      ]
+    },
+    "bwv154.8": {
+      "title": "Meinen Jesum laß’ ich nicht, weil er sich für mich gegeben",
+      "aliases": [],
+      "riemenschneider": [
+        152
+      ]
+    },
+    "bwv262": {
+      "title": "Alle Menschen müssen sterben",
+      "aliases": [],
+      "riemenschneider": [
+        153
+      ]
+    },
+    "bwv293": {
+      "title": "Der du bist drei in Einigkeit",
+      "aliases": [],
+      "riemenschneider": [
+        154
+      ]
+    },
+    "bwv344": {
+      "title": "Hilf, Herr Jesu, laß gelingen",
+      "aliases": [],
+      "riemenschneider": [
+        155
+      ]
+    },
+    "bwv3.6": {
+      "title": "Ach Gott, wie manches Herzeleid",
+      "aliases": [],
+      "riemenschneider": [
+        156,
+        308
+      ]
+    },
+    "bwv438": {
+      "title": "Wo Gott zum Haus nicht gibt sein’ Gunst",
+      "aliases": [],
+      "riemenschneider": [
+        157
+      ]
+    },
+    "bwv294": {
+      "title": "Der Tag der ist so freudenreich",
+      "aliases": [],
+      "riemenschneider": [
+        158
+      ]
+    },
+    "bwv264": {
+      "title": "Als der gütige Gott",
+      "aliases": [],
+      "riemenschneider": [
+        159
+      ]
+    },
+    "bwv64.2": {
+      "title": "Gelobet seist du, Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        160
+      ]
+    },
+    "bwv366": {
+      "title": "Ihr Gestirn’, ihr hohlen Lüfte",
+      "aliases": [],
+      "riemenschneider": [
+        161
+      ]
+    },
+    "bwv288": {
+      "title": "Das alte Jahr vergangen ist",
+      "aliases": [],
+      "riemenschneider": [
+        162
+      ]
+    },
+    "bwv313": {
+      "title": "Für Freuden laßt uns springen",
+      "aliases": [],
+      "riemenschneider": [
+        163
+      ]
+    },
+    "bwv326": {
+      "title": "Herr Gott, dich loben alle wir",
+      "aliases": [],
+      "riemenschneider": [
+        164
+      ]
+    },
+    "bwv401": {
+      "title": "O Lamm Gottes, unschuldig",
+      "aliases": [],
+      "riemenschneider": [
+        165
+      ]
+    },
+    "bwv309": {
+      "title": "Es steh’n vor Gottes Throne",
+      "aliases": [],
+      "riemenschneider": [
+        166
+      ]
+    },
+    "bwv300": {
+      "title": "Du großer Schmerzensmann",
+      "aliases": [],
+      "riemenschneider": [
+        167
+      ]
+    },
+    "bwv341": {
+      "title": "Heut’ ist, o Mensch, ein großer Trauertag",
+      "aliases": [],
+      "riemenschneider": [
+        168
+      ]
+    },
+    "bwv355": {
+      "title": "Jesu, der du selbst so wohl",
+      "aliases": [],
+      "riemenschneider": [
+        169
+      ]
+    },
+    "bwv62.6": {
+      "title": "Nun komm, der Heiden Heiland",
+      "aliases": [],
+      "riemenschneider": [
+        170
+      ]
+    },
+    "bwv408": {
+      "title": "Schaut, ihr Sünder",
+      "aliases": [],
+      "riemenschneider": [
+        171
+      ]
+    },
+    "bwv410": {
+      "title": "Sei gegrüßet, Jesu gütig",
+      "aliases": [],
+      "riemenschneider": [
+        172
+      ]
+    },
+    "bwv400": {
+      "title": "O Herzensangst, o Bangigkeit",
+      "aliases": [],
+      "riemenschneider": [
+        173
+      ]
+    },
+    "bwv364": {
+      "title": "Jesus Christus, unser Heiland, der den Tod überwand",
+      "aliases": [],
+      "riemenschneider": [
+        174
+      ]
+    },
+    "bwv365": {
+      "title": "Jesus, meine Zuversicht",
+      "aliases": [],
+      "riemenschneider": [
+        175
+      ]
+    },
+    "bwv306": {
+      "title": "Erstanden ist der heil’ge Christ",
+      "aliases": [],
+      "riemenschneider": [
+        176
+      ]
+    },
+    "bwv253": {
+      "title": "Ach bleib bei uns, Herr Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        177
+      ]
+    },
+    "bwv140.7": {
+      "title": "Wachet auf, ruft uns die Stimme",
+      "aliases": [],
+      "riemenschneider": [
+        179
+      ]
+    },
+    "bwv265": {
+      "title": "Als Jesus Christus in der Nacht",
+      "aliases": [],
+      "riemenschneider": [
+        180
+      ]
+    },
+    "bwv319": {
+      "title": "Gott hat das Evangelium",
+      "aliases": [],
+      "riemenschneider": [
+        181
+      ]
+    },
+    "bwv14.5": {
+      "title": "Wär’ Gott nicht mit uns diese Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        182
+      ]
+    },
+    "bwv388": {
+      "title": "Nun freut euch, lieben Christen, g’mein",
+      "aliases": [],
+      "riemenschneider": [
+        183
+      ]
+    },
+    "bwv4.8": {
+      "title": "Christ lag in Todesbanden",
+      "aliases": [],
+      "riemenschneider": [
+        184
+      ]
+    },
+    "bwv387": {
+      "title": "Nun freut euch, Gottes Kinder all’",
+      "aliases": [],
+      "riemenschneider": [
+        185
+      ]
+    },
+    "bwv254": {
+      "title": "Ach Gott, erhör’ mein Seufzen",
+      "aliases": [],
+      "riemenschneider": [
+        186
+      ]
+    },
+    "bwv370": {
+      "title": "Komm, Gott Schöpfer, heiliger Geist",
+      "aliases": [],
+      "riemenschneider": [
+        187
+      ]
+    },
+    "bwv349": {
+      "title": "Ich dank’ dir schon durch deinen Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        188
+      ]
+    },
+    "bwv336": {
+      "title": "Herr Jesu Christ, wahr’r Mensch und Gott",
+      "aliases": [],
+      "riemenschneider": [
+        189
+      ]
+    },
+    "bwv337": {
+      "title": "Herr, nun laß in Friede",
+      "aliases": [],
+      "riemenschneider": [
+        190
+      ]
+    },
+    "bwv73.5": {
+      "title": "Von Gott will ich nicht lassen",
+      "aliases": [],
+      "riemenschneider": [
+        191
+      ]
+    },
+    "bwv321": {
+      "title": "Gottlob, es geht nunmehr zu Ende",
+      "aliases": [],
+      "riemenschneider": [
+        192
+      ]
+    },
+    "bwv424": {
+      "title": "Was bist du doch, o Seele, so betrübet",
+      "aliases": [],
+      "riemenschneider": [
+        193
+      ]
+    },
+    "bwv123.6": {
+      "title": "Liebster Immanuel, Herzog der Frommen",
+      "aliases": [],
+      "riemenschneider": [
+        194
+      ]
+    },
+    "bwv285": {
+      "title": "Da der Herr Christ zu Tische saß",
+      "aliases": [],
+      "riemenschneider": [
+        196
+      ]
+    },
+    "bwv276": {
+      "title": "Christ ist erstanden",
+      "aliases": [],
+      "riemenschneider": [
+        197
+      ]
+    },
+    "bwv283": {
+      "title": "Christus, der uns selig macht",
+      "aliases": [],
+      "riemenschneider": [
+        198,
+        307
+      ]
+    },
+    "bwv343": {
+      "title": "Hilf, Gott, daß mir’s gelinge",
+      "aliases": [],
+      "riemenschneider": [
+        199,
+        302
+      ]
+    },
+    "bwv284": {
+      "title": "Christus ist erstanden, hat überwunden",
+      "aliases": [],
+      "riemenschneider": [
+        200
+      ]
+    },
+    "bwv402": {
+      "title": "O Mensch, bewein’ dein’ Sünde groß",
+      "aliases": [],
+      "riemenschneider": [
+        201,
+        306
+      ]
+    },
+    "bwv407": {
+      "title": "O wir armen Sünder",
+      "aliases": [],
+      "riemenschneider": [
+        202
+      ]
+    },
+    "bwv403": {
+      "title": "O Mensch, schau’ Jesum Christum an",
+      "aliases": [],
+      "riemenschneider": [
+        203
+      ]
+    },
+    "bwv166.6": {
+      "title": "Wer weiß, wie nahe mir mein Ende",
+      "aliases": [],
+      "riemenschneider": [
+        204
+      ]
+    },
+    "bwv328": {
+      "title": "Herr Gott, dich loben wir",
+      "aliases": [],
+      "riemenschneider": [
+        205
+      ]
+    },
+    "bwv412": {
+      "title": "So gibst du nun, mein Jesu, gute Nacht",
+      "aliases": [],
+      "riemenschneider": [
+        206
+      ]
+    },
+    "bwv295": {
+      "title": "Des Heil’gen Geistes reiche Gnad’",
+      "aliases": [],
+      "riemenschneider": [
+        207
+      ]
+    },
+    "bwv266": {
+      "title": "Als vierzig Tag’ nach Ostern war",
+      "aliases": [],
+      "riemenschneider": [
+        208
+      ]
+    },
+    "bwv299": {
+      "title": "Dir, dir, Jehova, will ich singen",
+      "aliases": [],
+      "riemenschneider": [
+        209
+      ]
+    },
+    "bwv275": {
+      "title": "Christe, du Beistand deiner Kreuzgemeine",
+      "aliases": [],
+      "riemenschneider": [
+        210
+      ]
+    },
+    "bwv426": {
+      "title": "Weltlich’ Ehr’ und zeitlich Gut",
+      "aliases": [],
+      "riemenschneider": [
+        211
+      ]
+    },
+    "bwv329": {
+      "title": "Herr, ich denk’ an jene Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        212
+      ]
+    },
+    "bwv405": {
+      "title": "O wie selig seid ihr doch, ihr Frommen",
+      "aliases": [],
+      "riemenschneider": [
+        213
+      ]
+    },
+    "bwv383": {
+      "title": "Mitten wir im Leben sind",
+      "aliases": [],
+      "riemenschneider": [
+        214
+      ]
+    },
+    "bwv126.6": {
+      "title": "Verleih’ uns Frieden gnädiglich",
+      "aliases": [],
+      "riemenschneider": [
+        215
+      ]
+    },
+    "bwv60.5": {
+      "title": "Es ist genug, so nimm, Herr, meinen Geist",
+      "aliases": [],
+      "riemenschneider": [
+        216
+      ]
+    },
+    "bwv153.9": {
+      "title": "Ach Gott, wie manches Herzeleid",
+      "aliases": [],
+      "riemenschneider": [
+        217
+      ]
+    },
+    "bwv372": {
+      "title": "Laß, o Herr, dein Ohr sich neigen",
+      "aliases": [],
+      "riemenschneider": [
+        218
+      ]
+    },
+    "bwv406": {
+      "title": "O wie selig seid ihr doch, ihr Frommen",
+      "aliases": [],
+      "riemenschneider": [
+        219
+      ]
+    },
+    "bwv413": {
+      "title": "Sollt’ ich meinem Gott nicht singen",
+      "aliases": [],
+      "riemenschneider": [
+        220
+      ]
+    },
+    "bwv338": {
+      "title": "Herr, straf’ mich nicht in deinem Zorn",
+      "aliases": [],
+      "riemenschneider": [
+        221
+      ]
+    },
+    "bwv391": {
+      "title": "Nun preiset alle Gottes Barmherzigkeit",
+      "aliases": [],
+      "riemenschneider": [
+        222
+      ]
+    },
+    "bwv346": {
+      "title": "Ich dank’ dir, Gott, für all’ Wohltat",
+      "aliases": [],
+      "riemenschneider": [
+        223
+      ]
+    },
+    "bwv290": {
+      "title": "Das walt’ Gott Vater und Gott Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        224
+      ]
+    },
+    "bwv316": {
+      "title": "Gott, der du selber bist das Licht",
+      "aliases": [],
+      "riemenschneider": [
+        225
+      ]
+    },
+    "bwv333": {
+      "title": "Herr Jesu Christ, du hast bereit’t",
+      "aliases": [],
+      "riemenschneider": [
+        226
+      ]
+    },
+    "bwv374": {
+      "title": "Lobet den Herren, denn er ist sehr freundlich",
+      "aliases": [],
+      "riemenschneider": [
+        227
+      ]
+    },
+    "bwv286": {
+      "title": "Danket dem Herren, denn er ist sehr freundlich",
+      "aliases": [],
+      "riemenschneider": [
+        228
+      ]
+    },
+    "bwv350": {
+      "title": "Ich danke dir, o Gott, in deinem Throne",
+      "aliases": [],
+      "riemenschneider": [
+        229
+      ]
+    },
+    "bwv273": {
+      "title": "Christ, der du bist der helle Tag",
+      "aliases": [],
+      "riemenschneider": [
+        230
+      ]
+    },
+    "bwv296": {
+      "title": "Die Nacht ist kommen",
+      "aliases": [],
+      "riemenschneider": [
+        231
+      ]
+    },
+    "bwv297": {
+      "title": "Die Sonn’ hat sich mit ihrem Glanz gewendet",
+      "aliases": [],
+      "riemenschneider": [
+        232
+      ]
+    },
+    "bwv154.3": {
+      "title": "Werde munter, mein Gemüte",
+      "aliases": [],
+      "riemenschneider": [
+        233
+      ]
+    },
+    "bwv320": {
+      "title": "Gott lebet noch",
+      "aliases": [],
+      "riemenschneider": [
+        234
+      ]
+    },
+    "bwv325": {
+      "title": "Heilig, heilig",
+      "aliases": [
+        "Sanctus, Sanctus Dominus Deus Sabaoth"
+      ],
+      "riemenschneider": [
+        235,
+        319
+      ]
+    },
+    "bwv335": {
+      "title": "O Jesu, du mein Bräutigam",
+      "aliases": [
+        "Herr Jesu Christ, mein’s Lebens Licht"
+      ],
+      "riemenschneider": [
+        236,
+        295
+      ]
+    },
+    "bwv423": {
+      "title": "Was betrübst du dich, mein Herze",
+      "aliases": [],
+      "riemenschneider": [
+        237
+      ]
+    },
+    "bwv310": {
+      "title": "Es wird schier der letzte Tag herkommen",
+      "aliases": [],
+      "riemenschneider": [
+        238
+      ]
+    },
+    "bwv292": {
+      "title": "Den Vater dort oben",
+      "aliases": [],
+      "riemenschneider": [
+        239
+      ]
+    },
+    "bwv396": {
+      "title": "Nun sich der Tag geendet hat",
+      "aliases": [],
+      "riemenschneider": [
+        240
+      ]
+    },
+    "bwv425": {
+      "title": "Was willst du dich, o meine Seele, kränken",
+      "aliases": [],
+      "riemenschneider": [
+        241
+      ]
+    },
+    "bwv435": {
+      "title": "Wie bist du, Seele, in mir so gar betrübt",
+      "aliases": [],
+      "riemenschneider": [
+        242
+      ]
+    },
+    "bwv356": {
+      "title": "Jesu, du mein liebstes Leben",
+      "aliases": [],
+      "riemenschneider": [
+        243
+      ]
+    },
+    "bwv357": {
+      "title": "Jesu, Jesu, du bist mein",
+      "aliases": [],
+      "riemenschneider": [
+        244
+      ]
+    },
+    "bwv274": {
+      "title": "Christe, der du bist Tag und Licht",
+      "aliases": [],
+      "riemenschneider": [
+        245
+      ]
+    },
+    "bwv411": {
+      "title": "Singt dem Herrn ein neues Lied",
+      "aliases": [],
+      "riemenschneider": [
+        246
+      ]
+    },
+    "bwv432": {
+      "title": "Wenn wir in höchsten Nöten sein",
+      "aliases": [],
+      "riemenschneider": [
+        247
+      ]
+    },
+    "bwv177.4": {
+      "title": "Sei Lob und Ehr’ dem höchsten Gut",
+      "aliases": [],
+      "riemenschneider": [
+        248
+      ]
+    },
+    "bwv260": {
+      "title": "Allein Gott in der Höh’ sei Ehr’",
+      "aliases": [],
+      "riemenschneider": [
+        249
+      ]
+    },
+    "bwv303": {
+      "title": "Ein’ feste Burg ist unser Gott",
+      "aliases": [],
+      "riemenschneider": [
+        250
+      ]
+    },
+    "bwv345": {
+      "title": "Ich bin ja, Herr, in deiner Macht",
+      "aliases": [],
+      "riemenschneider": [
+        251
+      ]
+    },
+    "bwv362": {
+      "title": "Jesu, nun sei gepreiset",
+      "aliases": [],
+      "riemenschneider": [
+        252
+      ]
+    },
+    "bwv77.6": {
+      "title": "Ach Gott, vom Himmel sieh’ darein",
+      "aliases": [],
+      "riemenschneider": [
+        253
+      ]
+    },
+    "bwv25.6": {
+      "title": "Weg, mein Herz, mit den Gedanken",
+      "aliases": [
+        "Freu’ dich sehr, o meine Seele"
+      ],
+      "riemenschneider": [
+        254,
+        282
+      ]
+    },
+    "bwv64.4": {
+      "title": "Was frag’ ich nach der Welt",
+      "aliases": [],
+      "riemenschneider": [
+        255
+      ]
+    },
+    "bwv378": {
+      "title": "Mein’ Augen schließ’ ich jetzt in Gottes Namen zu",
+      "aliases": [],
+      "riemenschneider": [
+        258
+      ]
+    },
+    "bwv307": {
+      "title": "Es ist gewißlich an der Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        260
+      ]
+    },
+    "bwv158.4": {
+      "title": "Christ lag in Todesbanden",
+      "aliases": [],
+      "riemenschneider": [
+        261
+      ]
+    },
+    "bwv279": {
+      "title": "Christ lag in Todesbanden",
+      "aliases": [],
+      "riemenschneider": [
+        261
+      ]
+    },
+    "bwv2.6": {
+      "title": "Ach Gott, vom Himmel sieh’ darein",
+      "aliases": [],
+      "riemenschneider": [
+        262
+      ]
+    },
+    "bwv227.1": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        263
+      ]
+    },
+    "bwv227.11": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        263
+      ]
+    },
+    "bwv361": {
+      "title": "Jesu, meines Herzens Freud’",
+      "aliases": [],
+      "riemenschneider": [
+        264
+      ]
+    },
+    "bwv144.6": {
+      "title": "Was mein Gott will, das g’scheh’ allzeit",
+      "aliases": [],
+      "riemenschneider": [
+        265
+      ]
+    },
+    "bwv48.7": {
+      "title": "Herr Jesu Christ, du höchstes Gut",
+      "aliases": [],
+      "riemenschneider": [
+        266
+      ]
+    },
+    "bwv90.5": {
+      "title": "Vater unser im Himmelreich",
+      "aliases": [],
+      "riemenschneider": [
+        267
+      ]
+    },
+    "bwv389": {
+      "title": "Nun lob’, mein’ Seel’, den Herren",
+      "aliases": [],
+      "riemenschneider": [
+        268
+      ]
+    },
+    "bwv353": {
+      "title": "Jesu, der du meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        269
+      ]
+    },
+    "bwv161.6": {
+      "title": "Befiehl du deine Wege",
+      "aliases": [],
+      "riemenschneider": [
+        270
+      ]
+    },
+    "bwv315": {
+      "title": "Gib dich zufrieden und sei stille",
+      "aliases": [],
+      "riemenschneider": [
+        271
+      ]
+    },
+    "bwv348": {
+      "title": "Ich dank’ dir, lieber Herre",
+      "aliases": [],
+      "riemenschneider": [
+        272
+      ]
+    },
+    "bwv80.8": {
+      "title": "Ein’ feste Burg ist unser Gott",
+      "aliases": [],
+      "riemenschneider": [
+        273
+      ]
+    },
+    "bwv397": {
+      "title": "O Ewigkeit, du Donnerwort",
+      "aliases": [],
+      "riemenschneider": [
+        274
+      ]
+    },
+    "bwv393": {
+      "title": "O Welt, sieh’ hier dein Leben",
+      "aliases": [],
+      "riemenschneider": [
+        275
+      ]
+    },
+    "bwv375": {
+      "title": "Lobt Gott, ihr Christen allzugleich",
+      "aliases": [],
+      "riemenschneider": [
+        276
+      ]
+    },
+    "bwv340": {
+      "title": "Herzlich lieb hab’ ich dich, o Herr",
+      "aliases": [],
+      "riemenschneider": [
+        277
+      ]
+    },
+    "bwv436": {
+      "title": "Wie schön leuchtet der Morgenstern",
+      "aliases": [],
+      "riemenschneider": [
+        278
+      ]
+    },
+    "bwv48.3": {
+      "title": "Ach Gott und Herr, wie groß und schwer",
+      "aliases": [],
+      "riemenschneider": [
+        279
+      ]
+    },
+    "bwv304": {
+      "title": "Eins ist not, ach Herr, dies Eine",
+      "aliases": [],
+      "riemenschneider": [
+        280
+      ]
+    },
+    "bwv89.6": {
+      "title": "Wo soll ich fliehen hin",
+      "aliases": [],
+      "riemenschneider": [
+        281
+      ]
+    },
+    "bwv227.7": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        283
+      ]
+    },
+    "bwv127.5": {
+      "title": "Herr Jesu Christ, wahr’r Mensch und Gott",
+      "aliases": [],
+      "riemenschneider": [
+        284
+      ]
+    },
+    "bwv257": {
+      "title": "Wär’ Gott nicht mit uns diese Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        285
+      ]
+    },
+    "bwv270": {
+      "title": "Befiehl du deine Wege",
+      "aliases": [],
+      "riemenschneider": [
+        286
+      ]
+    },
+    "bwv331": {
+      "title": "Herr, ich habe mißgehandelt",
+      "aliases": [],
+      "riemenschneider": [
+        287
+      ]
+    },
+    "bwv314": {
+      "title": "Gelobet seist du, Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        288
+      ]
+    },
+    "bwv392": {
+      "title": "Nun ruhen alle Wälder",
+      "aliases": [],
+      "riemenschneider": [
+        289
+      ]
+    },
+    "bwv9.7": {
+      "title": "Es ist das Heil uns kommen her",
+      "aliases": [],
+      "riemenschneider": [
+        290
+      ]
+    },
+    "bwv94.8": {
+      "title": "Was frag’ ich nach der Welt",
+      "aliases": [],
+      "riemenschneider": [
+        291
+      ]
+    },
+    "bwv101.7": {
+      "title": "Nimm von uns, Herr, du treuer Gott",
+      "aliases": [],
+      "riemenschneider": [
+        292
+      ]
+    },
+    "bwv69.6-a": {
+      "title": "Was Gott tut, das ist wohlgetan",
+      "aliases": [],
+      "riemenschneider": [
+        293
+      ]
+    },
+    "bwv113.8": {
+      "title": "Herr Jesu Christ, du höchstes Gut",
+      "aliases": [],
+      "riemenschneider": [
+        294
+      ]
+    },
+    "bwv390": {
+      "title": "Nun lob’, mein’ Seel’, den Herren",
+      "aliases": [],
+      "riemenschneider": [
+        296
+      ]
+    },
+    "bwv78.7": {
+      "title": "Jesu, der du meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        297
+      ]
+    },
+    "bwv19.7": {
+      "title": "Weg, mein Herz, mit den Gedanken",
+      "aliases": [],
+      "riemenschneider": [
+        298
+      ]
+    },
+    "bwv380": {
+      "title": "Meinen Jesum laß ich nicht",
+      "aliases": [],
+      "riemenschneider": [
+        299
+      ]
+    },
+    "bwv421": {
+      "title": "Warum betrübst du dich, mein Herz",
+      "aliases": [],
+      "riemenschneider": [
+        300
+      ]
+    },
+    "bwv114.7": {
+      "title": "Ach, lieben Christen, seid getrost",
+      "aliases": [],
+      "riemenschneider": [
+        301
+      ]
+    },
+    "bwv96.6": {
+      "title": "Herr Christ, der ein’ge Gott’ssohn",
+      "aliases": [],
+      "riemenschneider": [
+        303
+      ]
+    },
+    "bwv5.7": {
+      "title": "Auf meinen lieben Gott",
+      "aliases": [],
+      "riemenschneider": [
+        304
+      ]
+    },
+    "bwv245.22": {
+      "title": "Mach’s mit mir, Gott, nach deiner Güt’",
+      "aliases": [],
+      "riemenschneider": [
+        310
+      ]
+    },
+    "bwv287": {
+      "title": "Dank sei Gott in der Höhe",
+      "aliases": [],
+      "riemenschneider": [
+        311
+      ]
+    },
+    "bwv398": {
+      "title": "O Gott, du frommer Gott",
+      "aliases": [],
+      "riemenschneider": [
+        312
+      ]
+    },
+    "bwv112.5": {
+      "title": "Allein Gott in der Höh’ sei Ehr’",
+      "aliases": [
+        "Der Herr ist mein getreuer Hirt"
+      ],
+      "riemenschneider": [
+        313,
+        353
+      ]
+    },
+    "bwv289": {
+      "title": "Das alte Jahr vergangen ist",
+      "aliases": [],
+      "riemenschneider": [
+        314
+      ]
+    },
+    "bwv399": {
+      "title": "O Gott, du frommer Gott",
+      "aliases": [],
+      "riemenschneider": [
+        315
+      ]
+    },
+    "bwv282": {
+      "title": "Christus, der ist mein Leben",
+      "aliases": [],
+      "riemenschneider": [
+        316
+      ]
+    },
+    "bwv156.6": {
+      "title": "Herr, wie du willst, so schick’s mit mir",
+      "aliases": [],
+      "riemenschneider": [
+        317
+      ]
+    },
+    "bwv323": {
+      "title": "Gott sei uns gnädig und barmherzig",
+      "aliases": [],
+      "riemenschneider": [
+        320
+      ]
+    },
+    "bwv40.3": {
+      "title": "Wir Christenleut’",
+      "aliases": [],
+      "riemenschneider": [
+        321
+      ]
+    },
+    "bwv428": {
+      "title": "Wenn mein Stündlein vorhanden ist",
+      "aliases": [],
+      "riemenschneider": [
+        322
+      ]
+    },
+    "bwv172.6": {
+      "title": "Wie schön leuchtet der Morgenstern",
+      "aliases": [],
+      "riemenschneider": [
+        323
+      ]
+    },
+    "bwv81.7": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        324
+      ]
+    },
+    "bwv83.5": {
+      "title": "Mit Fried’ und Freud’ ich fahr’ dahin",
+      "aliases": [],
+      "riemenschneider": [
+        325
+      ]
+    },
+    "bwv190.7": {
+      "title": "Jesu, nun sei gepreiset",
+      "aliases": [],
+      "riemenschneider": [
+        327
+      ]
+    },
+    "bwv251": {
+      "title": "Sei Lob und Ehr’ dem höchsten Gut",
+      "aliases": [],
+      "riemenschneider": [
+        329
+      ]
+    },
+    "bwv252": {
+      "title": "Nun danket alle Gott",
+      "aliases": [],
+      "riemenschneider": [
+        330
+      ]
+    },
+    "bwv136.6": {
+      "title": "Wo soll ich fliehen hin",
+      "aliases": [],
+      "riemenschneider": [
+        331
+      ]
+    },
+    "bwv418": {
+      "title": "Von Gott will ich nicht lassen",
+      "aliases": [],
+      "riemenschneider": [
+        332
+      ]
+    },
+    "bwv69.6": {
+      "title": "Es woll’ uns Gott genädig sein",
+      "aliases": [],
+      "riemenschneider": [
+        333
+      ]
+    },
+    "bwv327": {
+      "title": "Vor deinen Thron tret’ ich hiermit",
+      "aliases": [],
+      "riemenschneider": [
+        334
+      ]
+    },
+    "bwv155.5": {
+      "title": "Es ist das Heil uns kommen her",
+      "aliases": [],
+      "riemenschneider": [
+        335
+      ]
+    },
+    "bwv258": {
+      "title": "Wo Gott der Herr nicht bei uns hält",
+      "aliases": [],
+      "riemenschneider": [
+        336
+      ]
+    },
+    "bwv24.6": {
+      "title": "O Gott, du frommer Gott",
+      "aliases": [],
+      "riemenschneider": [
+        337
+      ]
+    },
+    "bwv145-a": {
+      "title": "Jesus, meine Zuversicht",
+      "aliases": [],
+      "riemenschneider": [
+        338
+      ]
+    },
+    "bwv179.6": {
+      "title": "Wer nur den lieben Gott läßt walten",
+      "aliases": [],
+      "riemenschneider": [
+        339
+      ]
+    },
+    "bwv272": {
+      "title": "Befiehl du deine Wege",
+      "aliases": [],
+      "riemenschneider": [
+        340
+      ]
+    },
+    "bwv37.6": {
+      "title": "Ich dank’ dir, lieber Herre",
+      "aliases": [],
+      "riemenschneider": [
+        341
+      ]
+    },
+    "bwv376": {
+      "title": "Lobt Gott, ihr Christen, allzugleich",
+      "aliases": [],
+      "riemenschneider": [
+        342
+      ]
+    },
+    "bwv11.6": {
+      "title": "Nun lieget alles unter dir",
+      "aliases": [],
+      "riemenschneider": [
+        343
+      ]
+    },
+    "bwv248.23-2": {
+      "title": "Vom Himmel hoch, da komm’ ich her",
+      "aliases": [],
+      "riemenschneider": [
+        344
+      ]
+    },
+    "bwv248.5": {
+      "title": "O Haupt voll Blut und Wunden",
+      "aliases": [],
+      "riemenschneider": [
+        345
+      ]
+    },
+    "bwv381": {
+      "title": "Meines Lebens letzte Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        346
+      ]
+    },
+    "bwv250": {
+      "title": "Was Gott tut, das ist wohlgetan",
+      "aliases": [],
+      "riemenschneider": [
+        347
+      ]
+    },
+    "bwv70.11": {
+      "title": "Meinen Jesum laß’ ich nicht, weil",
+      "aliases": [],
+      "riemenschneider": [
+        348
+      ]
+    },
+    "bwv360": {
+      "title": "Jesu, meiner Seelen Wonne",
+      "aliases": [],
+      "riemenschneider": [
+        350
+      ]
+    },
+    "bwv430": {
+      "title": "Wenn mein Stündlein vorhanden ist",
+      "aliases": [],
+      "riemenschneider": [
+        351
+      ]
+    },
+    "bwv312": {
+      "title": "Es woll’ uns Gott genädig sein",
+      "aliases": [],
+      "riemenschneider": [
+        352
+      ]
+    },
+    "bwv117.4": {
+      "title": "Sei Lob und Ehr’ dem höchsten Gut",
+      "aliases": [],
+      "riemenschneider": [
+        354
+      ]
+    },
+    "bwv44.7": {
+      "title": "Nun ruhen alle Wälder",
+      "aliases": [],
+      "riemenschneider": [
+        355
+      ]
+    },
+    "bwv358": {
+      "title": "Jesu, meine Freude",
+      "aliases": [],
+      "riemenschneider": [
+        356
+      ]
+    },
+    "bwv422": {
+      "title": "Warum sollt’ ich mich denn grämen",
+      "aliases": [],
+      "riemenschneider": [
+        357
+      ]
+    },
+    "bwv10.7": {
+      "title": "Meine Seel’ erhebt den Herren",
+      "aliases": [],
+      "riemenschneider": [
+        358
+      ]
+    },
+    "bwv261": {
+      "title": "Allein zu dir, Herr Jesu Christ",
+      "aliases": [],
+      "riemenschneider": [
+        359
+      ]
+    },
+    "bwv248.35-3": {
+      "title": "Wir Christenleut’",
+      "aliases": [],
+      "riemenschneider": [
+        360
+      ]
+    },
+    "bwv248.59-6": {
+      "title": "Es ist gewißlich an der Zeit",
+      "aliases": [],
+      "riemenschneider": [
+        362
+      ]
+    },
+    "bwv395": {
+      "title": "O Welt, sieh’ hier dein Leben",
+      "aliases": [],
+      "riemenschneider": [
+        363
+      ]
+    },
+    "bwv417": {
+      "title": "Von Gott will ich nicht lassen",
+      "aliases": [],
+      "riemenschneider": [
+        364
+      ]
+    },
+    "bwv359": {
+      "title": "Jesu, meiner Seelen Wonne",
+      "aliases": [],
+      "riemenschneider": [
+        365
+      ]
+    },
+    "bwv394": {
+      "title": "O Welt, sieh’ hier dein Leben",
+      "aliases": [],
+      "riemenschneider": [
+        366
+      ]
+    },
+    "bwv271": {
+      "title": "Befiehl du deine Wege",
+      "aliases": [],
+      "riemenschneider": [
+        367
+      ]
+    },
+    "bwv248.42-4": {
+      "title": "Hilf, Herr Jesu, laß gelingen",
+      "aliases": [],
+      "riemenschneider": [
+        368
+      ]
+    },
+    "bwv354": {
+      "title": "Jesu, der du meine Seele",
+      "aliases": [],
+      "riemenschneider": [
+        369
+      ]
+    },
+    "bwv74.8": {
+      "title": "Kommt her zu mir, spricht Gottes Sohn",
+      "aliases": [],
+      "riemenschneider": [
+        370
+      ]
+    },
+    "bwv278": {
+      "title": "Christ lag in Todesbanden",
+      "aliases": [],
+      "riemenschneider": [
+        371
+      ]
+    },
+    "bwv1.6": {
+      "title": "Wie schön leuchtet der Morgenstern",
+      "aliases": [],
+      "riemenschneider": [],
+      "source": "bwv1.6.mxl credit-words; normalized ö"
+    }
+  }
+}

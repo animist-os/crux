@@ -251,15 +251,17 @@ In Golden, `#pitchRegime` also takes a custom scale: semitones above the
 tonic, ascending, from 0 to 11, such as `// #pitchRegime 0 1 3 5 6 8 11`.
 Wad does not read this form.
 
+`#scaleDeformation` was removed from Golden in November 2026. Golden ignores
+it and logs one warning. Use a key lane, a half step or a custom scale.
+
 ### 2.3 Chromatic notes
 
-There are three mechanisms. Know which one a file uses.
+There are two mechanisms. Know which one a file uses.
 
 | Mechanism | Where | Status |
 |---|---|---|
 | **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Golden plays it as the degree below raised a semitone, added on top of any key lane. Wad rounds it down, so it plays as the natural degree. |
 | **Key lane** | A `// #keyLane` directive. Voices keep integer steps. | Golden (3.4) and Wad (4.3). |
-| **Scale deformation** | Golden's `#scaleDeformation` and timeline: seven semitone offsets, one per degree. | Legacy. Intended for removal. Do not use it in new programs. |
 
 The design intent: voices hold plain scale steps, so one mot can be transposed
 and reused. Inflection is applied afterwards, like the tonic.
@@ -281,7 +283,7 @@ and reused. Inflection is applied afterwards, like the tonic.
 | `modules/golden/golden_crux_ui.js` | The Crux panel: editor, directives, sections, playback |
 | `modules/golden/golden_crux_keylane.js` | Key lane logic (`golden.CruxKeyLane`) |
 | `modules/golden/golden_crux_examples.js` | `golden.AVAILABLE_CRUX_PROGRAMS`, the example library |
-| `modules/golden/golden_crux_global.js` | Legacy scale deformation and its timeline |
+| `modules/golden/golden_crux_global.js` | Shared globals `golden.MomentaryTonic` and `golden.METRIC_STRONG_BEATS` |
 | `modules/golden/golden_graphic_crux_ui.js` | Graphic Crux panel |
 | `modules/golden/golden_crux_fold.js`, `golden_crux_fold_ui.js`, `golden_crux_fold_panel.js` | Fold panel: spawn `CruxFold`, or "Open in Fold Panel" in the Crux panel menu (`golden.CruxFold`, see 1.8) |
 | `docs/crux-key-lane.md`, `docs/crux-rebuild.md` | Topic documents |
@@ -298,7 +300,7 @@ and reused. Inflection is applied afterwards, like the tonic.
   unless a `#target` line says otherwise.
 - Directives the panel reads: `bpm`, `quanta`, `pitchRegime`, `tonic`,
   `tuning`, `loop`, `swing`, `seed`, `minVel`, `maxVel`, `minDur`,
-  `metricPattern`, `eval`, `keyLane`, `scaleDeformation` (legacy), and per
+  `metricPattern`, `eval`, `keyLane`, and per
   section or sampler: `preset`, `octave`, `transposition`, `volume`, `reverb`,
   `delay`, `filterVerb`, `target`.
 - `// #loop 20m` sets the loop length in bars of the transport's meter. In
@@ -398,7 +400,7 @@ Wad is a native DAW. The facts below are from its `DESIGN.md` and
   the note is pitched in (the project key, or the program's own). Wad does not
   read the older `[degree | length]` form or `#meter` (it uses the project's
   meter map). Code: `Sources/Wad/CruxKeyLane.swift`.
-- **Not in Wad:** half-step playback, scale deformation.
+- **Not in Wad:** half-step playback, custom `#pitchRegime` scales.
 - **Self-test:** `CruxSelfTest.swift`.
 
 ## 5. Working method

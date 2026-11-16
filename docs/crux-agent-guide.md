@@ -215,14 +215,17 @@ They are analysis, and their rules will change.
   mirror, reverse and uniform stretch stack on one copy (`minLength`, default
   3). A rest breaks a run.
 - 7: a run that is still alone moves onto a part of a definition's own run
-  when the rhythm matches and only a few notes differ. Those notes keep their
-  step offset in `bent`.
-- 8: only themes stay (stated definitions that keep 3 or more of their own
-  pips). Short stated cells join the theme next to them. The rest goes to one
-  residue group.
-- Each note gets `pos[6]` to `pos[8]`, `bent` and `explainedBy` (`'program'`,
-  `'repeat'`, `'near'` or `null`). `thematic` lists the found repeats, the
-  near-misses, the layout units of stops 6 to 8 and the themes.
+  when the rhythm matches and only a few notes differ, by 2 steps at most.
+  Those notes keep their step offset in `bent`. Then themes fold onto themes
+  by the same rules.
+- 8: only themes stay, each as its own run (stated definitions that keep 3 or
+  more of their own pips). Short stated cells stack on a theme note. The rest
+  stacks on one residue marker.
+- Each note gets `pos[6]` to `pos[8]`, `bent`, `explainedBy` (`'program'`,
+  `'repeat'`, `'near'` or `null`) and `fold8` (where it sits at stop 8:
+  `theme`, `found`, `attached` or `residue`). `thematic` lists the found
+  repeats, the near-misses, the theme folds, the layout units of stops 6 to 8
+  with their note counts, the themes with their attachments, and the residue.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text.

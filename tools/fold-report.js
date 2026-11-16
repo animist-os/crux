@@ -52,19 +52,33 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
       g.occurrences.map(o => `${o.entry}${o.rep ? '*' : ''} ${steps(o.slots)}`).join(', '));
   }
   if (!th.found.length) lines.push('  none');
-  lines.push('', 'stop 7: near-misses (run -> theme)');
+  const how = x => [x.mirror && 'mirror', x.reverse && 'reverse', x.transpose && `* ${x.transpose}`,
+    x.stretch !== 1 && `|| ${+x.stretch.toFixed(3)}`].filter(Boolean).join(', ');
+  const bends = list => list.map(b => `${b.step}${b.bent > 0 ? '+' : ''}${b.bent}`).join(' ');
+  lines.push('', 'stop 7: near-misses (run -> theme cell; bent notes as step and bend)');
   for (const x of th.near) {
-    const how = [x.mirror && 'mirror', x.reverse && 'reverse', x.transpose && `* ${x.transpose}`, x.stretch !== 1 && `|| ${+x.stretch.toFixed(3)}`].filter(Boolean).join(', ');
-    lines.push(`  ${x.from} ${steps(x.slots)} -> ${x.theme}${how ? ' (' + how + ')' : ''}, ${x.bent} bent`);
+    lines.push(`  ${x.kind === 'edge' ? 'edge ' : ''}${x.from} ${steps(x.slots)} -> ${x.theme}${how(x) ? ' (' + how(x) + ')' : ''}, ` +
+      `${x.bent} bent${x.bentNotes.length ? ': ' + bends(x.bentNotes) : ''}`);
   }
   if (!th.near.length) lines.push('  none');
-  lines.push('', 'stop 8: themes and the notes each explains');
-  for (const t of th.themes) {
-    lines.push(`  ${String(t.id).padEnd(12)} ${t.kind.padEnd(6)} ${String(t.slots).padStart(3)} positions ${String(t.notes).padStart(5)} notes`);
+  lines.push('', 'stop 7: themes onto themes');
+  for (const f of th.themeFolds) {
+    lines.push(`  ${f.from} [${f.steps.join(', ')}] -> ${f.onto} [${f.ontoSteps.join(', ')}]${how(f) ? ' (' + how(f) + ')' : ''}, ` +
+      `${f.length} of ${f.of} notes, ${f.bent} bent${f.bentNotes.length ? ': ' + bends(f.bentNotes) : ''}` +
+      (f.leftover.length ? `, left over [${f.leftover.join(', ')}]` : ''));
   }
-  lines.push(`  ${'residue'.padEnd(12)} ${''.padEnd(6)} ${String(th.residue.slots).padStart(3)} positions ${String(th.residue.notes).padStart(5)} notes`);
+  if (!th.themeFolds.length) lines.push('  none');
+  lines.push('', 'stop 8: themes and the notes each explains (own run, then stacked cells)');
+  for (const t of th.themes) {
+    const att = t.attached.map(a => `${a.owner} ${a.notes}`).join(', ');
+    lines.push(`  ${String(t.id).padEnd(8)} ${t.kind.padEnd(6)} ${String(t.positions).padStart(3)} positions ${String(t.notes).padStart(5)} notes` +
+      (t.attachedNotes ? `  (${t.own} own, +${t.attachedNotes} attached: ${att})` : ''));
+  }
+  const rz = th.residue;
+  lines.push(`  ${'residue'.padEnd(8)} ${''.padEnd(6)} ${String(rz.positions).padStart(3)} positions ${String(rz.notes).padStart(5)} notes` +
+    (rz.cells.length ? `  (${rz.unexplained} not explained, cells with no theme: ${rz.cells.map(a => `${a.owner} ${a.notes}`).join(', ')})` : ''));
   const e = c.explained;
-  lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes)`);
+  lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes); ${c.attached} stacked as attachments`);
   lines.push('', `instance tree (to depth ${treeDepth})`);
   const walk = (node, depth) => {
     if (depth > treeDepth) return;

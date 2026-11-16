@@ -219,6 +219,39 @@ Rules as built (`src/fold/thematic.js`), after a first run on Invention 14:
   theme next to it (G) stays as its own small group.
 - Found shapes whose kept copy is not in a theme stay as their own group at
   stop 8.
+
+Second round (2026-11-16, after Andy saw it in the browser: stops 5 to 8 drew
+about the same number of pips, 96, 82, 63, 62 on v2):
+
+- Added, stop 7: themes fold onto themes. Theme cells (3 or more slots of a
+  stated entry, next to each other, still in place) are ranked by the notes
+  that land on them. Each tries to fold onto a cell ranked above it that is
+  still a theme, by the near-miss rules. The match must cover all of the
+  target, or all but one note of the theme that folds. A shared triad or
+  three notes of a scale is not enough: without this rule B folded onto N
+  through [-7, -5, -3]. A theme that folds stops being a theme. Its notes
+  count as near-misses (repeats when exact).
+- Added, stop 7: no note bends by more than 2 steps (a third). Without it a
+  match bent an octave leap by 5 steps.
+- Changed, stop 7: a run of 4 notes can have 2 bent notes when the durations
+  are equal (no stretch). Approved by Andy. It catches r3 as a B variant.
+- Added, stop 7: a single note left at the edge of a repeat or a near-miss
+  joins it as a bent note, when the target has a note there with the same
+  rhythm, that note is itself explained, and the match stays within the bent
+  limits. Approved by Andy. On v2 no note qualifies: the candidates (l7's -8,
+  r4's -2) bend by more than 2 steps.
+- Changed, stop 7: it always needs 3 or more notes, whatever `minLength` is.
+- Changed, stop 7: on a tie between transpositions, the smallest one.
+- Changed, stop 8: each theme shows its own run only. A short stated cell
+  stacks on one note of the theme next to it: its place in the theme's frame,
+  then the theme note nearest in time, then nearest in step. So an ending
+  stacks on the last note, a lead-in on the first. The notes of a theme that
+  folded and that are left over stack on the nearest matched note. The model
+  lists these as `attached` (owner and notes) for each theme.
+- Changed, stop 8: the residue is one marker, one position at step 0. Notes
+  no theme explains go there, and so do stated cells with no theme next to
+  them (G on v2), which stay explained by the program.
+  `counts.positions[8]` is the theme positions plus 1 for the marker.
 - Known limit: a bare top-level literal with no operator gives each pip its
   own entry at stop 5, so stop 6 sees no runs in it. Wrap a passage in a
   definition.

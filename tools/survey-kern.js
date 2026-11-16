@@ -8,6 +8,9 @@
 // search twice, and score both programs with tools/reduction-score.js.
 //
 //   half  accidentals written in the voices as half steps (the diatonic lens)
+// Before the search, all lengths are multiplied by one factor (the best grid of
+// tools/reduction-score.js), so the search does not pay for fractions.
+//
 //   lane  integer scale steps only. The accidentals are assumed to come from a
 //         key lane. Its cost is estimated from a greedy split of the piece into
 //         spans in which each degree has one inflection, and is added to the bits.
@@ -21,7 +24,7 @@ import { parseArgs } from 'node:util';
 import '../src/index.js';
 import { programBits } from '../src/refactor/cost.js';
 import { refactorVoices } from '../src/refactor/grammar.js';
-import { reductionScore } from './reduction-score.js';
+import { reductionScore, literalOnBestGrid } from './reduction-score.js';
 
 const L = 'CDEFGAB';
 /** One **kern file -> lanes of pips in both encodings, plus the greedy key-lane split. */
@@ -118,7 +121,12 @@ function surveyOne(file, outDir) {
   const row = { id, key: k.key.letter + (k.key.alter < 0 ? 'b' : k.key.alter > 0 ? '#' : '') + (k.key.minor ? ' minor' : ' major'),
     lanes: k.lanes, notes: k.notes, chromatic: k.chromatic, laneSpans: k.laneSpans, laneStates: k.laneStates,
     laneBits: Math.round(programBits(k.laneText).bits), graces: k.graces, doubleInflections: k.doubles };
-  for (const [name, voices] of [['half', k.voicesHalf], ['lane', k.voicesInt]]) {
+  // Put the music on its best grid before the search, so the most common note
+  // length is written without a fraction. The score uses the same grid.
+  const gridFactor = literalOnBestGrid(k.voicesHalf).gridFactor;
+  row.gridFactor = gridFactor;
+  for (const [name, raw] of [['half', k.voicesHalf], ['lane', k.voicesInt]]) {
+    const voices = raw.map(v => v.map(p => ({ ...p, timeScale: p.timeScale * gridFactor })));
     const r = refactorVoices(voices, { streams: 'joint' });
     row[name] = { verified: r.verified, ...reductionScore(r.code) };
     fs.writeFileSync(path.join(outDir, `${id}.${name}.crux`), r.code + '\n');

@@ -1,0 +1,105 @@
+// Bach, Invention No. 14 in B-flat major, BWV 785
+// #pitchRegime Major
+// #tonic 10
+// #tonicMidi 58
+// #lens diatonic
+// #keyFifths -2
+//
+// The same piece as bach-invention14.halfstep.crux, with integer scale steps
+// only. The chromatic notes are not in the voices. They come from the key lane
+// below, applied after interpretation (tools/key-lane.js, or Golden).
+//
+// Each lane entry is a bar address and a key. IV = E-flat major (A-flat),
+// V = F major (E natural), vi = G minor (F-sharp), ii = C minor (B natural,
+// A-flat), I = home. 1:4 is bar 1, beat 4. 15:-1 is one beat before bar 15.
+//
+// #meter 4/4
+// #quanta 16n
+// #keyLane 1 I, 1:4 IV, 3 I, 8 V, 9:3 vi, 10:3 IV, 11 ii, 12 I, 13 IV, 14 I, 15:-1 IV, 15 I, 17 IV, 18:3 I
+//
+// Steps are scale degrees of B-flat major, 0 = B-flat below middle C.
+// The right hand is written an octave low and lifted by the final * [7].
+//
+// An experiment. The same notes as bach-invention14.keylane.v2.crux, with
+// pitch and rhythm written apart (#quanta 16n). The first block holds steps
+// only. The second block holds lengths only: a bare | is one sixteenth, |2 is
+// two. The last lines join them with a cog, one length for each note.
+
+// Pitch. The theme: a turn (H), then a broken chord.
+H  = [0, 1, 2, 1, 0]
+T9 = H, [4, 2, 7, 4]
+T  = T9, [2]
+Hi = H m [0]
+Tu = T9, [9]
+A  = (T m [0]) @ [@8 -1, @9 -4]
+XT = [5, 3, 7, 5, 9]
+X  = H, XT
+Y  = Hi, (XT m [1/2])
+Y9 = Y \ 1
+S  = T, (A * [4]), (T * [-4]), Y, (X * [-6]), (T9 * [-3])
+B  = [0, -7, -5, -3, 0, r, r, -7, -4, -2, 0, r]
+E  = H, [3]
+U  = [r], H, [3, r]
+W  = [0, r], (Hi * [3])
+V  = H, [7, 6, 5]
+K  = [0], (Hi * [2])
+Q  = [0], (E * [2]), Hi
+N  = [0, 2, 0, -2]
+G  = [-3, -10]
+
+// Right hand, by passage
+r1 = [r], S
+r2 = (W * [2, 1, 0]), [-1], (Hi * [1]), [-3, r]
+r3 = (B * [4]), [r, -2, 0, 1, 3, r]
+r4 = [r], (Tu * [-3]), (Y9 * [3]), N, [-1, 4, -1, -3, -2], (T9 * [-6]), [2], (Hi * [-1]), [-5, -3, -7, -2]
+r5 = [-4, r], (V * [-6, -3, 0]), (Hi * [7])
+r6 = (K * [3, 1]), (Q * [-1, -2, -3, -4]), [-5]
+r7 = [r], T, (Hi * [4]), [0, 3, 0, 3, -2], (T * [-4]), Hi, [-4, 3], (Hi * [3]), [-3, 3], (E * [1]), (Hi * [2]), [-3, 0, 1, -1]
+r8 = [0]
+
+// Left hand, by passage
+l1 = B, [r, -7, -6, -4, -1, r]
+l2 = (U * [0, -1]), [r], (E * [-2]), (H * [-6]), G, [r, 1, -1, -3]
+l3 = [r], (S * [-3])
+l4 = (N * [-1, -3]), [-2], (Tu * [-9]), (Y9 * [-1]), (N * [-4, -7])
+l5 = [-6], (V * [-13, -10, -7, -4])
+l6 = (Hi * [3]), (K * [-1]), (Q * [-3, -4, -5, -6])
+l7 = [-7], T, (A * [4]), (T * [-4]), A, (H * [-10]), [-6, -8, -4, -6, -8], (A * [-6]), (H * [-7]), G
+l8 = [-7]
+
+// Rhythm cells
+o  = [|]                                // one sixteenth
+RH = [|/2, |/2, |/2, |/2, |]            // the turn
+R9 = RH, (o : 4)                        // theme without its last note
+RT = RH, (o : 5)                        // the theme and every figure shaped like it
+RE = RH, o
+RK = o, RH
+RQ = o, RE, RH
+RU = o, RH, [|2, |2]
+RW = [|2, |3], RH
+RV = RH, [|3, |, |]
+RN = [|2] : 4
+RG = [|2, |2]
+Rb = [|2, |2, |2, |2, |4, |4]          // one bar of the accompaniment
+RS = (RT : 5), R9                       // the subject
+
+// Rhythm, by passage. q1, q3 and q8 serve both hands.
+q1 = o, RS
+q2 = (RW : 3), o, RH, RG
+q3 = Rb : 3
+q4 = o, RT, R9, (RN : 2), o, R9, o, RH, (o : 4)
+q5 = [|2, |3], (RV : 3), RH
+q6 = (RK : 2), (RQ : 4), [|4]
+q7 = o, RT, RH, (o : 5), RT, RH, [|2, |3], RH, [|2, |3], RE, RH, (o : 4)
+q8 = [|16]
+m2 = (RU : 2), o, RE, RH, RG, (o : 4)
+m4 = (RN : 2), o, RT, R9, (RN : 2)
+m5 = o, (RV : 4)
+m6 = RH, RK, (RQ : 4)
+m7 = o, (RT : 4), RH, (o : 5), RT, RH, RG
+
+// Right hand
+((r1, r2, r3, r4, r5, r6, r7, r8) * [7]) . (q1, q2, q3, q4, q5, q6, q7, q8)
+!
+// Left hand
+(l1, l2, l3, l4, l5, l6, l7, l8) . (q3, m2, q1, m4, m5, m6, m7, q8)

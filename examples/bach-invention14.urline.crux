@@ -1,0 +1,106 @@
+// Bach, Invention No. 14 in B-flat major, BWV 785
+// #pitchRegime Major
+// #tonic 10
+// #tonicMidi 58
+// #lens diatonic
+// #keyFifths -2
+//
+// The same piece as bach-invention14.halfstep.crux, with integer scale steps
+// only. The chromatic notes are not in the voices. They come from the key lane
+// below, applied after interpretation (tools/key-lane.js, or Golden).
+//
+// Each lane entry is a bar address and a key. IV = E-flat major (A-flat),
+// V = F major (E natural), vi = G minor (F-sharp), ii = C minor (B natural,
+// A-flat), I = home. 1:4 is bar 1, beat 4. 15:-1 is one beat before bar 15.
+//
+// #meter 4/4
+// #quanta 16n
+// #keyLane 1 I, 1:4 IV, 3 I, 8 V, 9:3 vi, 10:3 IV, 11 ii, 12 I, 13 IV, 14 I, 15:-1 IV, 15 I, 17 IV, 18:3 I
+//
+// Steps are scale degrees of B-flat major, 0 = B-flat below middle C.
+// The right hand is written an octave low and lifted by the final * [7].
+//
+// An experiment. The same notes as bach-invention14.keylane.v2.crux on a grid
+// of sixteenth notes (#quanta 16n). A plain note is one sixteenth and needs no
+// length. The two halves of the turn, [0, 1]/ and [2, 1]/, each share one
+// sixteenth. A number after | counts sixteenths.
+
+// The theme: a turn (H), then a broken chord.
+H  = [[0, 1]/, [2, 1]/, 0]
+T9 = H, [4, 2, 7, 4]        // theme without its last note
+T  = T9, [2]                      // the ten-note theme
+Hi = H m [0]                            // inverted turn
+Tu = T9, [9]                      // theme, last note an octave higher
+
+// Inversion. The strict form, T m [0], ends [-4, -2] and never occurs.
+// Bach bends the last two notes toward the next entry (tonal inversion).
+// A is the strict form with its last two notes moved down 1 and 4 steps.
+A  = (T m [0]) @ [@8 -1, @9 -4]
+
+// Two freer forms that close the subject (m3). They share one tail, XT: a
+// falling third, the same a third higher, then 9. Y is the inverted turn with
+// XT mirrored about 1/2, that is 1 - XT, which gives [-4, -2, -6, -4, -8].
+XT = [5, 3, 7, 5, 9]
+X  = H, XT
+Y  = Hi, (XT m [1/2])
+Y9 = Y \ 1                              // Y without its last note (m10)
+
+// The subject: six units, three bars. Right hand at m1, left hand at m6.
+S  = T, (A * [4]), (T * [-4]), Y, (X * [-6]), (T9 * [-3])
+
+// Accompaniment to the first two theme entries (m1-2).
+B  = [0, -7, -5, -3, 0 | 2, r | 2, r, -7, -4, -2, 0 | 2, r | 2] || [2]
+
+// Episode cells, all built from the turn.
+E  = H, [3]                                     // turn, then up a fourth (m5, m14-16, m19)
+U  = [r], H, [3 | 2, r | 2]                 // m4, left hand
+W  = [0 | 2, r | 3], (Hi * [3])                   // m4, right hand
+V  = H, [7 | 3, 6, 5]                   // m12-13
+K  = [0], (Hi * [2])                            // m14
+Q  = [0], (E * [2]), Hi                        // m14-16 sequence
+
+// Two cells without the turn.
+N  = [0, 2, 0, -2] || [2]                           // a note, the third above, the note, the third below (m9-11)
+G  = [-3 | 2, -10 | 2]                            // cadence, F and the F an octave below (m5, m19)
+
+// Right hand, by passage
+// m1-3: the subject
+r1 = [r], S
+// m4-5: inverted turns answer the left hand
+r2 = (W * [2, 1, 0]), [-1], (Hi * [1]), [-3 | 2, r | 2]
+// m6-8: the hands swap, the accompaniment moves to the right hand
+r3 = (B * [4]), ([r, -2, 0, 1, 3 | 2, r | 2] || [2])
+// m9-11: theme in F, then modulating sevenths
+r4 = [r], (Tu * [-3]), (Y9 * [3]), N, ([-1, 4, -1, -3] || [2]), [-2], (T9 * [-6]), [2], (Hi * [-1]), [-5, -3, -7, -2]
+// m12-13: rising sequence, half a bar behind the left hand
+r5 = [-4 | 2, r | 3], (V * [-6, -3, 0]), (Hi * [7])
+// m14-16: falling sequence in parallel with the left hand
+r6 = (K * [3, 1]), (Q * [-1, -2, -3, -4]), [-5 | 4]
+// m16-19: return, theme in canon at the octave, half a bar after the left hand
+r7 = [r], T, (Hi * [4]), [0, 3, 0, 3, -2], (T * [-4]), Hi, [-4 | 2, 3 | 3], (Hi * [3]), [-3 | 2, 3 | 3], (E * [1]), (Hi * [2]), [-3, 0, 1, -1]
+// m20
+r8 = [0 | 16]
+
+// Left hand, by passage
+// m1-3
+l1 = B, ([r, -7, -6, -4, -1 | 2, r | 2] || [2])
+// m4-5: turns rising to a cadence in F
+l2 = (U * [0, -1]), [r], (E * [-2]), (H * [-6]), G, [r, 1, -1, -3]
+// m6-8: the subject in F, last note left to m9
+l3 = [r], (S * [-3])
+// m9-11: N in sequence before and after the theme
+l4 = (N * [-1, -3]), [-2], (Tu * [-9]), (Y9 * [-1]), (N * [-4, -7])
+// m12-13: rising sequence
+l5 = [-6], (V * [-13, -10, -7, -4])
+// m14-16: falling sequence
+l6 = (Hi * [3]), (K * [-1]), (Q * [-3, -4, -5, -6])
+// m16-19: return, theme on B-flat, tonal inversion, theme on E-flat
+l7 = [-7], T, (A * [4]), (T * [-4]), A, (H * [-10]), [-6, -8, -4, -6, -8], (A * [-6]), (H * [-7]), G
+// m20
+l8 = [-7 | 16]
+
+// Right hand
+(r1, r2, r3, r4, r5, r6, r7, r8) * [7]
+!
+// Left hand
+l1, l2, l3, l4, l5, l6, l7, l8

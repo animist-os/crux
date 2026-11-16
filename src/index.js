@@ -263,7 +263,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new GlobalPlaceholder();
   },
   PriExpr_ref(name) {
-    return new Ref(name.sourceString);
+    return new Ref(name.sourceString, name.source.startIdx);
   },
   PriExpr_pipAsMot(pip) {
     return new Mot([pip.parse()]);
@@ -430,20 +430,20 @@ const s = g.createSemantics().addOperation('parse', {
   },
   SingleValue_inlineMulRefMot(name, _h1, _star, _h2, motNode) {
     // Convert `ident * [mot]` inside a Mot into a NestedMotExpr of the Mul
-    const ref = new Ref(name.sourceString);
+    const ref = new Ref(name.sourceString, name.source.startIdx);
     const rhs = motNode.parse(); // Mot
     return new NestedMotExpr(new Mul(ref, rhs));
   },
   SingleValue_refInMot(name) {
     // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
-    return new NestedMotExpr(new Ref(name.sourceString));
+    return new NestedMotExpr(new Ref(name.sourceString, name.source.startIdx));
   },
   SingleValue_exprInMot(_op, expr, _cp) {
     // Parenthesized expression inside Mot; subdivide its evaluated Mot
     return new NestedMotExpr(expr.parse());
   },
   DiadValue_refInDiad(name) {
-    return new NestedMotExpr(new Ref(name.sourceString));
+    return new NestedMotExpr(new Ref(name.sourceString, name.source.startIdx));
   },
   DiadValue_exprInDiad(_op, expr, _cp) {
     return new NestedMotExpr(expr.parse());
@@ -513,7 +513,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   CurlyEntry_ref(name) {
-    return new Ref(name.sourceString);
+    return new Ref(name.sourceString, name.source.startIdx);
   },
 
   CurlyEntry_member(ma) {
@@ -2472,8 +2472,9 @@ function computeWarmupStepsForRandNum(value) {
 }
 
 class Ref {
-  constructor(name) {
+  constructor(name, pos = null) {
     this.name = name;
+    this.pos = pos; // source offset of the name (used by crux_trace)
   }
 
   eval(env) {
@@ -3933,6 +3934,16 @@ golden.crux_interp = function (input) {
 
   return { ...value, routing, samplers, directives };
 }
+
+// Internals for src/fold/trace.js (crux_trace). Not a public API.
+golden._cruxInternals = {
+  preprocessSource, Pip, Mot, NestedMot, NestedMotExpr, Ref, GlobalPlaceholder,
+  FollowedBy, Mul, Expand, RepeatByCount, Dot, Mirror, MotTimeScaleOp, AliasCall,
+  JamOp, DotJam, DotExpand, RotateOp, DotRotate, Steps, DotSteps, DotMirror,
+  Lens, DotLens, DotZip, ZipColumns, GlassOp, DotGlass, ReichOp, DotReich,
+  PaertOp, FoldOp, DisplaceOp, Subdivide, TieOp, DotTie, ConstraintOp,
+  DotConstraint, AtIndexOp, DropTransform,
+};
 
 // Find the pip at a specific character position in the source code.
 // Returns { pip, mot, motPath } or null if no pip found at that position.

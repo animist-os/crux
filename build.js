@@ -21,16 +21,31 @@
 // modules/golden/crux.js as a final step. Pass --no-install to skip that
 // step (useful for standalone crux development).
 //
+// Flags:
+//   --no-install  do not write modules/golden/crux.js
+//   --check       write nothing; exit 1 if dist/ or the installed copy does
+//                 not match the current source (timestamps are ignored)
+//   --watch       build, then rebuild each time src/ or package.json changes
+//
+// A build whose output differs from the file on disk only in its timestamp
+// leaves that file alone, so a no-op build does not dirty the working tree.
+//
 // modules/golden/crux.js is therefore a generated artifact - edits made
-// directly to it will be overwritten on the next build. See CRUX_UPDATE.md
-// in the disrupterbox repo root for the full workflow.
+// directly to it will be overwritten on the next build. See
+// docs/crux-rebuild.md in the disrupterbox repo for the full workflow.
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { spawn } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-console.log('🔨 Building Crux bundle...\n');
+const args = process.argv.slice(2);
+const checkOnly = args.includes('--check');
+const watchMode = args.includes('--watch');
+const skipInstall = args.includes('--no-install');
+
+console.log(checkOnly ? '🔎 Checking Crux bundles against source...\n' : '🔨 Building Crux bundle...\n');
 
 // Read package.json so we can stamp the version into the bundles.
 // crux/package.json is the single source of truth for the Crux version;
@@ -139,7 +154,7 @@ const dohBundle = `// ==========================================================
 // To change anything in this file, edit the corresponding source under
 // crux/src/ (or the template in crux/build.js) and re-run \`node build.js\`
 // from inside crux/. When run from a disrupterbox checkout, the build copies
-// the result back here. See CRUX_UPDATE.md in the disrupterbox repo root.
+// the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
 // Generated: ${generatedAt}
@@ -169,35 +184,79 @@ ${foldContent}
 });
 `;
 
-// Write both bundles
+// The two timestamp lines change on every build. Compare without them.
+const stripStamps = text => text
+  .replace(/^\/\/ Generated: .*$/m, '')
+  .replace(/^golden\.cruxBuiltAt = .*$/m, '');
+const isCurrent = (file, content) =>
+  fs.existsSync(file) && stripStamps(fs.readFileSync(file, 'utf8')) === stripStamps(content);
+
 const distDir = path.join(__dirname, 'dist');
-fs.mkdirSync(distDir, { recursive: true });
-
 const bundlePath = path.join(distDir, 'crux.cjs');
-fs.writeFileSync(bundlePath, bundle);
-
 const dohBundlePath = path.join(distDir, 'crux.doh.js');
-fs.writeFileSync(dohBundlePath, dohBundle);
-
-const stats = fs.statSync(bundlePath);
-const sizeKB = (stats.size / 1024).toFixed(2);
-
-const dohStats = fs.statSync(dohBundlePath);
-const dohSizeKB = (dohStats.size / 1024).toFixed(2);
-
-console.log(`\n✅ Bundles created successfully!`);
-console.log(`   📄 ${bundlePath} (${sizeKB} KB)`);
-console.log(`   📄 ${dohBundlePath} (${dohSizeKB} KB)`);
-
-// Auto-install into golden when running inside disrupterbox.
-// Skip with --no-install for standalone crux development.
-const skipInstall = process.argv.includes('--no-install');
 const goldenTarget = path.resolve(__dirname, '../modules/golden/crux.js');
-if (!skipInstall && fs.existsSync(path.dirname(goldenTarget))) {
-  fs.writeFileSync(goldenTarget, dohBundle);
-  console.log(`   📥 Installed → ${goldenTarget}`);
+const install = !skipInstall && fs.existsSync(path.dirname(goldenTarget));
+
+const outputs = [
+  [bundlePath, bundle],
+  [dohBundlePath, dohBundle],
+];
+if (install) outputs.push([goldenTarget, dohBundle]);
+
+if (checkOnly) {
+  const stale = outputs.filter(([file, content]) => !isCurrent(file, content)).map(([file]) => file);
+  if (stale.length) {
+    console.error('❌ Stale Crux bundle. These files do not match crux/src:');
+    for (const file of stale) console.error(`   ${file}`);
+    console.error('\n   Run `node build.js` in crux/ to rebuild.');
+    process.exit(1);
+  }
+  console.log('✅ Bundles match the current source.');
+  process.exit(0);
 }
 
-console.log(`\n💡 Usage:`);
-console.log(`   const golden = require('./dist/crux.cjs');`);
-console.log(`   // or in Doh: the dist/crux.doh.js bundle is consumed by modules/golden/crux.js\n`);
+fs.mkdirSync(distDir, { recursive: true });
+console.log('');
+for (const [file, content] of outputs) {
+  const sizeKB = (Buffer.byteLength(content) / 1024).toFixed(2);
+  if (isCurrent(file, content)) {
+    console.log(`   ⏸  unchanged ${file}`);
+  } else {
+    fs.writeFileSync(file, content);
+    console.log(`   ${file === goldenTarget ? '📥 Installed →' : '📄'} ${file} (${sizeKB} KB)`);
+  }
+}
+console.log('\n✅ Build complete.');
+
+// --watch: rebuild in a child process each time the source changes. A child
+// process keeps this script a plain top-to-bottom build, and a syntax error
+// in a rebuild does not stop the watcher.
+if (watchMode) {
+  const childArgs = [fileURLToPath(import.meta.url), ...args.filter(a => a !== '--watch')];
+  let timer = null;
+  let running = false;
+  let again = false;
+  const rebuild = () => {
+    if (running) { again = true; return; }
+    running = true;
+    console.log(`\n♻️  ${new Date().toLocaleTimeString()} source changed, rebuilding...`);
+    const child = spawn(process.execPath, childArgs, { stdio: ['ignore', 'ignore', 'inherit'] });
+    child.on('exit', code => {
+      running = false;
+      console.log(code === 0 ? '   ✅ rebuilt' : `   ❌ build failed (exit ${code})`);
+      if (again) { again = false; rebuild(); }
+    });
+  };
+  const onChange = (event, filename) => {
+    if (filename && /(^|[\\/])\.|~$/.test(String(filename))) return; // dotfiles, editor backups
+    clearTimeout(timer);
+    timer = setTimeout(rebuild, 150);
+  };
+  fs.watch(path.join(__dirname, 'src'), { recursive: true }, onChange);
+  fs.watch(pkgPath, onChange);
+  console.log('\n👀 Watching crux/src and package.json. Ctrl+C to stop.');
+} else {
+  console.log(`\n💡 Usage:`);
+  console.log(`   const golden = require('./dist/crux.cjs');`);
+  console.log(`   // or in Doh: the dist/crux.doh.js bundle is consumed by modules/golden/crux.js\n`);
+}

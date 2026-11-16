@@ -13,10 +13,10 @@
 // To change anything in this file, edit the corresponding source under
 // crux/src/ (or the template in crux/build.js) and re-run `node build.js`
 // from inside crux/. When run from a disrupterbox checkout, the build copies
-// the result back here. See CRUX_UPDATE.md in the disrupterbox repo root.
+// the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
-// Generated: 2026-11-16T21:34:19.532Z
+// Generated: 2026-11-16T23:35:14.897Z
 // =============================================================================
 Doh.Module('crux', [
   'ohm',
@@ -4409,7 +4409,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.0.0";
-golden.cruxBuiltAt = "2026-11-16T21:34:19.532Z";
+golden.cruxBuiltAt = "2026-11-16T23:35:14.897Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine

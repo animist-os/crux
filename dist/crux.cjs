@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-16T21:34:19.532Z
+// Generated: 2026-11-16T23:35:14.897Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4399,7 +4399,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.0.0";
-golden.cruxBuiltAt = "2026-11-16T21:34:19.532Z";
+golden.cruxBuiltAt = "2026-11-16T23:35:14.897Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine

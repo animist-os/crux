@@ -215,6 +215,7 @@ export function foldModel(trace, options = {}) {
     n.pos.push(...th.notes[k].pos);
     n.bent = th.notes[k].bent;
     n.explainedBy = th.notes[k].explainedBy;
+    n.fold8 = th.notes[k].fold8;
   });
 
   // Counts.
@@ -230,6 +231,7 @@ export function foldModel(trace, options = {}) {
     pipsWritten: distinct(n => pk(n, 5)),
     entries: entryList.length,
     explained: th.summary.explained,
+    attached: th.summary.attachedNotes,
   };
   counts.positions[0] = counts.positions[1];
   counts.leverage = counts.pipsWritten ? counts.notes / counts.pipsWritten : 0;

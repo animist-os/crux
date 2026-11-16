@@ -151,6 +151,65 @@ throws with "Line L, col C".
 
 In ES modules: `import './src/index.js'` then `globalThis.golden.crux_interp`.
 
+### 1.8 Trace and fold
+
+`golden.crux_trace(source)` returns the `crux_interp` result, with two more
+fields (`trace: true`, `unseededRandom`) and an `origin` on each pip.
+`crux_interp` itself is not changed. The code is in `src/fold/trace.js`.
+
+`origin` is the outermost frame of a linked list. `frame.next` is the next
+inner frame. `golden.crux_trace_frames(pip)` gives the frames as an array,
+innermost first. The innermost frame is the literal, or an operator that made
+a new pip from nothing the trace can follow.
+
+```
+{ kind: 'lit', pos, step, ts, tag }               the literal pip
+{ kind: 'ref', name, use, index, pos }            passed through definition `name`
+{ kind: 'op', op, app, copy, index, arg, exact }  passed through an operator
+```
+
+- `pos` is an offset in the source. For a reference it is the name at the
+  place of use.
+- `use` is the same for all pips of one evaluation of one reference. A macro
+  used twice gives two `use` values. `app` does the same for one evaluation of
+  an operator.
+- `index` is the pip's place in the operand (op) or in the definition's value
+  (ref). `copy` is the fan copy. `arg` is the right-hand pip that applied
+  (`{ step, ts }`). `reverse: true` marks a copy played backwards.
+- `exact: true` for `*`, `^`, `.`, `m`, `||`, `,` and `:` with a random count.
+  `: N` with a number is `* [0, ...]` and writes a `*` frame. The fold can undo
+  these.
+- Every other operator writes one frame with `exact: false`. If the pip went
+  through unchanged, the frame has `kept: true`. If not, it has `out`, the
+  pip's step and timeScale after the operator.
+- A `_` global statement adds an `op: '_'` frame, with the frames of its
+  operators outside it.
+
+`golden.crux_fold(source)` (or `golden.crux_fold_model(trace)`, from
+`src/fold/model.js`) turns a trace into plain data for a viewer. It throws if
+the program has random choices without a seed.
+
+- `notes`: one per sounding pip. `pos[1]` to `pos[5]` are `{ t, step, d }` at
+  stops 1 to 5. Stop 0 is the host's: it adds regime, tonic and key lane to
+  stop 1. `owner` is the innermost definition the note came through. `entry`
+  is its dictionary entry, `instance` its instance, `litPos` and `refPos` are
+  source offsets. A diad is one note with `diad` offsets.
+- The stops: 1 scale steps; 2 transposition removed; 3 mirror, reverse and
+  stretch removed; 4 equal instances stacked on the first in the voice; 5 one
+  copy of each shape, side by side in source order (one layout for all voices).
+- `dictionary`: one entry per distinct shape, with `count`, `pips`, `slot`
+  (stop 5 position) and `residue` (no definition, used once).
+- `instances`: one tree per voice. Nodes are definition uses (`ref`),
+  operator copies (`op`) and runs of literal pips (`lit`), each with a time
+  span, a pip range and `level` (the number of definitions above it).
+- `counts`: `notes`, `pipsWritten`, `leverage`, and `shapes` and `positions`
+  per stop.
+
+A note changed by an operator with `exact: false` is `edited`. Its owner is
+the innermost definition outside that operator.
+
+`node tools/fold-report.js program.crux` prints the model as text.
+
 ## 2. What a host must decide
 
 Crux gives steps and timeScales. A host turns them into notes.
@@ -200,6 +259,7 @@ and reused. Inflection is applied afterwards, like the tonic.
 | `modules/golden/golden_crux_examples.js` | `golden.AVAILABLE_CRUX_PROGRAMS`, the example library |
 | `modules/golden/golden_crux_global.js` | Legacy scale deformation and its timeline |
 | `modules/golden/golden_graphic_crux_ui.js` | Graphic Crux panel |
+| `modules/golden/golden_crux_fold.js`, `golden_crux_fold_ui.js` | Fold mode of the graphic panel (`golden.CruxFold`, see 1.8) |
 | `docs/crux-key-lane.md`, `docs/crux-rebuild.md` | Topic documents |
 
 ### 3.3 Behaviour

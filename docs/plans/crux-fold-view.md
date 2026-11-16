@@ -1,6 +1,7 @@
 # Crux fold view
 
-Status: plan, not started. Written 2026-11-16.
+Status: PRs 1 to 3 done, PRs 4 and 5 implemented with the browser check
+pending. Written 2026-11-16.
 
 ## Purpose
 
@@ -53,31 +54,60 @@ definitions and operators it went through.
 A new entry point, `golden.crux_trace(source)`. `crux_interp` keeps its
 signature and its result. Without the trace, the evaluator does no extra work.
 
-Each output pip gets an `origin`: a linked list of frames, innermost first.
+Each output pip gets an `origin`: a linked list of frames. `origin` is the
+outermost frame and `frame.next` the next inner one, so pips share their inner
+frames. `golden.crux_trace_frames(pip)` gives them innermost first.
 
 ```
-{ kind: 'lit', pos }                          the literal pip
-{ kind: 'ref', name, use, index, pos }        passed through definition `name`
-{ kind: 'op',  op, arg, copy, index, exact }  passed through an operator
+{ kind: 'lit', pos, step, ts, tag }                the literal pip
+{ kind: 'ref', name, use, index, pos }             passed through definition `name`
+{ kind: 'op',  op, app, arg, copy, index, exact }  passed through an operator
 ```
 
 - `use` is a number unique to one evaluation of one reference, so all pips of
   one instance share it.
 - `arg` is the right operand pip that applied (step and timeScale). `copy` is
   the fan index.
+- `app` is unique to one evaluation of one operator. `reverse: true` marks a
+  fan copy played backwards.
 - `exact: true` means the operator keeps a one-to-one map from input pip to
   output pip, and the fold can undo it. First set: `*`, `.`, `m`, `||`, `^`,
-  `:`, `,`.
-- All other operators write one frame with `exact: false`. The view draws
-  those pips as edited, and does not animate them.
+  `:`, `,`. `: N` with a number parses as `* [0, ...]` and writes a `*` frame.
+  `.` with a subdividing right side is not one-to-one and writes a generic
+  frame.
+- All other operators write one frame with `exact: false`. A pip that goes
+  through unchanged gets `kept: true` and the fold treats the frame as absent.
+  A changed pip gets `out` (its value after the operator). The view draws
+  those pips as edited.
+- A `_` global statement writes an `op: '_'` frame. The frames of its
+  operators sit outside it, so they are the outermost frames of each voice.
 
-Changes needed: `Ref` stores its source offset. `Pip.add`, `Pip.mul` and
-`Pip.clone` carry `origin`. `Ref.eval` and the exact operators add frames
-when the trace is on.
+As built: `Ref` stores its source offset (one constructor argument). Nothing
+else in the evaluator changes. `crux_trace` (in `src/fold/trace.js`) wraps the
+evaluator's `eval` methods and `Pip.mul`, `Pip.expand` and `Pip.withDiad` for
+the length of one call, and takes them away after. Each wrapped `eval` records
+the results of the evaluations it makes directly, so an operator knows its
+operands without re-evaluating them. `crux_interp` does no extra work.
+`index.js` exposes its classes as `golden._cruxInternals` for this.
+`Math.random` is wrapped too, which is how the trace knows that a program
+used a random choice without a seed.
 
 ### 2. Fold model (crux repo, no DOM)
 
-`src/fold/model.js`: `foldModel(trace)` returns plain data.
+`src/fold/model.js`: `foldModel(trace)` returns plain data. `golden.crux_fold(source)`
+is `foldModel(crux_trace(source))`.
+
+A note's owner is the innermost definition it passed through. Frames inside
+the owner are the definition's body and always apply. Frames outside it place
+the instance, and the stops remove them: stop 2 the step part of `*`, `.` and
+`m`, stop 3 all of them (mirror, `^`, timeScale parts, reverse). At stop 3
+each instance's notes are laid out in the definition's own order and
+durations, from the instance's start. At stop 4 each note moves to the first
+instance of its dictionary entry in the same voice. At stop 5 the entries sit
+side by side in source order, in one layout for all voices. Two instances are
+one entry if they have the same owner and the same shape at stop 3. A note
+changed by an operator with `exact: false` is edited. Its owner is the
+innermost definition outside that operator.
 
 - `instances`: a tree per voice. Each node is a definition use or a run of
   literal pips, with its time span, pip range and transform chain.
@@ -86,7 +116,8 @@ when the trace is on.
   regime, tonic and key lane inflection to the stop 1 position.
 - `dictionary`: one entry per distinct shape, with its count and its slot in
   the folded layout. Entries with count 1 and no parent definition are residue.
-- `counts`: notes, shapes left at each stop, pips written.
+- `counts`: notes, shapes and note positions left at each stop, pips written
+  (positions at stop 5), leverage (notes per pip written).
 
 ### 3. Hosts
 
@@ -100,17 +131,20 @@ when the trace is on.
 
 ## PR sequence
 
-1. [ ] crux: trace. `crux_trace`, frames for `ref` and the exact operators,
+1. [x] crux: trace. `crux_trace`, frames for `ref` and the exact operators,
    generic frame for the rest. Tests: for every file in `examples/`, the pips
    of `crux_trace` equal the pips of `crux_interp`. `crux_interp` output is
    unchanged.
-2. [ ] crux: fold model. Test on the Invention 14 subject: 59 notes fold to
+2. [x] crux: fold model. Test on the Invention 14 subject: 59 notes fold to
    25 pips. Six uses of the turn stack on one shape.
-3. [ ] crux: `tools/fold-report.js` (text dump of the model for one program)
+3. [x] crux: `tools/fold-report.js` (text dump of the model for one program)
    and a section in `docs/crux-agent-guide.md`.
-4. [ ] Golden: fold mode with roll, slider and counters. Check with
-   `ui-verify`.
-5. [ ] Golden: derivation strip and editor linking.
+4. [~] Golden: fold mode with roll, slider and counters. Check with
+   `ui-verify`. Implemented, browser check pending. Core in
+   `modules/golden/golden_crux_fold.js` (node test next to it), view in
+   `golden_crux_fold_ui.js`, a `fold` button on the ribbon.
+5. [~] Golden: derivation strip and editor linking. Implemented, browser
+   check pending.
 6. [ ] Wad: bundle rebuild, `wadCrux.fold`, Swift view (own plan).
 7. [ ] Optional: near-miss ghost. For a literal mot that is close to a
    transform of a definition, overlay the strict transform and mark the
@@ -121,11 +155,10 @@ behaviour. Wad gets them only when its bundle is rebuilt.
 
 ## Open questions
 
-- Random choices: the trace needs a fixed seed, or the view changes on each
-  run. Proposal: the model refuses unseeded programs, and the host offers to
-  freeze the seeds.
-- `_` global statements apply after the voices are evaluated. Proposal: one
-  outer `op` frame per voice.
-- Diads: one pip, several notes. Proposal: the notes move together.
+- Decided (Andy, 2026-11-16): the fold model refuses programs with unseeded
+  random choices. The host offers to freeze the seeds.
+- Done as proposed: `_` global statements give one outer `op` frame per voice.
+- Done as proposed: a diad is one note, and its notes move together.
 - Where the folded dictionary sits: at the left of the roll (as in the
-  sketch) or in its own panel.
+  sketch) or in its own panel. As built: in the roll. At stop 5 the voices
+  merge into one lane and the entries sit side by side from the left.

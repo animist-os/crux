@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-16T15:34:40.967Z
+// Generated: 2026-11-16T16:30:39.867Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -581,7 +581,7 @@ const s = g.createSemantics().addOperation('parse', {
     return new GlobalPlaceholder();
   },
   PriExpr_ref(name) {
-    return new Ref(name.sourceString);
+    return new Ref(name.sourceString, name.source.startIdx);
   },
   PriExpr_pipAsMot(pip) {
     return new Mot([pip.parse()]);
@@ -748,20 +748,20 @@ const s = g.createSemantics().addOperation('parse', {
   },
   SingleValue_inlineMulRefMot(name, _h1, _star, _h2, motNode) {
     // Convert `ident * [mot]` inside a Mot into a NestedMotExpr of the Mul
-    const ref = new Ref(name.sourceString);
+    const ref = new Ref(name.sourceString, name.source.startIdx);
     const rhs = motNode.parse(); // Mot
     return new NestedMotExpr(new Mul(ref, rhs));
   },
   SingleValue_refInMot(name) {
     // Treat bare identifier inside a Mot as a nested subdivision of the referenced motif
-    return new NestedMotExpr(new Ref(name.sourceString));
+    return new NestedMotExpr(new Ref(name.sourceString, name.source.startIdx));
   },
   SingleValue_exprInMot(_op, expr, _cp) {
     // Parenthesized expression inside Mot; subdivide its evaluated Mot
     return new NestedMotExpr(expr.parse());
   },
   DiadValue_refInDiad(name) {
-    return new NestedMotExpr(new Ref(name.sourceString));
+    return new NestedMotExpr(new Ref(name.sourceString, name.source.startIdx));
   },
   DiadValue_exprInDiad(_op, expr, _cp) {
     return new NestedMotExpr(expr.parse());
@@ -831,7 +831,7 @@ const s = g.createSemantics().addOperation('parse', {
   },
 
   CurlyEntry_ref(name) {
-    return new Ref(name.sourceString);
+    return new Ref(name.sourceString, name.source.startIdx);
   },
 
   CurlyEntry_member(ma) {
@@ -2790,8 +2790,9 @@ function computeWarmupStepsForRandNum(value) {
 }
 
 class Ref {
-  constructor(name) {
+  constructor(name, pos = null) {
     this.name = name;
+    this.pos = pos; // source offset of the name (used by crux_trace)
   }
 
   eval(env) {
@@ -4252,6 +4253,16 @@ golden.crux_interp = function (input) {
   return { ...value, routing, samplers, directives };
 }
 
+// Internals for src/fold/trace.js (crux_trace). Not a public API.
+golden._cruxInternals = {
+  preprocessSource, Pip, Mot, NestedMot, NestedMotExpr, Ref, GlobalPlaceholder,
+  FollowedBy, Mul, Expand, RepeatByCount, Dot, Mirror, MotTimeScaleOp, AliasCall,
+  JamOp, DotJam, DotExpand, RotateOp, DotRotate, Steps, DotSteps, DotMirror,
+  Lens, DotLens, DotZip, ZipColumns, GlassOp, DotGlass, ReichOp, DotReich,
+  PaertOp, FoldOp, DisplaceOp, Subdivide, TieOp, DotTie, ConstraintOp,
+  DotConstraint, AtIndexOp, DropTransform,
+};
+
 // Find the pip at a specific character position in the source code.
 // Returns { pip, mot, motPath } or null if no pip found at that position.
 // motPath is a string like "sections[0].values[2]" for structural tracking.
@@ -4388,7 +4399,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.0.0";
-golden.cruxBuiltAt = "2026-11-16T15:34:40.967Z";
+golden.cruxBuiltAt = "2026-11-16T16:30:39.867Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -5606,6 +5617,551 @@ golden.decompose = function (input, options = {}) {
   const candidates = discover(pips, features);
   return assemble(pips, candidates);
 };
+
+
+// === Fold view ===
+// --- src/fold/trace.js ---
+(function () {
+// Crux trace: where each output pip came from.
+//
+//   golden.crux_trace(source) -> the crux_interp result, plus for each pip an
+//   `origin`: the outermost frame of a linked list of frames (frame.next is the
+//   next inner frame, the last one is the literal). golden.crux_trace_frames(pip)
+//   returns the frames as an array, innermost first.
+//
+// Frames:
+//   { kind: 'lit', pos, step, ts, tag }              the literal pip
+//   { kind: 'ref', name, use, index, pos }           passed through definition `name`
+//   { kind: 'op', op, app, copy, index, arg, exact } passed through an operator
+//
+// `use` is unique to one evaluation of one reference. `app` is unique to one
+// evaluation of one operator. `index` is the pip's position in the operand (op)
+// or in the definition's value (ref). `pos` values are offsets in the source
+// as given. Op frames can also carry `reverse` (fan copy played backwards),
+// `kept` (non-exact operator passed this pip through unchanged) and `out`
+// (non-exact operator: the pip's step and timeScale after the operator).
+//
+// The trace works by wrapping the evaluator's methods for the length of one
+// call. crux_interp is not changed and does no extra work. Pips that the
+// evaluator shares between uses are never changed: a frame is added to a copy.
+const EXACT = { FollowedBy: ',', Mul: '*', Expand: '^', RepeatByCount: ':', Dot: '.', Mirror: 'm', MotTimeScaleOp: '||' };
+const GENERIC = {
+  JamOp: 'j', DotJam: '.j', DotExpand: '.^', RotateOp: '~', DotRotate: '.~', Steps: '->', DotSteps: '.->',
+  DotMirror: '.m', Lens: 'l', DotLens: '.l', DotZip: '.,', ZipColumns: 'zip', GlassOp: 'g', DotGlass: '.g',
+  ReichOp: 'r', DotReich: '.r', PaertOp: 'p', FoldOp: 'f', DisplaceOp: '>>', Subdivide: '/', TieOp: 't',
+  DotTie: '.t', ConstraintOp: 'c', DotConstraint: '.c', AtIndexOp: '@', DropTransform: '\\',
+};
+
+let T = null; // trace state while a trace runs
+
+function isMotLike(v) {
+  return v != null && typeof v === 'object' && Array.isArray(v.values);
+}
+
+function clonePip(p, origin) {
+  const q = Object.assign(Object.create(Object.getPrototypeOf(p)), p);
+  q.origin = origin;
+  return q;
+}
+
+function withValues(mot, values) {
+  const m = Object.assign(Object.create(Object.getPrototypeOf(mot)), mot);
+  m.values = values;
+  return m;
+}
+
+function mapPos(pos) {
+  if (typeof pos !== 'number') return null;
+  return T.positionMap && T.positionMap[pos] != null ? T.positionMap[pos] : pos;
+}
+
+function litFrame(p) {
+  return { kind: 'lit', pos: mapPos(p.sourcePos), step: p.step, ts: p.timeScale, tag: p.tag ?? null, next: null };
+}
+
+function originOf(p) {
+  return p && p.origin ? p.origin : null;
+}
+
+function motChildren(cap) {
+  return cap.filter(isMotLike);
+}
+
+// Exact operators: output pip k comes from operand pip srcs[k].
+function exactMap(name, node, out, cap) {
+  const kids = motChildren(cap);
+  const n = out.values.length;
+  const app = ++T.app;
+  const op = EXACT[name];
+  const res = new Array(n);
+  const put = (k, src, extra) => {
+    res[k] = clonePip(out.values[k], { kind: 'op', op, app, exact: true, ...extra, next: originOf(src) });
+  };
+  if (name === 'FollowedBy') {
+    const [a, b] = kids;
+    if (!a || !b || a.values.length + b.values.length !== n) return null;
+    a.values.forEach((p, i) => put(i, p, { copy: 0, index: i, arg: null }));
+    b.values.forEach((p, i) => put(a.values.length + i, p, { copy: 1, index: i, arg: null }));
+    return res;
+  }
+  if (name === 'Mul' || name === 'Expand') {
+    const [x0, y, ...more] = kids;
+    if (!x0 || !y) return null;
+    let k = 0, extra = 0;
+    for (let c = 0; c < y.values.length; c++) {
+      const yi = y.values[c];
+      const reverse = yi.timeScale < 0;
+      const absTs = Math.abs(yi.timeScale);
+      let base = x0;
+      if (name === 'Mul' && yi.step === 0 && absTs === 1 && !yi.tag) base = more[extra++];
+      if (!base) return null;
+      const m = base.values.length;
+      for (let j = 0; j < m; j++) {
+        if (k >= n) return null;
+        const index = reverse ? m - 1 - j : j;
+        put(k++, base.values[index], { copy: c, index, arg: { step: yi.step, ts: absTs }, reverse });
+      }
+    }
+    return k === n ? res : null;
+  }
+  if (name === 'RepeatByCount') {
+    const [x] = kids;
+    const m = x ? x.values.length : 0;
+    if (!m || n % m !== 0) return null;
+    for (let k = 0; k < n; k++) put(k, x.values[k % m], { copy: Math.floor(k / m), index: k % m, arg: null });
+    return res;
+  }
+  if (name === 'Mirror') {
+    const [x, y] = kids;
+    if (!x || !y || x.values.length * y.values.length !== n) return null;
+    const m = x.values.length;
+    for (let k = 0; k < n; k++) {
+      const r = y.values[Math.floor(k / m)];
+      put(k, x.values[k % m], { copy: Math.floor(k / m), index: k % m, arg: { step: r.step, ts: r.timeScale } });
+    }
+    return res;
+  }
+  if (name === 'Dot' || name === 'MotTimeScaleOp') {
+    const [x] = kids;
+    if (!x || x.values.length !== n) return null;
+    for (let k = 0; k < n; k++) {
+      const a = x.values[k], b = out.values[k];
+      const ts = a.timeScale ? b.timeScale / a.timeScale : 1;
+      const arg = name === 'Dot' ? { step: b.step - a.step, ts } : { step: 0, ts };
+      put(k, a, { copy: 0, index: k, arg });
+    }
+    return res;
+  }
+  return null;
+}
+
+function sameValue(a, b) {
+  return a.step === b.step && a.timeScale === b.timeScale && (a.tag ?? null) === (b.tag ?? null);
+}
+
+// Every other operator: one frame per pip, exact: false.
+function genericMap(op, out, cap) {
+  const kids = motChildren(cap);
+  const x = kids[0];
+  const app = ++T.app;
+  const xs = x ? x.values : [];
+  const byObj = new Map(xs.map((p, i) => [p, i]));
+  return out.values.map((p, k) => {
+    let index = byObj.has(p) ? byObj.get(p) : -1;
+    if (index < 0 && p.origin) index = xs.findIndex(q => q.origin === p.origin && sameValue(p, q));
+    if (index >= 0) {
+      return clonePip(p, { kind: 'op', op, app, exact: false, kept: true, copy: 0, index, arg: null, next: originOf(xs[index]) });
+    }
+    // Changed pip: keep the operand pip it came from, when that can be known.
+    let next = originOf(p);
+    let from = -1;
+    if (!next && xs.length === out.values.length) { from = k; next = originOf(xs[k]); }
+    if (next && from < 0) from = xs.findIndex(q => q.origin === next);
+    return clonePip(p, {
+      kind: 'op', op, app, exact: false, kept: false, copy: 0, index: from, arg: null,
+      out: { step: p.step, ts: p.timeScale }, next,
+    });
+  });
+}
+
+function post(name, node, out, cap) {
+  if (!isMotLike(out)) return out;
+  const vals = out.values;
+  if (name === 'Mot') {
+    if (!vals.some(p => !p.origin)) return out;
+    return withValues(out, vals.map(p => (p.origin ? p : clonePip(p, litFrame(p)))));
+  }
+  if (name === 'Ref') {
+    const use = ++T.use;
+    const pos = mapPos(node.pos);
+    return withValues(out, vals.map((p, index) =>
+      clonePip(p, { kind: 'ref', name: node.name, use, index, pos, next: originOf(p) || litFrame(p) })));
+  }
+  if (name === 'GlobalPlaceholder') {
+    const app = ++T.app;
+    return withValues(out, vals.map((p, index) =>
+      clonePip(p, { kind: 'op', op: '_', app, exact: true, copy: 0, index, arg: null, next: originOf(p) })));
+  }
+  if (name === 'AliasCall') return out; // the aliased operator wrote the frame
+  if (name === 'NestedMot' || name === 'NestedMotExpr') {
+    // Structural: the same pips, copied. Carry the origin across.
+    const kids = motChildren(cap);
+    const all = kids.flatMap(m => m.values);
+    const last = kids.length ? kids[kids.length - 1].values : [];
+    const src = all.length === vals.length ? all : (last.length === vals.length ? last : null);
+    if (src) return withValues(out, vals.map((p, k) => clonePip(p, originOf(src[k]) || litFrame(p))));
+    return withValues(out, genericMap('[]', out, cap));
+  }
+  if (name in EXACT) {
+    const mapped = exactMap(name, node, out, cap);
+    if (mapped) return withValues(out, mapped);
+    return withValues(out, genericMap(EXACT[name], out, cap));
+  }
+  return withValues(out, genericMap(GENERIC[name] || name, out, cap));
+}
+
+function install() {
+  const I = golden._cruxInternals;
+  const saved = [];
+  const wrapEval = (name) => {
+    const C = I[name];
+    if (!C || !Object.prototype.hasOwnProperty.call(C.prototype, 'eval')) return;
+    const orig = C.prototype.eval;
+    saved.push([C.prototype, 'eval', orig]);
+    C.prototype.eval = function (env) {
+      const parent = T.cap;
+      const cap = [];
+      T.cap = cap;
+      let out;
+      try { out = orig.call(this, env); } finally { T.cap = parent; }
+      // A subclass without its own eval (DotConstraint) reports its own name.
+      const own = this.constructor && I[this.constructor.name] === this.constructor ? this.constructor.name : name;
+      out = post(own, this, out, cap);
+      if (parent) parent.push(out);
+      return out;
+    };
+  };
+  for (const name of ['Mot', 'NestedMot', 'NestedMotExpr', 'Ref', 'GlobalPlaceholder', 'AliasCall',
+    ...Object.keys(EXACT), ...Object.keys(GENERIC)]) wrapEval(name);
+  // Pips made by mul/expand/withDiad keep the left pip's origin.
+  for (const m of ['mul', 'expand', 'withDiad']) {
+    const orig = I.Pip.prototype[m];
+    saved.push([I.Pip.prototype, m, orig]);
+    I.Pip.prototype[m] = function (...args) {
+      const out = orig.apply(this, args);
+      if (this.origin && out && !out.origin) out.origin = this.origin;
+      return out;
+    };
+  }
+  const rnd = Math.random;
+  saved.push([Math, 'random', rnd]);
+  Math.random = function () { T.unseededRandom = true; return rnd(); };
+  return () => { for (const [obj, key, fn] of saved.reverse()) obj[key] = fn; };
+}
+
+golden.crux_trace = function (source) {
+  if (T) throw new Error('crux_trace is not re-entrant');
+  T = { use: 0, app: 0, cap: null, unseededRandom: false,
+    positionMap: golden._cruxInternals.preprocessSource(source).positionMap };
+  const uninstall = install();
+  try {
+    const result = golden.crux_interp(source);
+    return { ...result, trace: true, unseededRandom: T.unseededRandom, source };
+  } finally {
+    uninstall();
+    T = null;
+  }
+};
+
+// Frames of one traced pip, innermost (the literal) first.
+golden.crux_trace_frames = function (pip) {
+  const out = [];
+  for (let f = pip && pip.origin; f; f = f.next) out.push(f);
+  return out.reverse();
+};
+
+
+})();
+
+// --- src/fold/model.js ---
+(function () {
+// Crux fold model: how a traced program folds back to what it writes.
+//
+//   golden.crux_fold_model(trace) -> plain data (see foldModel below)
+//   golden.crux_fold(source)      -> crux_fold_model(crux_trace(source))
+//
+// No DOM. Hosts draw it. Stop 0 (notes as heard) is the host's job, because
+// pitch is the host's job: the host adds regime, tonic and key lane to the
+// stop 1 position. Stops 1 to 5 are positions in time and scale steps.
+//
+//   1  plain scale steps, as played
+//   2  transposition removed: each instance at its own step 0
+//   3  mirror, reverse and stretch removed: each instance takes its source's shape
+//   4  repetition removed: equal instances stack on the first one in the voice
+//   5  nesting removed: one copy of each shape, side by side (one shared layout)
+//
+// A note's owner is the innermost definition it passed through. Frames inside
+// the owner are the definition's own body and always apply. Frames outside it
+// place the instance, and the stops take them away. A pip changed by an
+// operator that the fold cannot undo (exact: false) is "edited": its owner is
+// the innermost definition outside that operator, and its value after the
+// operator is used as its source.
+const EPS = 1e-9;
+const r9 = x => Math.round(x / EPS) * EPS;
+const z = x => (x === 0 ? 0 : x); // no -0 in the output
+const TRANSPARENT = new Set([',', '_', ':']);
+
+function framesOf(pip) {
+  const out = [];
+  for (let f = pip && pip.origin; f; f = f.next) out.push(f);
+  return out.reverse();
+}
+
+// Apply one frame to (s, d). mode: { transpose, mirror, stretch }.
+function apply(f, s, d, mode) {
+  if (f.kind !== 'op' || !f.exact || TRANSPARENT.has(f.op)) return [s, d];
+  const a = f.arg || { step: 0, ts: 1 };
+  const ts = Math.abs(a.ts ?? 1);
+  if (f.op === '*' || f.op === '.') {
+    if (mode.transpose) s += a.step;
+  } else if (f.op === 'm') {
+    if (mode.mirror) s = mode.transpose ? 2 * a.step - s : -s;
+  } else if (f.op === '^') {
+    if (mode.mirror) s = s * a.step;
+  }
+  if (mode.stretch) d *= ts;
+  return [s, d];
+}
+
+const FULL = { transpose: true, mirror: true, stretch: true };
+const NO_TRANSPOSE = { transpose: false, mirror: true, stretch: true };
+
+function frameKey(f) {
+  if (f.kind === 'ref') return 'r' + f.use;
+  if (f.kind === 'op') return 'o' + f.app + ':' + f.copy;
+  return 'l';
+}
+
+function analysePip(pip) {
+  const frames = framesOf(pip);
+  let e = -1;
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    if (f.kind === 'op' && !f.exact && !f.kept) e = i;
+  }
+  let owner = -1;
+  for (let i = e + 1; i < frames.length; i++) if (frames[i].kind === 'ref') { owner = i; break; }
+  let s, d, start;
+  if (e >= 0) {
+    const out = frames[e].out || { step: pip.step, ts: pip.timeScale };
+    s = out.step; d = Math.abs(out.ts); start = e + 1;
+  } else if (frames.length && frames[0].kind === 'lit') {
+    s = frames[0].step; d = Math.abs(Number(frames[0].ts)); start = 1;
+  } else {
+    // No trace (for example the rest that a voice entry offset adds).
+    s = pip.step; d = Math.abs(pip.timeScale); start = frames.length;
+  }
+  const bodyEnd = owner >= 0 ? owner : start; // owner-less: every frame places the pip
+  for (let i = start; i < bodyEnd; i++) [s, d] = apply(frames[i], s, d, FULL);
+  const body = { s, d };
+  const outer = frames.slice(owner >= 0 ? owner + 1 : start);
+  const at = mode => {
+    let x = body.s, y = body.d;
+    for (const f of outer) [x, y] = apply(f, x, y, mode);
+    return { s: x, d: y };
+  };
+  const lit = frames[0] && frames[0].kind === 'lit' ? frames[0] : null;
+  const ownerFrame = owner >= 0 ? frames[owner] : null;
+  let canon;
+  if (ownerFrame) canon = ownerFrame.index;
+  else if (outer.length) canon = outer[outer.length - 1].index;
+  else canon = null;
+  // Instance: the owner use plus every frame outside it.
+  const pathFrames = owner >= 0 ? frames.slice(owner) : outer;
+  const instanceKey = pathFrames.length ? pathFrames.map(frameKey).join('/') : null;
+  return { frames, edited: e >= 0, owner: ownerFrame, body, full: at(FULL), noTranspose: at(NO_TRANSPOSE), canon, instanceKey, lit, outer };
+}
+
+function foldModel(trace, options = {}) {
+  if (!trace || !trace.trace) throw new Error('foldModel needs the result of crux_trace');
+  if (trace.unseededRandom) {
+    throw new Error('The fold needs a fixed program, and this one has random choices without a seed. Give each random choice a seed (or freeze the seeds) and try again.');
+  }
+  const gap = options.gap ?? 0.5;
+  const notes = [];
+  const all = []; // every pip, rests included
+  const voices = [];
+
+  trace.sections.forEach((mot, voice) => {
+    let t = 0;
+    mot.values.forEach((pip, index) => {
+      const d = Math.abs(pip.timeScale);
+      const a = analysePip(pip);
+      const sounding = pip.tag !== 'r';
+      const rec = { voice, index, t, d, step: pip.step, tag: pip.tag ?? null, sounding, a,
+        diad: pip.diad ? pip.diad.map(x => x - pip.step) : null };
+      if (rec.a.instanceKey === null) rec.a.instanceKey = `p${voice}:${index}`;
+      rec.instance = `${voice}|${rec.a.instanceKey}`;
+      all.push(rec);
+      t += d;
+    });
+    voices.push({ voice, duration: t, pips: mot.values.length });
+  });
+
+  // Instances: start time and canonical offsets (stop 3).
+  const inst = new Map();
+  for (const rec of all) {
+    let I = inst.get(rec.instance);
+    if (!I) {
+      I = { key: rec.instance, voice: rec.voice, t0: rec.t, t1: rec.t + rec.d, recs: [], name: rec.a.owner ? rec.a.owner.name : null, ownerPos: rec.a.owner ? rec.a.owner.pos : null };
+      inst.set(rec.instance, I);
+    }
+    I.t0 = Math.min(I.t0, rec.t);
+    I.t1 = Math.max(I.t1, rec.t + rec.d);
+    I.recs.push(rec);
+  }
+  for (const I of inst.values()) {
+    const order = I.recs.slice().sort((x, y) => (x.a.canon ?? x.index) - (y.a.canon ?? y.index) || x.index - y.index);
+    let off = 0;
+    for (const rec of order) { rec.off = off; off += rec.a.body.d; }
+    I.length = off;
+    I.signature = (I.name ?? '#') + '|' + order.map(r => [r.a.canon ?? '', r9(r.a.body.s), r9(r.a.body.d), r.tag ?? ''].join(':')).join(',');
+  }
+
+  // Dictionary: one entry per distinct shape.
+  const entries = new Map();
+  const byName = new Map();
+  const instancesSorted = [...inst.values()].sort((x, y) => x.voice - y.voice || x.t0 - y.t0);
+  for (const I of instancesSorted) {
+    if (!I.recs.some(r => r.sounding)) continue;
+    let E = entries.get(I.signature);
+    if (!E) {
+      const n = (byName.get(I.name) || 0) + 1;
+      byName.set(I.name, n);
+      const litPos = Math.min(...I.recs.map(r => (r.a.lit && r.a.lit.pos != null ? r.a.lit.pos : Infinity)));
+      E = { id: (I.name ?? '_') + (n > 1 ? '#' + n : ''), name: I.name, signature: I.signature, count: 0,
+        instances: [], firstInVoice: new Map(), litPos: Number.isFinite(litPos) ? litPos : null,
+        refPos: I.ownerPos, length: I.length, pips: I.recs.filter(r => r.sounding).length };
+      entries.set(I.signature, E);
+    }
+    E.count++;
+    E.instances.push({ voice: I.voice, t0: I.t0, t1: I.t1 });
+    if (!E.firstInVoice.has(I.voice)) E.firstInVoice.set(I.voice, I.t0);
+    I.entry = E;
+  }
+  // Folded layout (stop 5): entries side by side in source order.
+  const entryList = [...entries.values()].sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
+  let x = 0;
+  for (const E of entryList) {
+    E.slot = { x, width: E.length };
+    x += E.length + gap;
+    E.residue = E.name == null && E.count === 1;
+  }
+
+  // Notes and their positions.
+  for (const rec of all) {
+    if (!rec.sounding) continue;
+    const I = inst.get(rec.instance);
+    const E = I.entry;
+    const p1 = { t: rec.t, step: z(rec.a.full.s), d: rec.d };
+    const p2 = { t: rec.t, step: z(rec.a.noTranspose.s), d: rec.d };
+    const p3 = { t: I.t0 + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p4 = { t: E.firstInVoice.get(rec.voice) + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p5 = { t: E.slot.x + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    notes.push({
+      id: notes.length, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
+      step: rec.step, edited: rec.a.edited, owner: I.name, entry: E.id, instance: rec.instance,
+      litPos: rec.a.lit ? rec.a.lit.pos : null, refPos: I.ownerPos,
+      pos: [null, p1, p2, p3, p4, p5],
+    });
+  }
+
+  // Counts.
+  const distinct = (fn) => new Set(notes.map(fn)).size;
+  const pk = (n, s) => `${s === 5 ? '' : n.voice}|${r9(n.pos[s].t)}|${r9(n.pos[s].step)}`;
+  const instanceCount = distinct(n => n.instance);
+  const counts = {
+    notes: notes.length,
+    edited: notes.filter(n => n.edited).length,
+    positions: [null, 1, 2, 3, 4, 5].map(s => (s === null ? null : distinct(n => pk(n, s)))),
+    shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length],
+    pipsWritten: distinct(n => pk(n, 5)),
+    entries: entryList.length,
+  };
+  counts.positions[0] = counts.positions[1];
+  counts.leverage = counts.pipsWritten ? counts.notes / counts.pipsWritten : 0;
+
+  return {
+    voices,
+    notes,
+    instances: buildInstanceTrees(all, voices.length),
+    dictionary: entryList.map(E => ({
+      id: E.id, name: E.name, count: E.count, pips: E.pips, residue: E.residue,
+      litPos: E.litPos, refPos: E.refPos, slot: E.slot, instances: E.instances,
+    })),
+    counts,
+    stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting'],
+  };
+}
+
+// Instance tree per voice: definition uses and operator copies, outermost
+// first, with runs of literal pips as leaves. Concatenation is transparent.
+function buildInstanceTrees(all, nVoices) {
+  const roots = [];
+  for (let v = 0; v < nVoices; v++) roots.push({ kind: 'voice', voice: v, level: 0, t0: Infinity, t1: -Infinity, first: Infinity, last: -1, children: [] });
+  for (const rec of all) {
+    const root = roots[rec.voice];
+    let node = root;
+    touch(node, rec);
+    const fr = rec.a.frames;
+    let level = 0;
+    for (let i = fr.length - 1; i >= 1; i--) {
+      const f = fr[i];
+      if (f.kind === 'op' && (TRANSPARENT.has(f.op) || f.kept)) continue;
+      const key = frameKey(f);
+      let child = node._map && node._map.get(key);
+      if (!child) {
+        if (f.kind === 'ref') level++;
+        child = f.kind === 'ref'
+          ? { kind: 'ref', name: f.name, use: f.use, pos: f.pos, level }
+          : { kind: 'op', op: f.op, app: f.app, copy: f.copy, arg: f.arg, exact: f.exact, reverse: !!f.reverse, level };
+        Object.assign(child, { t0: Infinity, t1: -Infinity, first: Infinity, last: -1, children: [] });
+        (node._map ||= new Map()).set(key, child);
+        node.children.push(child);
+      } else if (f.kind === 'ref') level++;
+      node = child;
+      touch(node, rec);
+    }
+    // Leaf: a run of literal pips (or edited pips) directly under this node.
+    const lit = fr[0] && fr[0].kind === 'lit' ? fr[0] : null;
+    const lastChild = node.children[node.children.length - 1];
+    if (lastChild && lastChild.kind === 'lit' && lastChild.last === rec.index - 1) {
+      touch(lastChild, rec);
+      if (lit && lit.pos != null) lastChild.pos = Math.min(lastChild.pos ?? Infinity, lit.pos);
+    } else {
+      const leaf = { kind: 'lit', level: level + 1, pos: lit ? lit.pos : null, edited: !lit, t0: Infinity, t1: -Infinity, first: Infinity, last: -1, children: [] };
+      touch(leaf, rec);
+      node.children.push(leaf);
+    }
+  }
+  const clean = n => { delete n._map; n.children.forEach(clean); return n; };
+  return roots.map(clean);
+}
+
+function touch(n, rec) {
+  n.t0 = Math.min(n.t0, rec.t);
+  n.t1 = Math.max(n.t1, rec.t + rec.d);
+  n.first = Math.min(n.first, rec.index);
+  n.last = Math.max(n.last, rec.index);
+  if (rec.sounding) n.notes = (n.notes || 0) + 1;
+}
+
+golden.crux_fold_model = foldModel;
+golden.crux_fold = function (source, options) {
+  return foldModel(golden.crux_trace(source), options);
+};
+
+})();
 
 
 // === Exports ===

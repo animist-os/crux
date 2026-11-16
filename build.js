@@ -63,6 +63,18 @@ indexContent = indexContent.replace(/^import \{ g \} from ['"]\.\/grammar\.js['"
 
 decomposeContent = decomposeContent.replace(/^import ['"]\.\/index\.js['"];?\s*\n/m, '');
 
+// Fold view (src/fold): trace and model. Each file runs in its own function
+// scope in the bundle, so its top-level names do not meet index.js's. They
+// attach their API to golden (crux_trace, crux_fold_model, crux_fold).
+console.log('📝 Reading src/fold/{trace,model}.js...');
+const foldContent = ['trace.js', 'model.js'].map(file => {
+  const body = fs.readFileSync(path.join(__dirname, 'src/fold', file), 'utf8')
+    .replace(/^import .*;\s*\n/gm, '')
+    .replace(/^export const .*;\s*\n/gm, '')
+    .replace(/^export function /gm, 'function ');
+  return `// --- src/fold/${file} ---\n(function () {\n${body}\n})();\n`;
+}).join('\n');
+
 // For now, just note that ohm-js needs to be available
 // In your actual environment, you'll load ohm-js separately or inline it
 const generatedAt = new Date().toISOString();
@@ -91,6 +103,9 @@ golden.cruxBuiltAt = ${JSON.stringify(generatedAt)};
 
 // === Decomposition Engine ===
 ${decomposeContent}
+
+// === Fold view ===
+${foldContent}
 
 // === Exports ===
 if (typeof module !== 'undefined' && module.exports) {
@@ -124,7 +139,7 @@ const dohBundle = `// ==========================================================
 // from inside crux/. When run from a disrupterbox checkout, the build copies
 // the result back here. See CRUX_UPDATE.md in the disrupterbox repo root.
 //
-// Source:    crux/src/{grammar,index,decompose}.js
+// Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,model}.js
 // Generated: ${generatedAt}
 // =============================================================================
 Doh.Module('crux', [
@@ -145,6 +160,9 @@ golden.cruxBuiltAt = ${JSON.stringify(generatedAt)};
 
 // === Decomposition Engine ===
 ${decomposeContent}
+
+// === Fold view ===
+${foldContent}
 
 });
 `;

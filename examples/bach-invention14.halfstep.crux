@@ -1,0 +1,84 @@
+// Bach, Invention No. 14 in B-flat major, BWV 785
+// #pitchRegime Major
+// #tonic 10
+// #tonicMidi 58
+// #lens diatonic
+// #keyFifths -2
+//
+// Half-step version: the accidentals are written in the voices as half steps.
+// bach-invention14.keylane.crux is the same piece with a key lane instead.
+// Hand analysis around the ten-note theme. Transcribed from the Humdrum
+// edition (humdrum-tools/inventions, kern/inven14.krn) and checked against it
+// note for note.
+//
+// Steps are scale degrees of B-flat major, 0 = B-flat below middle C. A half
+// step is the lower degree raised a semitone: 11/2 = A-flat, 7/2 = E natural,
+// 9/2 = F-sharp, 1/2 = B natural. Durations are in quarter notes.
+// The right hand is written an octave low and lifted by the final * [7].
+
+// The theme: a turn (H), then a broken chord.
+H  = [0, 1, 2, 1, 0 | 2] || [1/8]
+T9 = H, ([4, 2, 7, 4] || [1/4])        // theme without its last note
+T  = T9, [2 | 1/4]                      // the ten-note theme
+Hi = H m [0]                            // inverted turn
+R  = T ^ [0]                            // rhythm of the theme, for altered forms
+Tu = T9, [9 | 1/4]                      // theme, last note an octave higher
+
+// Inversion. The strict form, T m [0], ends [-4, -2] and never occurs.
+// Bach bends the last two notes toward the next entry (tonal inversion).
+// Af has A-flat (V7 of E-flat).
+A  = Hi, ([-4, -2, -7, -5, -6] || [1/4])
+Af = Hi, ([-4, -2, -7, -11/2, -6] || [1/4])
+
+// Accompaniment to the first two theme entries (m1-2).
+B  = [0, -7, -5, -3, 0 | 2, r | 2, r, -7, -4, -2, 0 | 2, r | 2] || [1/2]
+
+// Episode cells, all built from the turn.
+U  = [r | 1/4], H, [3 | 1/2, r | 1/2]                 // m4, left hand
+W  = [0 | 1/2, r | 3/4], (Hi * [3])                   // m4, right hand
+V  = H, [7 | 3/4, 6 | 1/4, 5 | 1/4]                   // m12-13
+Vf = H, [7 | 3/4, 11/2 | 1/4, 5 | 1/4]                // V with A-flat
+K  = [0 | 1/4], (Hi * [2])                            // m14
+Q  = [0 | 1/4], (H * [2]), [5 | 1/4], Hi              // m14-16 sequence
+
+// Right hand, by passage
+// m1-3: theme on B-flat, tonal inversion, theme on E-flat, then free
+r1 = [r | 1/4], T, (Af * [4]), (T * [-4]), ([0, -3/2, -2, -3/2, 0, -4, -2, -6, -4, -8] . R), ([-6, -5, -4, -5, -6, -1, -3, 1, -1, 3] . R), (T9 * [-3])
+// m4-5: inverted turns answer the left hand
+r2 = (W * [2, 1, 0]), [-1 | 1/4], (Hi * [1]), [-3 | 1/2, r | 1/2]
+// m6-8: the hands swap, the accompaniment moves to the right hand
+r3 = (B * [4]), ([r, -2, 0, 1, 7/2 | 2, r | 2] || [1/2])
+// m9-11: theme in F, then modulating sevenths
+r4 = [r | 1/4], (Tu * [-3]), ([3, 2, 1, 2, 3, -1, 1, -5/2, -1] . R), ([0, 2, 0, -2, -3/2, 4, -3/2, -3] || [1/2]), [-2 | 1/4], (T9 * [-6]), [2 | 1/4], ([-3/2, -2, -3, -2, -3/2, -5, -3, -13/2, -2] . R)
+// m12-13: rising sequence, half a bar behind the left hand
+r5 = [-4 | 1/2, r | 3/4], (V * [-6, -3]), Vf, ([7, 11/2, 5, 11/2, 7] . R)
+// m14-16: falling sequence in parallel with the left hand
+r6 = (K * [3, 1]), [-1 | 1/4], (H * [1]), [4 | 1/4], ([-3/2, -2, -3, -2, -3/2] . R), (Q * [-2, -3, -4]), [-5 | 1]
+// m16-19: return, theme in canon at the octave, half a bar after the left hand
+r7 = [r | 1/4], T, ([4, 3, 2, 3, 4, 0, 3, 0, 3, -2] . R), (T * [-4]), ([0, -3/2, -2, -3/2, 0] . R), [-4 | 1/2, 3 | 3/4], (Hi * [3]), [-3 | 1/2, 3 | 3/4], (H * [1]), [4 | 1/4], (Hi * [2]), ([-3, 0, 1, -1] || [1/4])
+// m20
+r8 = [0 | 4]
+
+// Left hand, by passage
+// m1-3
+l1 = B, ([r, -7, -6, -4, -1 | 2, r | 2] || [1/2])
+// m4-5: turns rising to a cadence in F
+l2 = (U * [0, -1]), [r | 1/4], (H * [-2]), [1 | 1/4], (H * [-6]), [-3 | 1/2, -10 | 1/2, r | 1/4], ([1, -1, -3] || [1/4])
+// m6-8: the right hand's m1-3, in F
+l3 = [r | 1/4], (T * [-3]), (A * [1]), (T * [-7]), ([-3, -4, -5, -4, -3, -7, -5, -9, -7, -21/2] . R), ([-9, -8, -7, -8, -9, -7/2, -6, -2, -7/2, 0] . R), ([-6, -5, -7/2, -5, -6, -2, -7/2, 1, -2] . R)
+// m9-11
+l4 = ([-1, 1, -1, -3, -5/2, -1, -5/2, -5] || [1/2]), [-2 | 1/4], (Tu * [-9]), ([-3/2, -2, -3, -2, -3/2, -5, -3, -7, -5] . R), ([-4, -2, -4, -6, -13/2, -5, -13/2, -9] || [1/2])
+// m12-13: rising sequence
+l5 = [-6 | 1/4], (V * [-13, -10]), (Vf * [-7]), (V * [-4])
+// m14-16: falling sequence
+l6 = (Hi * [3]), (K * [-1]), (Q * [-3, -4, -5, -6])
+// m16-19: return, theme on B-flat, tonal inversion, theme on E-flat
+l7 = [-7 | 1/4], T, (Af * [4]), (T * [-4]), ([0, -3/2, -2, -3/2, 0, -4, -2, -7, -5, -6] . R), ([-10, -9, -8, -9, -10, -6, -8, -4, -6, -8] . R), (A * [-6]), (H * [-7]), [-3 | 1/2, -10 | 1/2]
+// m20
+l8 = [-7 | 4]
+
+// Right hand
+(r1, r2, r3, r4, r5, r6, r7, r8) * [7]
+!
+// Left hand
+l1, l2, l3, l4, l5, l6, l7, l8

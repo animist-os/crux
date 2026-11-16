@@ -1,0 +1,80 @@
+// Bach, Invention No. 8 in F major, BWV 779
+// #pitchRegime Major
+// #tonic 5
+// #bpm 100
+// #quanta 4n
+// #loop 25m
+// #minVel 80
+// #maxVel 93
+// #preset Seaward Piano
+//
+// Hand analysis. Transcribed from the Humdrum edition (humdrum-tools/inventions,
+// kern/inven08.krn) and checked against it note for note.
+//
+// The voices hold integer scale steps only, 0 = F below middle C. Durations
+// are in quarter notes, three to a bar. Each hand is written an octave low
+// and lifted by the final * [7].
+//
+// The 44 chromatic notes come from the key lane. Each entry is a bar address
+// and a key: V = C major (B natural), ii = G minor (F-sharp, E-flat),
+// IV = B-flat major (E-flat), vi = D minor (C-sharp), vi+ = D melodic minor
+// (B natural, C-sharp), I = home. 9:-1 is one beat before bar 9. See
+// docs/crux-key-lane.md.
+//
+// #meter 3/4
+// #keyLane 1 I, 7 V, 9:-1 I, 9 V, 15 ii, 16 IV, 19 vi, 21 I, 22 vi+, 24 I, 26:-1 IV, 29 I, 31:-1 IV, 31 I
+
+// The subject, three bars: a broken chord, a run, a wider broken chord.
+a  = [0, 2, 0, 4, 0] || [1/2]
+rn = [6, 5, 4, 5, 4, 3, 2, 3, 2, 1] || [1/4]
+b  = [7 | 1/2], rn
+c  = [0, 2, 4, 2, 7, 4] || [1/2]
+S  = a, b, c
+
+// One-bar figures.
+D  = [0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 1, 2] || [1/4]      // trill figure
+Dq = D * [9, 7, 5]                                       // m4-6, falling by thirds
+Z  = [0, -2, 2, 0, 4, 2] || [1/2]
+q4 = [0, 1, 0, -1] || [1/4]
+G  = (q4 * [8, 6, 4]), [2 | 1/2], (rn * [-1])            // m8-9, answered a bar later at the ninth below
+P  = [0, -1, 0, 5, 0, 5, -1, 5, 0, 5, -2, 5] || [1/4]    // pedal figure
+O  = [0, -6, 0, -6, 0, -6] || [1/2]
+F  = [0, -1, 0, 2, -4, 2, -3, 2, -2, 2, -4, 2] || [1/4]
+X  = [0, -2, -4, -2, -6, -4] || [1/2]
+Y  = [0, -2, -4, -2, -6, 0] || [1/2]
+W  = [-7, 0, -1, 0, -4, 0, -3, 0, -2, 0, -4, 0] || [1/4]
+
+// m4-11 in each hand. The same eight bars return a fifth lower at m26.
+ER = Dq, (Z * [3]), G, (q4 * [-1]), [-3 | 1/2], ([4, 3] || [1/4]), ([4, -1, 0, 4, -1, 4, -2, 3] || [1/2])
+EL = (c * [-7]), (Dq * [-7]), ([-4, -6, -3, -6, -1, -3] || [1/2]), (G * [-8]), (q4 * [-9]), ([-6, -7, -8, -7] || [1/4]), [-6 | 1/2, -13 | 1/2]
+
+// Right hand, by passage
+// m1-11: subject, then ER. The left hand follows in canon at the octave until m7.
+r1 = [r | 1/2], S, ER
+// m12-18: cadence in C. The subject answers the left hand, then returns on G.
+r2 = [4 | 1, r | 5/2], (a * [4]), (b * [4]), (P * [4]), [3 | 1/2], (S * [1])
+// m19-25: sequences
+r3 = (O * [10]), ([5, 2, 7, 5, 9, 7] || [1/2]), (F * [8, 7, 6]), (Y * [7, 6])
+// m26-34: m4-11 a fifth lower, and the last chord
+r4 = (ER * [-4]), [-5 | 1]
+
+// Left hand, by passage
+// m2-11: the subject an octave lower and a bar later, then EL
+l1 = [r | 7/2], (a * [-7]), (b * [-7]), EL
+// m12-18: subject in C, then its run and head on other degrees
+l2 = [r | 1/2], (S * [-10]), (O * [-1]), (b * [-13]), [-13 | 1/2], (a * [-6]), (b * [-6])
+// m19-25: sequences
+l3 = (P * [-6, -7]), (X * [-4, -5, -6]), (W * [-9, -10])
+// m26-34
+l4 = (EL * [-4]), [-14 | 1]
+
+// Right hand
+(r1, r2, r3, r4) * [7]
+!
+// Left hand
+(l1, l2, l3, l4) * [7]
+!
+// Last chord, two more notes
+[r | 99, 4]
+!
+[r | 99, 7]

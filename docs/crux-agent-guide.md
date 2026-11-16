@@ -247,6 +247,10 @@ a tonic: pitch = 48 + tonic + regime(step). `// #pitchRegime Major`,
 `// #tonic 10` (taken mod 12). Step 7 is the tonic an octave up in a
 seven-note regime.
 
+In Golden, `#pitchRegime` also takes a custom scale: semitones above the
+tonic, ascending, from 0 to 11, such as `// #pitchRegime 0 1 3 5 6 8 11`.
+Wad does not read this form.
+
 ### 2.3 Chromatic notes
 
 There are three mechanisms. Know which one a file uses.

@@ -12,6 +12,9 @@
 //   3  mirror, reverse and stretch removed: each instance takes its source's shape
 //   4  repetition removed: equal instances stack on the first one in the voice
 //   5  nesting removed: one copy of each shape, side by side (one shared layout)
+//      From here on a width compares the notes of one shape only: each
+//      shape is scaled so that its most common duration is 1, and no note is
+//      wider than `capWidth` (4). A note cut by the cap has `capped: true`.
 //   6  unstated exact repeats removed (thematic.js)
 //   7  near-misses folded onto the program's definitions (thematic.js)
 //   8  themes only, with a residue group for what no theme explains (thematic.js)
@@ -120,6 +123,7 @@ export function foldModel(trace, options = {}) {
     throw new Error('The fold needs a fixed program, and this one has random choices without a seed. Give each random choice a seed (or freeze the seeds) and try again.');
   }
   const gap = options.gap ?? 0.5;
+  const capWidth = options.capWidth ?? 4;
   const notes = [];
   const all = []; // every pip, rests included
   const voices = [];
@@ -157,6 +161,7 @@ export function foldModel(trace, options = {}) {
     let off = 0;
     for (const rec of order) { rec.off = off; off += rec.a.body.d; }
     I.length = off;
+    I.order = order;
     I.signature = (I.name ?? '#') + '|' + order.map(r => [r.a.canon ?? '', r9(r.a.body.s), r9(r.a.body.d), r.tag ?? ''].join(':')).join(',');
   }
 
@@ -181,16 +186,45 @@ export function foldModel(trace, options = {}) {
     if (!E.firstInVoice.has(I.voice)) E.firstInVoice.set(I.voice, I.t0);
     I.entry = E;
   }
-  // Folded layout (stop 5): entries side by side in source order.
+  // Shown widths (stops 5 to 8). A written duration means something only
+  // beside the other durations of its own shape, so each shape gets its own
+  // unit: the most common duration of its sounding pips (the shorter one on a
+  // tie). No pip is wider than capWidth units.
+  for (const I of inst.values()) {
+    const E = I.entry;
+    if (!E) continue;
+    if (E.unit === undefined) {
+      const tally = new Map();
+      for (const rec of I.recs) if (rec.sounding) tally.set(r9(rec.a.body.d), (tally.get(r9(rec.a.body.d)) || 0) + 1);
+      let unit = 0, best = 0;
+      for (const [d, n] of tally) if (d > 0 && (n > best || (n === best && d < unit))) { unit = d; best = n; }
+      E.unit = unit || 1;
+    }
+    let off = 0;
+    for (const rec of I.order) {
+      const w = rec.a.body.d / E.unit;
+      rec.shownOff = off;
+      rec.shown = Math.min(w, capWidth);
+      rec.capped = w > capWidth + 1e-9;
+      off += rec.shown;
+    }
+    E.shownLength = off;
+  }
+  // Folded layout (stop 5): entries side by side in source order. `slot` is
+  // the shown layout. `at` is the same layout in written durations, which the
+  // later folds match on.
   const entryList = [...entries.values()].sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
-  let x = 0;
+  let x = 0, xw = 0;
   for (const E of entryList) {
-    E.slot = { x, width: E.length };
-    x += E.length + gap;
+    E.slot = { x, width: E.shownLength, unit: E.unit };
+    E.at = xw;
+    x += E.shownLength + gap;
+    xw += E.length + gap;
     E.residue = E.name == null && E.count === 1;
   }
 
   // Notes and their positions.
+  const written = []; // stop 5 in written durations, by note id
   for (const rec of all) {
     if (!rec.sounding) continue;
     const I = inst.get(rec.instance);
@@ -199,7 +233,9 @@ export function foldModel(trace, options = {}) {
     const p2 = { t: rec.t, step: z(rec.a.noTranspose.s), d: rec.d };
     const p3 = { t: I.t0 + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
     const p4 = { t: E.firstInVoice.get(rec.voice) + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
-    const p5 = { t: E.slot.x + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p5 = { t: E.slot.x + rec.shownOff, step: z(rec.a.body.s), d: rec.shown };
+    if (rec.capped) p5.capped = true;
+    written.push({ t: E.at + rec.off, d: rec.a.body.d });
     rec.note = {
       id: notes.length, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
       step: rec.step, edited: rec.a.edited, owner: I.name, entry: E.id, instance: rec.instance,
@@ -210,7 +246,7 @@ export function foldModel(trace, options = {}) {
   }
 
   // Stops 6 to 8.
-  const th = thematicFolds({ notes, recs: all, entries: entryList, relate }, { gap, minLength: options.minLength, themeLength: options.themeLength });
+  const th = thematicFolds({ notes, recs: all, entries: entryList, relate, written }, { gap, minLength: options.minLength, themeLength: options.themeLength });
   notes.forEach((n, k) => {
     n.pos.push(...th.notes[k].pos);
     n.bent = th.notes[k].bent;

@@ -8,7 +8,7 @@ import { foldModel } from '../src/fold/model.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const example = name => fs.readFileSync(path.join(here, '..', 'examples', name), 'utf8');
-const fold = src => foldModel(golden.crux_trace(src));
+const fold = (src, options) => foldModel(golden.crux_trace(src), options);
 const key = p => `${p.t}/${p.step}`;
 const soundingCount = src => golden.crux_interp(src).sections.reduce((n, s) => n + s.values.filter(p => p.tag !== 'r').length, 0);
 
@@ -139,4 +139,36 @@ test('fold: instance tree nests definitions and keeps literal runs as leaves', (
   assert.equal(T.children[0].children[1].children[0].kind, 'lit');
   assert.deepEqual([S.level, T.level, T.children[0].level, T.children[0].children[0].level], [1, 2, 3, 4]);
   assert.equal(SUBJECT.slice(T.pos, T.pos + 1), 'T');
+});
+
+test('fold: from stop 5 a width compares the notes of one shape only', () => {
+  // A in halves, B in ones with one long note, and a top-level run with a held note.
+  const m = fold([
+    'A = [0, 1, 2, 1] || [1/2]',
+    'B = [0, 3, 2, 1 | 5]',
+    'A, B, (A * [2]), (B * [1]), [7 | 24, 6, 5]',
+  ].join('\n'));
+  const of = id => m.notes.filter(n => n.entry === id);
+  const A = of('A').slice(0, 4), B = of('B').slice(0, 4);
+  // Stops 3 and 4 keep written durations, at their place in the piece.
+  assert.deepEqual(A.map(n => n.pos[4].d), [0.5, 0.5, 0.5, 0.5]);
+  assert.deepEqual(B.map(n => n.pos[4].d), [1, 1, 1, 5]);
+  for (const s of [5, 6, 7, 8]) {
+    // The same width for the common duration of each shape.
+    assert.deepEqual(A.map(n => n.pos[s].d), [1, 1, 1, 1], `A at stop ${s}`);
+    // Ratios inside a shape stay, up to the cap of 4.
+    assert.deepEqual(B.map(n => n.pos[s].d), [1, 1, 1, 4], `B at stop ${s}`);
+    assert.deepEqual(B.map(n => !!n.pos[s].capped), [false, false, false, true]);
+  }
+  const run = m.notes.slice(-3);
+  assert.deepEqual(run.map(n => n.pos[5].d), [4, 1, 1]);
+  assert.equal(run[0].pos[5].capped, true);
+  assert.equal(run[1].pos[5].t, run[0].pos[5].t + 4);
+  // Shapes do not overlap at stop 5.
+  const slots = m.dictionary.map(e => e.slot).sort((a, b) => a.x - b.x);
+  slots.forEach((sl, k) => { if (k) assert.ok(sl.x >= slots[k - 1].x + slots[k - 1].width); });
+  assert.equal(m.dictionary.find(e => e.id === 'A').slot.unit, 0.5);
+  // A wider cap is an option.
+  const wide = fold('B = [0, 3, 2, 1 | 5]\nB, (B * [1])', { capWidth: 8 });
+  assert.deepEqual(wide.notes.slice(0, 4).map(n => n.pos[5].d), [1, 1, 1, 5]);
 });

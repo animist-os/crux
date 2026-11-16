@@ -104,7 +104,11 @@ the instance, and the stops remove them: stop 2 the step part of `*`, `.` and
 each instance's notes are laid out in the definition's own order and
 durations, from the instance's start. At stop 4 each note moves to the first
 instance of its dictionary entry in the same voice. At stop 5 the entries sit
-side by side in source order, in one layout for all voices. Two instances are
+side by side in source order, in one layout for all voices. From stop 5 on a
+width compares the notes of one shape only: each entry is scaled so that its
+most common duration is 1, and no note is wider than `capWidth` (4). A note
+cut by the cap is marked. The later folds still match on written durations.
+Two instances are
 one entry if they have the same owner and the same shape at stop 3. A note
 changed by an operator with `exact: false` is edited. Its owner is the
 innermost definition outside that operator.

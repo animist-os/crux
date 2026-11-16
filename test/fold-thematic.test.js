@@ -88,7 +88,8 @@ test('fold 8: a short stated cell stacks on the nearest note of the theme next t
   assert.equal(last.length, 2);
   // T's [2] comes after T9, so it stacks on T9's last note (step 4).
   for (const n of last) {
-    assert.equal(n.pos[8].t, T9.x + 0.75);
+    // T9's own four pips are each one unit wide, so the last starts at 3.
+    assert.equal(n.pos[8].t, T9.x + 3);
     assert.equal(n.pos[8].step, 4);
     assert.equal(n.fold8.kind, 'attached');
     assert.equal(n.explainedBy, 'program');

@@ -16,7 +16,7 @@
 // the result back here. See CRUX_UPDATE.md in the disrupterbox repo root.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
-// Generated: 2026-11-16T18:32:15.715Z
+// Generated: 2026-11-16T21:34:19.532Z
 // =============================================================================
 Doh.Module('crux', [
   'ohm',
@@ -4409,7 +4409,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.0.0";
-golden.cruxBuiltAt = "2026-11-16T18:32:15.715Z";
+golden.cruxBuiltAt = "2026-11-16T21:34:19.532Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -6021,7 +6021,7 @@ function edgeTarget(S, N, d, m, maxBend) {
  * relate(rec, use): { a, b } so that a step in rec's owner body maps to
  *          a * step + b in the body of the definition use `use`, or null
  */
-function thematicFolds({ notes, recs, entries, relate }, options = {}) {
+function thematicFolds({ notes, recs, entries, relate, written }, options = {}) {
   const minLength = options.minLength ?? 3;
   // Stop 7 never matches fewer than 3 notes, whatever minLength is.
   const nearLength = Math.max(3, minLength);
@@ -6040,11 +6040,15 @@ function thematicFolds({ notes, recs, entries, relate }, options = {}) {
   const slotOfNote = [];
   for (const n of notes) {
     if (!firstInstance.has(n.entry)) firstInstance.set(n.entry, n.instance);
-    const p = n.pos[5];
+    // t and d are written durations: the folds match on them. x and w are
+    // the shown layout of stop 5, which the layouts below keep.
+    const shown = n.pos[5];
+    const p = written ? written[n.id] : shown;
     const key = n.entry + '|' + r6(p.t);
     let S = slotByKey.get(key);
     if (!S) {
-      S = { id: slotByKey.size, key, entry: entries.find(E => E.id === n.entry), t: p.t, s: p.step, d: p.d,
+      S = { id: slotByKey.size, key, entry: entries.find(E => E.id === n.entry), t: p.t, s: shown.step, d: p.d,
+        x: shown.t, w: shown.d, capped: !!shown.capped,
         diad: n.diad, tag: n.tag, notes: [], first: null };
       slotByKey.set(key, S);
     }
@@ -6360,14 +6364,14 @@ function thematicFolds({ notes, recs, entries, relate }, options = {}) {
     let cursor = 0, prev = null;
     for (const S of list) {
       if (prev && prev.entry === S.entry) {
-        let g = S.t - (prev.t + prev.d);
+        let g = S.x - (prev.x + prev.w);
         for (const X of slotsOf.get(S.entry.id)) {
-          if (X.t > prev.t + EPS && X.t < S.t - EPS && !inUnit.has(X)) g -= X.d;
+          if (X.t > prev.t + EPS && X.t < S.t - EPS && !inUnit.has(X)) g -= X.w;
         }
         cursor += Math.max(0, g);
       } else if (prev) cursor += gap / 2;
       local.set(S, cursor);
-      cursor += S.d;
+      cursor += S.w;
       prev = S;
     }
     return local;
@@ -6384,9 +6388,9 @@ function thematicFolds({ notes, recs, entries, relate }, options = {}) {
         U.width = MARKER;
       } else {
         let lo = Infinity, hi = -Infinity;
-        for (const [S, p] of U.local) { lo = Math.min(lo, p.t); hi = Math.max(hi, p.t + S.d); }
+        for (const [S, p] of U.local) { lo = Math.min(lo, p.t); hi = Math.max(hi, p.t + S.w); }
         U.width = hi - lo;
-        for (const [S, p] of U.local) at.set(S, { t: x + p.t - lo, step: p.step, d: S.d, unit: U });
+        for (const [S, p] of U.local) at.set(S, { t: x + p.t - lo, step: p.step, d: S.w, capped: S.capped, unit: U });
       }
       x += U.width + gap;
     }
@@ -6461,10 +6465,10 @@ function thematicFolds({ notes, recs, entries, relate }, options = {}) {
     const pl = places[k];
     const pos = [6, 7].map(stop => {
       const p = layouts[stop].at.get(finalOf(S, stop).S);
-      return { t: p.t, step: p.step, d: p.d };
+      return p.capped ? { t: p.t, step: p.step, d: p.d, capped: true } : { t: p.t, step: p.step, d: p.d };
     });
     const p8 = pl.H ? at8.get(pl.H) : residuePos;
-    pos.push({ t: p8.t, step: p8.step, d: p8.d });
+    pos.push(p8.capped ? { t: p8.t, step: p8.step, d: p8.d, capped: true } : { t: p8.t, step: p8.step, d: p8.d });
     const owner = pl.F.entry.name ?? pl.F.entry.id;
     return { pos, bent: finalOf(S, 7).bent, explainedBy: explainedOf(S),
       fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null },
@@ -6539,6 +6543,9 @@ return thematicFolds;
 //   3  mirror, reverse and stretch removed: each instance takes its source's shape
 //   4  repetition removed: equal instances stack on the first one in the voice
 //   5  nesting removed: one copy of each shape, side by side (one shared layout)
+//      From here on a width compares the notes of one shape only: each
+//      shape is scaled so that its most common duration is 1, and no note is
+//      wider than `capWidth` (4). A note cut by the cap has `capped: true`.
 //   6  unstated exact repeats removed (thematic.js)
 //   7  near-misses folded onto the program's definitions (thematic.js)
 //   8  themes only, with a residue group for what no theme explains (thematic.js)
@@ -6643,6 +6650,7 @@ function foldModel(trace, options = {}) {
     throw new Error('The fold needs a fixed program, and this one has random choices without a seed. Give each random choice a seed (or freeze the seeds) and try again.');
   }
   const gap = options.gap ?? 0.5;
+  const capWidth = options.capWidth ?? 4;
   const notes = [];
   const all = []; // every pip, rests included
   const voices = [];
@@ -6680,6 +6688,7 @@ function foldModel(trace, options = {}) {
     let off = 0;
     for (const rec of order) { rec.off = off; off += rec.a.body.d; }
     I.length = off;
+    I.order = order;
     I.signature = (I.name ?? '#') + '|' + order.map(r => [r.a.canon ?? '', r9(r.a.body.s), r9(r.a.body.d), r.tag ?? ''].join(':')).join(',');
   }
 
@@ -6704,16 +6713,45 @@ function foldModel(trace, options = {}) {
     if (!E.firstInVoice.has(I.voice)) E.firstInVoice.set(I.voice, I.t0);
     I.entry = E;
   }
-  // Folded layout (stop 5): entries side by side in source order.
+  // Shown widths (stops 5 to 8). A written duration means something only
+  // beside the other durations of its own shape, so each shape gets its own
+  // unit: the most common duration of its sounding pips (the shorter one on a
+  // tie). No pip is wider than capWidth units.
+  for (const I of inst.values()) {
+    const E = I.entry;
+    if (!E) continue;
+    if (E.unit === undefined) {
+      const tally = new Map();
+      for (const rec of I.recs) if (rec.sounding) tally.set(r9(rec.a.body.d), (tally.get(r9(rec.a.body.d)) || 0) + 1);
+      let unit = 0, best = 0;
+      for (const [d, n] of tally) if (d > 0 && (n > best || (n === best && d < unit))) { unit = d; best = n; }
+      E.unit = unit || 1;
+    }
+    let off = 0;
+    for (const rec of I.order) {
+      const w = rec.a.body.d / E.unit;
+      rec.shownOff = off;
+      rec.shown = Math.min(w, capWidth);
+      rec.capped = w > capWidth + 1e-9;
+      off += rec.shown;
+    }
+    E.shownLength = off;
+  }
+  // Folded layout (stop 5): entries side by side in source order. `slot` is
+  // the shown layout. `at` is the same layout in written durations, which the
+  // later folds match on.
   const entryList = [...entries.values()].sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
-  let x = 0;
+  let x = 0, xw = 0;
   for (const E of entryList) {
-    E.slot = { x, width: E.length };
-    x += E.length + gap;
+    E.slot = { x, width: E.shownLength, unit: E.unit };
+    E.at = xw;
+    x += E.shownLength + gap;
+    xw += E.length + gap;
     E.residue = E.name == null && E.count === 1;
   }
 
   // Notes and their positions.
+  const written = []; // stop 5 in written durations, by note id
   for (const rec of all) {
     if (!rec.sounding) continue;
     const I = inst.get(rec.instance);
@@ -6722,7 +6760,9 @@ function foldModel(trace, options = {}) {
     const p2 = { t: rec.t, step: z(rec.a.noTranspose.s), d: rec.d };
     const p3 = { t: I.t0 + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
     const p4 = { t: E.firstInVoice.get(rec.voice) + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
-    const p5 = { t: E.slot.x + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p5 = { t: E.slot.x + rec.shownOff, step: z(rec.a.body.s), d: rec.shown };
+    if (rec.capped) p5.capped = true;
+    written.push({ t: E.at + rec.off, d: rec.a.body.d });
     rec.note = {
       id: notes.length, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
       step: rec.step, edited: rec.a.edited, owner: I.name, entry: E.id, instance: rec.instance,
@@ -6733,7 +6773,7 @@ function foldModel(trace, options = {}) {
   }
 
   // Stops 6 to 8.
-  const th = thematicFolds({ notes, recs: all, entries: entryList, relate }, { gap, minLength: options.minLength, themeLength: options.themeLength });
+  const th = thematicFolds({ notes, recs: all, entries: entryList, relate, written }, { gap, minLength: options.minLength, themeLength: options.themeLength });
   notes.forEach((n, k) => {
     n.pos.push(...th.notes[k].pos);
     n.bent = th.notes[k].bent;

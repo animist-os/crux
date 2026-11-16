@@ -124,7 +124,7 @@ function edgeTarget(S, N, d, m, maxBend) {
  * relate(rec, use): { a, b } so that a step in rec's owner body maps to
  *          a * step + b in the body of the definition use `use`, or null
  */
-export function thematicFolds({ notes, recs, entries, relate }, options = {}) {
+export function thematicFolds({ notes, recs, entries, relate, written }, options = {}) {
   const minLength = options.minLength ?? 3;
   // Stop 7 never matches fewer than 3 notes, whatever minLength is.
   const nearLength = Math.max(3, minLength);
@@ -143,11 +143,15 @@ export function thematicFolds({ notes, recs, entries, relate }, options = {}) {
   const slotOfNote = [];
   for (const n of notes) {
     if (!firstInstance.has(n.entry)) firstInstance.set(n.entry, n.instance);
-    const p = n.pos[5];
+    // t and d are written durations: the folds match on them. x and w are
+    // the shown layout of stop 5, which the layouts below keep.
+    const shown = n.pos[5];
+    const p = written ? written[n.id] : shown;
     const key = n.entry + '|' + r6(p.t);
     let S = slotByKey.get(key);
     if (!S) {
-      S = { id: slotByKey.size, key, entry: entries.find(E => E.id === n.entry), t: p.t, s: p.step, d: p.d,
+      S = { id: slotByKey.size, key, entry: entries.find(E => E.id === n.entry), t: p.t, s: shown.step, d: p.d,
+        x: shown.t, w: shown.d, capped: !!shown.capped,
         diad: n.diad, tag: n.tag, notes: [], first: null };
       slotByKey.set(key, S);
     }
@@ -463,14 +467,14 @@ export function thematicFolds({ notes, recs, entries, relate }, options = {}) {
     let cursor = 0, prev = null;
     for (const S of list) {
       if (prev && prev.entry === S.entry) {
-        let g = S.t - (prev.t + prev.d);
+        let g = S.x - (prev.x + prev.w);
         for (const X of slotsOf.get(S.entry.id)) {
-          if (X.t > prev.t + EPS && X.t < S.t - EPS && !inUnit.has(X)) g -= X.d;
+          if (X.t > prev.t + EPS && X.t < S.t - EPS && !inUnit.has(X)) g -= X.w;
         }
         cursor += Math.max(0, g);
       } else if (prev) cursor += gap / 2;
       local.set(S, cursor);
-      cursor += S.d;
+      cursor += S.w;
       prev = S;
     }
     return local;
@@ -487,9 +491,9 @@ export function thematicFolds({ notes, recs, entries, relate }, options = {}) {
         U.width = MARKER;
       } else {
         let lo = Infinity, hi = -Infinity;
-        for (const [S, p] of U.local) { lo = Math.min(lo, p.t); hi = Math.max(hi, p.t + S.d); }
+        for (const [S, p] of U.local) { lo = Math.min(lo, p.t); hi = Math.max(hi, p.t + S.w); }
         U.width = hi - lo;
-        for (const [S, p] of U.local) at.set(S, { t: x + p.t - lo, step: p.step, d: S.d, unit: U });
+        for (const [S, p] of U.local) at.set(S, { t: x + p.t - lo, step: p.step, d: S.w, capped: S.capped, unit: U });
       }
       x += U.width + gap;
     }
@@ -564,10 +568,10 @@ export function thematicFolds({ notes, recs, entries, relate }, options = {}) {
     const pl = places[k];
     const pos = [6, 7].map(stop => {
       const p = layouts[stop].at.get(finalOf(S, stop).S);
-      return { t: p.t, step: p.step, d: p.d };
+      return p.capped ? { t: p.t, step: p.step, d: p.d, capped: true } : { t: p.t, step: p.step, d: p.d };
     });
     const p8 = pl.H ? at8.get(pl.H) : residuePos;
-    pos.push({ t: p8.t, step: p8.step, d: p8.d });
+    pos.push(p8.capped ? { t: p8.t, step: p8.step, d: p8.d, capped: true } : { t: p8.t, step: p8.step, d: p8.d });
     const owner = pl.F.entry.name ?? pl.F.entry.id;
     return { pos, bent: finalOf(S, 7).bent, explainedBy: explainedOf(S),
       fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null },

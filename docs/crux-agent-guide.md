@@ -253,7 +253,7 @@ There are three mechanisms. Know which one a file uses.
 
 | Mechanism | Where | Status |
 |---|---|---|
-| **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Both hosts round it down today, so it plays as the natural degree. |
+| **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Golden plays it as the degree below raised a semitone, added on top of any key lane. Wad rounds it down, so it plays as the natural degree. |
 | **Key lane** | A `// #keyLane` directive. Voices keep integer steps. | Golden (3.4) and Wad (4.3). |
 | **Scale deformation** | Golden's `#scaleDeformation` and timeline: seven semitone offsets, one per degree. | Legacy. Intended for removal. Do not use it in new programs. |
 
@@ -286,8 +286,9 @@ and reused. Inflection is applied afterwards, like the tonic.
 
 - The panel runs a program on Cmd+Enter. Typing does not re-run it.
 - A note's pitch is `48 + regime(step)`, with the tonic set by `#tonic`.
-  Fractional steps round to the nearest integer, and exactly one half rounds
-  down.
+  A step of exactly `k + 1/2` plays as degree k raised a semitone
+  (`golden.CruxKeyLane.halfStep`). Other fractional steps round to the nearest
+  integer.
 - Tag `r` is a rest. Tag `x` omits the pip without advancing time.
 - Section 1 plays the panel's instrument target. Section N plays `Sampler-N`
   unless a `#target` line says otherwise.

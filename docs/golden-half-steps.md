@@ -1,6 +1,11 @@
 # Proposal: play diatonic half-steps in Golden
 
-This is a proposal. No Golden code has been changed.
+Implemented 2026-11-16, with one change from the patch below. Golden's
+`playNote` rebuilds the pitch from `regimeStep` and adds `note.inflection`, so
+the semitone is added to `inflection`, not to `rawStep`. The rule is
+`golden.CruxKeyLane.halfStep` in `modules/golden/golden_crux_keylane.js`. It
+adds to any key lane inflection. `crux_injector.js` is not loaded by any module
+and was not changed. The text below is the original proposal.
 
 ## The problem
 

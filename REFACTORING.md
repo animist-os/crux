@@ -94,7 +94,7 @@ in it (see results), because a tonal sequence is an exact transposition in scale
 degrees but not in semitones.
 
 Golden rounds fractional steps down, so it plays `7/2` as F, not F♯.
-`docs/golden-half-steps.md` proposes a four-line patch. No Golden code was changed.
+`docs/golden-half-steps.md` proposed the patch. Golden now plays half steps (2026-11-16).
 
 ## The refactoring engine
 

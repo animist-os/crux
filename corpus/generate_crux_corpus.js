@@ -24,6 +24,7 @@ const categoryToTag = {
     chant: 'baroque',
     edm: 'edm',
     minimalist: 'minimal',
+    lup: 'lup',
 };
 
 const entries = [];
@@ -51,7 +52,8 @@ for (const melody of data.melodies) {
         } else {
             commentCrux = flatCrux;
         }
-        const comment = `// ${melody.name} — flattened: ${commentCrux}`;
+        //const comment = `// ${melody.name} — flattened: ${commentCrux}`;
+        const comment = `// ${melody.name}`;
         const directives = [
             `// #pitchRegime ${melody.pitchRegime}`,
             `// #tonic ${melody.tonic % 12}`,

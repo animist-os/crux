@@ -7,7 +7,7 @@ import { REGIME_PITCH_CLASSES, diatonicToChromatic } from '../tools/find-regime.
 
 const { parse } = golden;
 
-const VALID_CATEGORIES = ['bach', 'folk', 'classical', 'chant', 'edm', 'minimalist'];
+const VALID_CATEGORIES = ['bach', 'folk', 'classical', 'chant', 'edm', 'minimalist', 'lup'];
 const VALID_REGIMES = [...Object.keys(REGIME_PITCH_CLASSES), '12Tone', '24Tone'];
 
 const corpusPath = new URL('../corpus/melodies.yaml', import.meta.url).pathname;

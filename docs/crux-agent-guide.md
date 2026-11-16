@@ -203,12 +203,29 @@ the program has random choices without a seed.
   operator copies (`op`) and runs of literal pips (`lit`), each with a time
   span, a pip range and `level` (the number of definitions above it).
 - `counts`: `notes`, `pipsWritten`, `leverage`, and `shapes` and `positions`
-  per stop.
+  per stop. `explained` gives `program`, `repeat`, `near` and `none`.
 
 A note changed by an operator with `exact: false` is `edited`. Its owner is
 the innermost definition outside that operator.
 
-`node tools/fold-report.js program.crux` prints the model as text.
+Stops 6 to 8 (`src/fold/thematic.js`) find what the program does not state.
+They are analysis, and their rules will change.
+
+- 6: sub-runs of the stop 5 literal runs that are equal under transpose,
+  mirror, reverse and uniform stretch stack on one copy (`minLength`, default
+  3). A rest breaks a run.
+- 7: a run that is still alone moves onto a part of a definition's own run
+  when the rhythm matches and only a few notes differ. Those notes keep their
+  step offset in `bent`.
+- 8: only themes stay (stated definitions that keep 3 or more of their own
+  pips). Short stated cells join the theme next to them. The rest goes to one
+  residue group.
+- Each note gets `pos[6]` to `pos[8]`, `bent` and `explainedBy` (`'program'`,
+  `'repeat'`, `'near'` or `null`). `thematic` lists the found repeats, the
+  near-misses, the layout units of stops 6 to 8 and the themes.
+
+`node tools/fold-report.js program.crux [--min-length N]` prints the model as
+text.
 
 ## 2. What a host must decide
 
@@ -259,7 +276,7 @@ and reused. Inflection is applied afterwards, like the tonic.
 | `modules/golden/golden_crux_examples.js` | `golden.AVAILABLE_CRUX_PROGRAMS`, the example library |
 | `modules/golden/golden_crux_global.js` | Legacy scale deformation and its timeline |
 | `modules/golden/golden_graphic_crux_ui.js` | Graphic Crux panel |
-| `modules/golden/golden_crux_fold.js`, `golden_crux_fold_ui.js` | Fold mode of the graphic panel (`golden.CruxFold`, see 1.8) |
+| `modules/golden/golden_crux_fold.js`, `golden_crux_fold_ui.js`, `golden_crux_fold_panel.js` | Fold panel: spawn `CruxFold`, or "Open in Fold Panel" in the Crux panel menu (`golden.CruxFold`, see 1.8) |
 | `docs/crux-key-lane.md`, `docs/crux-rebuild.md` | Topic documents |
 
 ### 3.3 Behaviour

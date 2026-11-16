@@ -66,12 +66,14 @@ decomposeContent = decomposeContent.replace(/^import ['"]\.\/index\.js['"];?\s*\
 // Fold view (src/fold): trace and model. Each file runs in its own function
 // scope in the bundle, so its top-level names do not meet index.js's. They
 // attach their API to golden (crux_trace, crux_fold_model, crux_fold).
-console.log('📝 Reading src/fold/{trace,model}.js...');
-const foldContent = ['trace.js', 'model.js'].map(file => {
+// thematic.js is imported by model.js: its scope returns thematicFolds.
+console.log('📝 Reading src/fold/{trace,thematic,model}.js...');
+const foldContent = ['trace.js', 'thematic.js', 'model.js'].map(file => {
   const body = fs.readFileSync(path.join(__dirname, 'src/fold', file), 'utf8')
     .replace(/^import .*;\s*\n/gm, '')
     .replace(/^export const .*;\s*\n/gm, '')
     .replace(/^export function /gm, 'function ');
+  if (file === 'thematic.js') return `// --- src/fold/${file} ---\nconst thematicFolds = (function () {\n${body}\nreturn thematicFolds;\n})();\n`;
   return `// --- src/fold/${file} ---\n(function () {\n${body}\n})();\n`;
 }).join('\n');
 
@@ -139,7 +141,7 @@ const dohBundle = `// ==========================================================
 // from inside crux/. When run from a disrupterbox checkout, the build copies
 // the result back here. See CRUX_UPDATE.md in the disrupterbox repo root.
 //
-// Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,model}.js
+// Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
 // Generated: ${generatedAt}
 // =============================================================================
 Doh.Module('crux', [

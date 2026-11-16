@@ -1,7 +1,7 @@
 # Crux fold view
 
-Status: PRs 1 to 3 done, PRs 4 and 5 implemented with the browser check
-pending. Written 2026-11-16.
+Status: PRs 1 to 3 and 8 done. PRs 4, 5 and 9 implemented with the browser
+check pending. Written 2026-11-16.
 
 ## Purpose
 
@@ -121,10 +121,11 @@ innermost definition outside that operator.
 
 ### 3. Hosts
 
-- Golden: a fold mode in the graphic Crux panel
-  (`modules/golden/golden_graphic_crux_ui.js`). It reuses the lanes, colours
-  and playhead of `CruxPipGraph`. Hover on a note or strip segment selects
-  the source text in the editor.
+- Golden: as first built, a fold mode in the graphic Crux panel. Since part
+  2, its own panel, `GoldenCruxFoldPanel` (`golden_crux_fold_panel.js`, spawn
+  key `CruxFold`), which inherits `GoldenCruxPanel`. The view sits above the
+  panel, as the ribbon does on the graphic panel. Hover on a note or strip
+  segment selects the source text in the editor.
 - Wad: `wadCrux.fold(source, seed, globalsJSON)` in `wad-api.js` returns the
   model as JSON. The view is Swift. Planned in the Wad repo after the Golden
   host works.
@@ -152,6 +153,84 @@ innermost definition outside that operator.
 
 PRs 1 to 3 are in the crux repo. They add API and change no existing
 behaviour. Wad gets them only when its bundle is rebuilt.
+
+## Later folds (added 2026-11-16)
+
+Stops 1 to 5 undo only what the program states. On Invention 14 (v2) 96 note
+positions are left at stop 5, and half of them are literal runs inside the
+passages. Three more stops let the fold find relations that the program does
+not state. They are analysis, so they live in the core (`src/fold/`).
+
+| Stop | Removed | Rule |
+|---|---|---|
+| 6 | unstated exact repeats | Among the literal runs left at stop 5, find sub-runs that are equal under transpose, mirror, reverse and uniform stretch. Bit cost is ignored. Equal sub-runs stack on one copy. |
+| 7 | near-misses | Match each run that is still alone to the closest transform of a theme cell. A match can have a few bent notes. Matched notes move onto the theme. A bent note keeps its offset as a mark. |
+| 8 | all but the themes | Only theme cells stay. Notes that no theme explains go to a dimmed residue group. |
+
+Decisions (Andy, 2026-11-16):
+
+- Themes for stops 7 and 8 are the program's own definitions. Picking themes
+  by hand comes later.
+- A stop that separates rhythm from pitch is set aside for now.
+- The fold view gets its own panel in Golden. It does not share the graphic
+  Crux panel.
+
+Rules to start from. They are a first attempt, to be tuned on real pieces:
+
+- Stop 6: `minLength` option for the shortest sub-run that can fold, default
+  3 notes. Longest and most frequent first. A note belongs to one sub-run.
+- Stop 7: rhythm must match up to uniform stretch. At least half of the notes
+  must match exactly. At most 1 bent note for runs of 4 notes or fewer, at
+  most 2 for longer runs. A run can match a contiguous part of a theme.
+- Stop 8: a theme is a program definition whose own literal run has 3 notes
+  or more and that did not fold onto another theme at stop 6 or 7.
+- `counts.explained` reports, for stop 8: notes explained by the program
+  (stops 1 to 5), by found repeats (6), by near-misses (7), and not explained.
+
+Model changes: `stops` and each note's `pos` grow to index 8. Stops 1 to 5
+keep their values. Notes get `bent` (step offset, or 0) and `explainedBy`.
+
+Rules as built (`src/fold/thematic.js`), after a first run on Invention 14:
+
+- The unit of work is the stop 5 slot: one literal pip of one dictionary
+  entry. Every note on a slot moves with it.
+- A run is a sequence of slots of one entry that are next to each other in
+  the source. A rest breaks a run, and so does a definition use between two
+  literals.
+- Stated: a definition used more than once. Its notes are explained by the
+  program. A passage (a definition used once) is not stated.
+- Changed, stop 6: a stated definition moves only as a whole run. A part of
+  one can be the copy that stays, and it counts as an occurrence, but the
+  fold does not cut the program's own cells apart. Without this rule, three
+  notes of B's arpeggio moved onto a figure of thirds in N.
+- Changed, stop 6: a shape of 3 notes needs 3 occurrences, or a mover that is
+  a whole stated definition. Without this rule, r3 and l1 matched as a
+  3-note retrograde inversion, which hid that l1 is B with one note bent.
+- The copy that stays is in the most used stated definition, else the first.
+- Changed, stop 7: a run of 3 notes needs an exact match (no bent note). With
+  1 bent note out of 3, nearly any 3-note run matches some theme.
+- Stop 7 ranks matches by exact notes, then by length, then by fewest bent
+  notes. Exact matches of 3 notes against a theme are allowed here.
+- Changed, stop 8: a theme must be stated, so passages are never themes.
+- Added, stop 8: a stated cell that keeps fewer than 3 pips (for example the
+  last note of T = T9, [2]) joins the theme next to it inside its own
+  definition, in that theme's frame. T, Tu and the two edited notes of A sit
+  after T9 as other endings. E, U, W, K and Q sit around H. A cell with no
+  theme next to it (G) stays as its own small group.
+- Found shapes whose kept copy is not in a theme stay as their own group at
+  stop 8.
+- Known limit: a bare top-level literal with no operator gives each pip its
+  own entry at stop 5, so stop 6 sees no runs in it. Wrap a passage in a
+  definition.
+
+## PR sequence, part 2
+
+8. [x] crux: stops 6 to 8 in the fold model, with tests. `fold-report.js`
+   prints the new stops and the explained counts.
+9. [~] Golden: own panel for the fold view. Remove the hook from
+   `golden_graphic_crux_ui.js`. Slider to stop 8, bent marks, residue group,
+   explained counts. Implemented, browser check pending. The Crux panel menu
+   has "Open in Fold Panel" (it copies the editor text, and does not run it).
 
 ## Open questions
 

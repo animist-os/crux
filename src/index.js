@@ -2282,20 +2282,31 @@ class Subdivide {
 
   eval(env) {
     const mot = requireMot(this.x.eval(env));
-    const N = mot.values.length;
-    if (N === 0) return new Mot([]);
-    const factor = 1 / N;
+    if (mot.values.length === 0) return new Mot([]);
+    // Normalize by total duration (sum of timeScales), not element count, so the
+    // mot occupies unit time even when pips carry non-unit timescales.
+    const total = subdivideTotalDuration(mot.values);
+    if (total === 0) return new Mot([]);
+    const factor = 1 / total;
     const out = mot.values.map(pip => new Pip(pip.step, pip.timeScale * factor, pip.tag));
     return new Mot(out);
   }
 }
 
+// Total duration of a value list: a Pip contributes its timeScale, any other
+// element (e.g. a nested mot) contributes one unit. Used by the trailing `/`
+// subdivide so normalization is by occupied time, not element count.
+function subdivideTotalDuration(values) {
+  return values.reduce((s, v) => s + (v instanceof Pip ? v.timeScale : 1), 0);
+}
+
 // Helper function to subdivide a Mot or NestedMot directly
 function subdivide(motOrNested) {
   if (motOrNested instanceof Mot) {
-    const N = motOrNested.values.length;
-    if (N === 0) return new Mot([]);
-    const factor = 1 / N;
+    if (motOrNested.values.length === 0) return new Mot([]);
+    const total = subdivideTotalDuration(motOrNested.values);
+    if (total === 0) return new Mot([]);
+    const factor = 1 / total;
     const out = motOrNested.values.map(pip => {
       if (pip instanceof Pip) {
         return new Pip(pip.step, pip.timeScale * factor, pip.tag);
@@ -2305,9 +2316,10 @@ function subdivide(motOrNested) {
     return new Mot(out);
   }
   if (motOrNested instanceof NestedMot) {
-    const N = motOrNested.values.length;
-    if (N === 0) return new NestedMot([]);
-    const factor = 1 / N;
+    if (motOrNested.values.length === 0) return new NestedMot([]);
+    const total = subdivideTotalDuration(motOrNested.values);
+    if (total === 0) return new NestedMot([]);
+    const factor = 1 / total;
     const out = motOrNested.values.map(v => {
       if (v instanceof Pip) {
         return new Pip(v.step, v.timeScale * factor, v.tag);

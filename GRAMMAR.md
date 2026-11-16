@@ -87,7 +87,7 @@ Returns `[[2, 3, 3, 4]]` (same fan-add behavior as `*` — for each r in `[2,3]`
 - **Mot**: square-bracket list of values (comma-separated): `[Value, Value, ...]`
 - **Nested Mot**: double-bracket list for hierarchical grouping: `[[Value, Value, ...]]`
   - Nested mots now preserve unit duration by default (no automatic subdivision)
-  - Use the `/` postfix operator to subdivide: `[[0,1,2]]/` → `[0|/3, 1|/3, 2|/3]`
+  - Use the `/` postfix operator to subdivide: `[[0,1,2]]/` → `[0|/3, 1|/3, 2|/3]`. The result always lasts one unit in total (see *Postfix subdivide*).
   - Can be nested recursively: `[[[0,1],[2,3]]]`
 - **Value** can be:
   - **Pip**: `number` optionally combined with a timeScale via a `|` pipe form, or a special tag.
@@ -148,12 +148,17 @@ Operators are left-associative unless otherwise noted.
 [0 -> 7] \ {1, 2}           -> [0..5] or [0..6] // random drop count
 ```
 
-**Postfix subdivide** `/`: divides each pip's timescale by the mot length.
+**Postfix subdivide** `/`: scales the mot to one unit of time. Each pip's timeScale is divided by the mot's total duration (the sum of its timeScales).
    - Works on any expression, not just nested mots
+   - When every pip has timeScale 1, this is the same as dividing by the mot length.
+   - Pips keep their relative durations. Rests count toward the total.
+   - Before version 2.0 the divisor was the number of pips, so `[[0, 1 | 2]]/` gave `[0 | /2, 1]`.
    - Examples:
 ```text
 [[0,1,2]]/               -> [0 | /3, 1 | /3, 2 | /3]
 [4->7]/                  -> [4 | /4, 5 | /4, 6 | /4, 7 | /4]
+[[0, 1 | 2]]/            -> [0 | /3, 1 | 0.666667]   // total 3, so 1/3 and 2/3
+[0 | 2, r, 1]/           -> [0 | /2, r | /4, 1 | /4] // total 4
 ```
 
 **Postfix zip columns** `z`: round-robin interleaving of comma-separated expressions.
@@ -189,7 +194,7 @@ Operators are left-associative unless otherwise noted.
       - **Note**: Nested mots now preserve unit duration by default. Use the `/` postfix operator for subdivision.
       - Example (unit duration preserved): `[0,4,2] . [0, [1,0], 0] -> [0, 5, 4, 2]`.
       - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
-      - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 5 | /2, 4 | /2, 2]` (the nested `[1,0]/` subdivides position 1: left pip `4` combined with nested steps `[1, 0]` at half time gives `5|/2, 4|/2`).
+      - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 5 | /2, 4 | /2, 2]` (the nested `[1,0]/` subdivides position 1: left pip `4` combined with nested steps `[1, 0]` at half time gives `5|/2, 4|/2`). The nested group is scaled to one unit in total, so `[1 | 3, 0]/` gives `5 | 0.75, 4 | /4`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
   - '.,' cog-concatenate (element-wise zip with RHS cycling)
       - interleaves two mots by pairing each LHS element with a corresponding RHS element

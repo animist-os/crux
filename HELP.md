@@ -8,7 +8,7 @@
 ### Operators (fan vs cog)
 - Concatenation: `,` — concatenate mots.
 - Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
-- Subdivide: `/` (postfix) — divide each pip's timeScale by mot length.
+- Subdivide: `/` (postfix) — scale the mot to one unit of time: divide each pip's timeScale by the mot's total duration.
 - Zip: `z` (postfix) — round-robin interleave comma-separated expressions.
 - Slice: `start ... end`, `start ...`, `... end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
@@ -47,6 +47,7 @@ Pips:
 | Concatenate `,` | `[0, 1], [2]` | `[0, 1, 2]` |
 | Repeat `Expr : N` | `[1] : 3` | `[1, 1, 1]` |
 | Subdivide `/` | `[[0,1,2]]/` | `[0\|/3, 1\|/3, 2\|/3]` |
+| Subdivide `/` (unequal) | `[[0, 1\|2]]/` | `[0\|/3, 1\|0.666667]` |
 | Zip `z` | `([0,0,0], [1,1,1])z` | `[0,1,0,1,0,1]` |
 | Spread add `*` | `[1,2,3] * [0*-1]` | `[3, 2, 1]` |
 | Spread mul `^` | `[1, 2] ^ [2]` | `[2, 4]` |

@@ -500,17 +500,19 @@ test('nested mot with / postfix subdivides', () => {
 });
 
 test('nested mot with explicit timescales and / postfix', () => {
-  assert.equal(evalToString('[[0, 1 | 2]]/'), '[0 | /2, 1]');
-  assert.equal(evalToString('[[0 | /4, 1]]/'), '[0 | /8, 1 | /2]');
-  assert.equal(evalToString('[[0 | 3, 1 | /2]]/'), '[0 | 1.5, 1 | /4]');
+  // Trailing `/` normalizes by total duration (sum of timeScales), so the mot
+  // occupies unit time regardless of per-pip timescales.
+  assert.equal(evalToString('[[0, 1 | 2]]/'), '[0 | /3, 1 | 0.666667]');
+  assert.equal(evalToString('[[0 | /4, 1]]/'), '[0 | /5, 1 | 0.8]');
+  assert.equal(evalToString('[[0 | 3, 1 | /2]]/'), '[0 | 0.857143, 1 | /7]');
 });
 
 test('nested mot with fractions and pipe-only (with / postfix)', () => {
-  // 3/4 * 1/2 = 3/8 => prints as *0.375
-  assert.equal(evalToString('[[0, 1 | 3/4]]/'), '[0 | /2, 1 | 0.375]');
-  assert.equal(evalToString('[[0, | 2]]/'), '[0 | /2, 0]');
-  assert.equal(evalToString('[[| 3, 1]]/'), '[0 | 1.5, 1 | /2]');
-  assert.equal(evalToString('[[|, | /4]]/'), '[0 | /2, 0 | /8]');
+  // Normalized by total duration: each output below sums to one unit of time.
+  assert.equal(evalToString('[[0, 1 | 3/4]]/'), '[0 | 0.571429, 1 | 0.428571]');
+  assert.equal(evalToString('[[0, | 2]]/'), '[0 | /3, 0 | 0.666667]');
+  assert.equal(evalToString('[[| 3, 1]]/'), '[0 | 0.75, 1 | /4]');
+  assert.equal(evalToString('[[|, | /4]]/'), '[0 | 0.8, 0 | /5]');
 });
 
 test('concat and juxtaposition with nested mots (with / postfix)', () => {

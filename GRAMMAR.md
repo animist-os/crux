@@ -1,7 +1,7 @@
 ## Crux
 https://github.com/animist-os/crux
 
-This document describes the Crux grammar used to build and transform musical mots as sequences of "pips" (step, timeScale, optional tag). The pips within a mot represent a linear series of conriguous events. You can concatenate mots, repeat them, slice/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "fan" approach or a "cog" one.  
+This document describes the Crux grammar used to build and transform musical mots as sequences of "pips" (step, timeScale, optional tag). The pips within a mot represent a linear series of conriguous events. You can concatenate mots, repeat them, drop/rotate, combine them multiplicatively, and introduce ranges and choices.   You can apply low level schenker operations on pips and mots.  All operations can be applied in either a "fan" approach or a "cog" one.  
 
 Fan (outer):  For each r in R, apply op to all of A, then concatenate.   The lengths multiply
 
@@ -170,7 +170,7 @@ Operators are left-associative unless otherwise noted.
 
 **Postfix tie** `t`: merges adjacent equal-step pips by adding timeScales.
 ```text
-[0, 0, 1]t -> [0*2, 1]
+[0, 0, 1]t -> [0 | 2, 1]
 ```
 
 **Repeat**: `Expr : N` repeats a mot `N` times (N must be a non-negative finite number or RandNum).
@@ -193,7 +193,7 @@ Operators are left-associative unless otherwise noted.
     - Nested RHS subdivision: If the right-side element at a position is a nested mot literal, it coerces a subdivision of the left pip at that position: emit one pip per element of the nested group where each emitted pip uses `step = left.step + rhsNested.step` and `timeScale = left.timeScale * rhsNested.timeScale`. Tags combine (`r` carries through).
       - **Note**: Nested mots now preserve unit duration by default. Use the `/` postfix operator for subdivision.
       - Example (unit duration preserved): `[0,4,2] . [0, [1,0], 0] -> [0, 5, 4, 2]`.
-      - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5, 4, 2]`.
+      - Example (explicit timescales): `[0,4,2] . [0, [1 | 2, 0 | 2], 0] -> [0, 5 | 2, 4 | 2, 2]`.
       - Example (with subdivision): `[0,4,2] . [0, [1,0]/, 0] -> [0, 5 | /2, 4 | /2, 2]` (the nested `[1,0]/` subdivides position 1: left pip `4` combined with nested steps `[1, 0]` at half time gives `5|/2, 4|/2`). The nested group is scaled to one unit in total, so `[1 | 3, 0]/` gives `5 | 0.75, 4 | /4`.
     - Example: `[0, 1, 2] .* [10, 20] -> [10, 21, 12]` (same as using `.`)
   - '.,' cog-concatenate (element-wise zip with RHS cycling)
@@ -394,7 +394,6 @@ From highest to lowest binding:
 
 - Repeat count must be a non-negative finite number.
 - Range endpoints must be finite numbers.
-- Delta mots support only simple numeric pips (no tags/ranges/choices inside semicolon form).
 - Many operators require mots; attempting to use a non-mot where a mot is required is an error.
 
 ### Directives
@@ -466,7 +465,7 @@ they need. Crux itself only enforces the sampler-scoping rule and the
 [0, 1, 2, 3]                 -> [0, 1, 2, 3]
 
 // Range example
-([0->2]), [3*2]              -> [0, 1, 2, 3*2]
+([0->2]), [3 | 2]            -> [0, 1, 2, 3 | 2]
 
 // Random choices (result varies)
 [{0, 1, 2}]                  -> one of [0], [1], [2]

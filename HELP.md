@@ -9,8 +9,8 @@
 - Concatenation: `,` — concatenate mots.
 - Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
 - Subdivide: `/` (postfix) — scale the mot to one unit of time: divide each pip's timeScale by the mot's total duration.
+- Drop: `Expr \ N` (postfix) — drop N pips from the end; a negative N drops from the start.
 - Zip: `z` (postfix) — round-robin interleave comma-separated expressions.
-- Slice: `start ... end`, `start ...`, `... end` — slice section.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS cycled.
@@ -27,6 +27,8 @@
 - Glass: `g` (fan), `.g` (cog) — Glass-inspired minimalist rhythmic patterns.
 - Reich: `r` (fan), `.r` (cog) — Reich-inspired phasing patterns.
 - Pärt: `p` (fan) — Pärt-inspired tintinnabulation with octave equivalence.
+- Fold: `f` (fan) — the mot followed by its reverse, transposed by each RHS value.
+- At-index: `@` — apply values at given positions only: `[@2 -7, @-1 7]`.
 - Displace: `>` — shift a mot forward in time by prepending rest; negative values trim from front (anticipation).
 - Mot TimeScale: `||` — scale all pip durations in a mot by a factor.
 
@@ -48,32 +50,35 @@ Pips:
 | Repeat `Expr : N` | `[1] : 3` | `[1, 1, 1]` |
 | Subdivide `/` | `[[0,1,2]]/` | `[0\|/3, 1\|/3, 2\|/3]` |
 | Subdivide `/` (unequal) | `[[0, 1\|2]]/` | `[0\|/3, 1\|0.666667]` |
+| Drop `\` | `[0,1,2,3,4] \ 1` | `[0, 1, 2, 3]` |
+| Drop `\` (from start) | `[0,1,2,3,4] \ -2` | `[2, 3, 4]` |
 | Zip `z` | `([0,0,0], [1,1,1])z` | `[0,1,0,1,0,1]` |
-| Spread add `*` | `[1,2,3] * [0*-1]` | `[3, 2, 1]` |
+| Spread add `*` | `[1,2,3] * [0\|-1]` | `[3, 2, 1]` |
 | Spread mul `^` | `[1, 2] ^ [2]` | `[2, 4]` |
 | Tile add `.` | `[0,1,2] . [10,20]` | `[10, 21, 12]` |
 | Tile add `.*` | `[0,1,2] .* [10,20]` | `[10, 21, 12]` |
 | Tile mul `.^` | `[1,2] .^ [2]` | `[2, 4]` |
 | Tile zip `.,` | `[0,1,2] ., [9,8,7]` | `[0,9,1,8,2,7]` |
 | Rotate (fan) `~` | `[0,1,2,3] ~ [-1]` | `[3, 0, 1, 2]` |
-| Rotate (cog) `.~` | `[0,1,2,3] .~ [1,2]` | `[1, 3, 0, 1]` |
+| Rotate (cog) `.~` | `[0,1,2,3] .~ [1,2]` | `[1, 3, 3, 1]` |
 | Steps (fan) `->` | `[0, 3] -> [2]` | `[0, 3, 1, 4, 2, 5]` |
-| Steps (cog) `.->` | `[0, 3] .-> [2]` | `[0,1,2,3,4, 3,4,5]` |
+| Steps (cog) `.->` | `[0, 3] .-> [2]` | `[0,1,2, 3,4,5]` |
 | Mirror (fan) `m` | `[0, 2, 4] m [2]` | `[4, 2, 0]` |
 | Mirror (cog) `.m` | `[0, 2, 4] .m [1]` | `[2, 0, -2]` |
 | Lens (fan) `l` | `[0,1,2,3] l [2]` | `[0,1, 1,2, 2,3]` |
 | Lens (cog) `.l` | `[0,1,2] .l [2]` | `[0,1, 1,2, 2,0]` |
 | Jam (fan) `j` | `[0,1,2,3] j [0,7]` | `[0,0,0,0, 7,7,7,7]` |
 | Jam (cog) `.j` | `[0,1,2,3] .j [0,7]` | `[0,7,0,7]` |
-| Tie (postfix) `t` | `[0, 0\|/2, 0\|/2, 1] t` | `[0, 1]` |
-| Tie (cog) `.t` | `[0\|/2, 0\|/2, 0\|/2, 1] .t [1]` | `[0, 1]` |
+| Tie (postfix) `t` | `[0, 0\|/2, 0\|/2, 1] t` | `[0\|2, 1]` |
+| Tie (cog) `.t` | `[0\|/2, 0\|/2, 0\|/2, 1] .t [1]` | `[0\|1.5, 1]` |
 | Constraint (fan) `c` | `[0,1,2,3] c [1,0,1,0]` | `[0, 2]` |
 | Glass (fan) `g` | `[0,1] g [2,3]` | `[0\|/3, 1\|/3, 2\|/2, 3\|/2]` |
 | Glass (cog) `.g` | `[0,1] .g [2,3]` | `[0\|/3, 2\|/2, 1\|/3, 3\|/2]` |
 | Reich (fan) `r` | `[0,1] r [2,3]` | `[0\|/4, 1\|/4, 2\|/4, 3\|/4]` |
-| Reich (cog) `.r` | `[0,1] .r [2,3]` | `[0\|/2, 2, 1\|/4, 3\|/2]` |
-| Pärt (fan) `p` | `[0,1,2,3] p [0,2,4]` | `[4, 0, 2, 2]` |
-| Slice `start ... end` | `[0,1,2,3,4] -3 ... -1` | `[2, 3]` |
+| Reich (cog) `.r` | `[0,1] .r [2,3]` | `[0\|/2, 1\|/4, 2, 3\|/2]` |
+| Pärt (fan) `p` | `[0,1,2,3] p [0,2,4]` | `[2, 0, 0, 2]` |
+| Fold (fan) `f` | `[0,1,2] f [0]` | `[0, 1, 2, 2, 1, 0]` |
+| At-index `@` | `[0->5] @ [@2 -7]` | `[0, 1, -5, 3, 4, 5]` |
 | Displace `>` | `[0,1,2] > [1]` | `[r, 0, 1, 2]` |
 | Displace (frac) `>` | `[0,1,2] > [1/2]` | `[r\|/2, 0, 1, 2]` |
 | Displace (neg) `>` | `[0,1,2] > [-1]` | `[1, 2]` |
@@ -143,8 +148,8 @@ Pips:
 [{1 -> 6}]         // same; random in 1..6
 ```
 
-- Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly` or `Choice (||)` appears, and wherever a `RandNum` is accepted after a pipe.
+- Note: You can combine these forms inside larger expressions (concat, fan/cog ops, etc.). RNG is used wherever a `Curly` appears, and wherever a `RandNum` is accepted after a pipe.
 
 - If you need determinism for a specific random choice or range, add `$hhhh` to that curly expression.
 
-- In the current grammar, use curly syntax `{...}` for random choices, and reserve single `|` for timeScale piping.
+- Use curly syntax `{...}` for random choices. A single `|` is the timeScale pipe, and `||` is the mot timeScale operator.

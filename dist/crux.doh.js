@@ -16,7 +16,7 @@
 // the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
-// Generated: 2026-11-16T23:35:14.897Z
+// Generated: 2026-11-17T00:27:26.445Z
 // =============================================================================
 Doh.Module('crux', [
   'ohm',
@@ -1423,8 +1423,12 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
 });
 
 // Helper: Get the final statement's root AST and environment
-function getFinalRootAstAndEnv(prog) {
+function getFinalRootAstAndEnv(prog, seedEnv) {
+  // Seed with global bindings so the stats walk (pip_depth/leaves) for a source
+  // that references globals doesn't trip on an "undeclared" lookup. A MacroBinding
+  // carries the raw expr AST that the height/leaf walkers expect.
   const env = new Map();
+  if (seedEnv) for (const [k, v] of seedEnv) env.set(k, v instanceof MacroBinding ? v.expr : v);
   let last = null;
 
   // Process all sections to build up the environment
@@ -1452,8 +1456,11 @@ class Prog {
     this.offsets = Array.isArray(offsets) ? offsets : sections.map(() => 0);
   }
 
-  interp() {
-    const env = new Map();
+  interp(seedEnv) {
+    // seedEnv (optional): bindings supplied by the host, e.g. the globals another
+    // program defined (see golden.crux_env). Copied, so this program's own
+    // assignments overlay locally and the caller's map is not changed.
+    const env = seedEnv ? new Map(seedEnv) : new Map();
     const sections = [];
     const sectionOffsets = [];
     const globalOps = [];
@@ -1499,10 +1506,21 @@ class Prog {
       }
     }
 
-    // Compute program info for the final statement
-    const { root, env: finalEnv } = getFinalRootAstAndEnv(this);
-    const pip_depth = golden.computeExprHeight(root, finalEnv);
-    const leaves = golden.collectMotLeavesWithDepth(root, finalEnv);
+    // Compute program info for the final statement. With a seedEnv this is
+    // best-effort: a seeded binding of an unexpected shape must not sink the
+    // sections already computed, so the stats fall back to 0. Without a seedEnv
+    // an error here is thrown, as before.
+    let pip_depth = 0;
+    let leaves = [];
+    try {
+      const { root, env: finalEnv } = getFinalRootAstAndEnv(this, seedEnv);
+      pip_depth = golden.computeExprHeight(root, finalEnv);
+      leaves = golden.collectMotLeavesWithDepth(root, finalEnv);
+    } catch (e) {
+      if (!seedEnv) throw e;
+      pip_depth = 0;
+      leaves = [];
+    }
 
     let pip_count = 0;
     for (const { mot } of leaves) {
@@ -4249,9 +4267,9 @@ golden.CruxExtractDirectives = extractDirectives;
 // CruxExtractDirectives override-safety).
 golden.CruxExtractDirectivesPoly = extractDirectives;
 
-golden.crux_interp = function (input) {
+golden.crux_interp = function (input, seedEnv) {
   const prog = parse(input);
-  const value = prog.interp();
+  const value = prog.interp(seedEnv);
   const { routing, samplers, directives } = extractDirectives(input);
 
   // Fill in default routing for any section without an explicit #target.
@@ -4262,6 +4280,19 @@ golden.crux_interp = function (input) {
 
   return { ...value, routing, samplers, directives };
 }
+
+// Parse and evaluate a source for its bindings only, and return the populated
+// environment (a Map). Sections and voices are ignored. `=` names are
+// MacroBindings (lazy ASTs), `:=` names are evaluated Mots, operator aliases
+// are op entries: the shape crux_interp takes as seedEnv. An optional seedEnv
+// is copied and layered under the source's own bindings. Throws on a bad
+// reference. Hosts use this to share definitions between programs.
+golden.crux_env = function (input, seedEnv) {
+  const prog = parse(input);
+  const env = seedEnv ? new Map(seedEnv) : new Map();
+  for (const stmts of prog.sections) for (const stmt of stmts) stmt.eval(env);
+  return env;
+};
 
 // Internals for src/fold/trace.js (crux_trace). Not a public API.
 golden._cruxInternals = {
@@ -4408,8 +4439,8 @@ golden.findAllPipsWithPositions = function(source) {
 
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
-golden.cruxVersion = "2.0.0";
-golden.cruxBuiltAt = "2026-11-16T23:35:14.897Z";
+golden.cruxVersion = "2.1.0";
+golden.cruxBuiltAt = "2026-11-17T00:27:26.445Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine

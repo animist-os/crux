@@ -151,6 +151,18 @@ throws with "Line L, col C".
 
 In ES modules: `import './src/index.js'` then `globalThis.golden.crux_interp`.
 
+To share definitions between programs, a host can pass bindings in:
+
+```js
+const env = golden.crux_env('A = [0, 1, 2]');        // a Map of the source's bindings
+const result = golden.crux_interp('A * [0, 7]', env); // A resolves from env
+```
+
+`crux_env(source, seedEnv)` evaluates a source for its assignments only and
+returns the environment. `crux_interp(source, seedEnv)` copies `seedEnv`, so
+the program's own assignments win and the caller's map is not changed. With no
+`seedEnv`, `crux_interp` behaves as before. Lup's global Crux panel uses this.
+
 ### 1.8 Trace and fold
 
 `golden.crux_trace(source)` returns the `crux_interp` result, with two more

@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-17T15:22:29.032Z
+// Generated: 2026-11-17T15:50:40.329Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4430,7 +4430,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T15:22:29.032Z";
+golden.cruxBuiltAt = "2026-11-17T15:50:40.329Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -6623,6 +6623,9 @@ return thematicFolds;
 //      a definition fold onto it (an edited note keeps its offset in cellBent),
 //      and the pips that `@` put in the place of one pip stack on that pip
 //      (note.split)
+//  11  core only: the cell-level entries of the definitions named in
+//      `// #core` (or options.core); the notes their hosts write stack on
+//      them, and every other note is on one residue marker
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -7197,6 +7200,14 @@ function foldModel(trace, options = {}) {
     if (rec.cl.split) n.split = { ...rec.cl.split };
   }
 
+  // Stop 11: core only. `// #core A B` in the program, or options.core,
+  // names the core definitions by hand.
+  const o11 = coreOnly(cellLevel);
+  notes.forEach((n, k) => {
+    n.pos[11] = o11.pos[k];
+    n.fold11 = o11.at[k];
+  });
+
   // Counts.
   const distinct = (fn) => new Set(notes.map(fn)).size;
   const pk = (n, s) => `${s >= 5 ? '' : n.voice}|${r9(n.pos[s].t)}|${r9(n.pos[s].step)}`;
@@ -7207,14 +7218,16 @@ function foldModel(trace, options = {}) {
     cellEdited: all.filter(rec => rec.sounding && rec.cl.edited).length,
     cellBent: notes.filter(n => n.cellBent && !n.split).length,
     cellSplit: notes.filter(n => n.split).length,
-    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (s === null ? null : distinct(n => pk(n, s)))),
+    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(s => (s === null ? null : distinct(n => pk(n, s)))),
     shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length,
       th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length,
-      o9.units.filter(u => u.kind !== 'residue').length, o10.units.filter(u => u.kind !== 'residue').length],
+      o9.units.filter(u => u.kind !== 'residue').length, o10.units.filter(u => u.kind !== 'residue').length,
+      o11.units.filter(u => u.kind !== 'residue').length],
     pipsWritten: distinct(n => pk(n, 5)),
     entries: entryList.length,
     explained: th.summary.explained,
     attached: th.summary.attachedNotes,
+    core: o11.counts,
   };
   counts.positions[0] = counts.positions[1];
   counts.leverage = counts.pipsWritten ? counts.notes / counts.pipsWritten : 0;
@@ -7229,10 +7242,109 @@ function foldModel(trace, options = {}) {
     })),
     counts,
     thematic: th.summary,
-    inward: { themed: o9.themed, units: { 9: o9.units, 10: o10.units } },
+    inward: { themed: o9.themed, units: { 9: o9.units, 10: o10.units, 11: o11.units }, core: o11.core },
     stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
-      'no unstated repeats', 'near-misses folded', 'themes only', 'themes opened', 'cells'],
+      'no unstated repeats', 'near-misses folded', 'themes only', 'themes opened', 'cells', 'core only'],
   };
+
+  // Stop 11 shows the core only: the cell-level entries (stop 10) of the
+  // definitions named in `// #core` or options.core. A name with no entry at
+  // the cell level is listed in core.missing. Each note is one of three kinds:
+  // - core: its cell is a core entry. It sits on its own slot of that entry.
+  // - attached: not a core note, and its cell-level owner use is the host
+  //   use of a core statement. Going outward from the core definition, the
+  //   host is the first definition use whose definition writes notes of its
+  //   own (is the cell-level owner of some note). The note stacks on the core
+  //   note of that host use that is nearest in time (the earlier on a tie).
+  // - residue: every other note, on one marker after the last core.
+  // The themes of stop 8 play no part: the core is picked by hand.
+  // Without a core, stop 11 is stop 10.
+  function coreOnly(L) {
+    const named = options.core ?? String((trace.directives && trace.directives.core) || '').split(/[\s,]+/).filter(Boolean);
+    const names = [], missing = [];
+    for (const name of named) {
+      if (names.includes(name) || missing.includes(name)) continue;
+      (L.entryList.some(E => E.name === name) ? names : missing).push(name);
+    }
+    const core = { names, missing };
+    if (!names.length) {
+      return { pos: notes.map(n => ({ ...n.pos[10] })), at: notes.map(n => ({ ...n.fold10 })), units: o10.units, core, counts: null };
+    }
+    const recs = all.filter(rec => rec.sounding);
+    const entryOf = rec => L.info.get(rec).I.entry;
+    const isCore = rec => names.includes(entryOf(rec).name);
+    const chainOf = rec => rec.cl.chain || rec.cl.frames;
+    // The key of a definition use: the voice and every frame from the use
+    // outward (as in usesOf).
+    const useKey = (rec, i) => rec.voice + '|' + chainOf(rec).slice(i).map(frameKey).join('/');
+    const writes = new Set(recs.filter(rec => rec.cl.owner).map(rec => rec.cl.owner.name));
+    const hostOf = new Map(); // core rec -> { key, name }
+    const coreAt = new Map(); // host use key -> core recs in it
+    for (const rec of recs) {
+      if (!isCore(rec)) continue;
+      const fr = chainOf(rec), o = fr.indexOf(rec.cl.owner);
+      for (let i = o + 1; o >= 0 && i < fr.length; i++) {
+        if (fr[i].kind !== 'ref' || !writes.has(fr[i].name)) continue;
+        const key = useKey(rec, i);
+        hostOf.set(rec, { key, name: fr[i].name });
+        if (!coreAt.has(key)) coreAt.set(key, []);
+        coreAt.get(key).push(rec);
+        break;
+      }
+    }
+    const units = [], unitOf = new Map();
+    let x = 0;
+    const add = (key, U) => { U.x = x; units.push(U); unitOf.set(key, U); x += U.width + gap; };
+    for (const E of L.entryList) if (names.includes(E.name)) add(E, { kind: 'entry', id: E.id, name: E.name, count: E.count, width: E.shownLength });
+    const own = rec => {
+      const R = L.info.get(rec), U = unitOf.get(entryOf(rec));
+      const p = { t: U.x + R.shownOff, step: z(rec.cl.body.s), d: R.shown };
+      if (R.capped) p.capped = true;
+      return { p, U };
+    };
+    const place = recs.map(rec => {
+      if (isCore(rec)) return { kind: 'core', rec };
+      const o = rec.cl.owner ? chainOf(rec).indexOf(rec.cl.owner) : -1;
+      const list = o >= 0 && coreAt.get(useKey(rec, o));
+      if (!list) return { kind: 'residue' };
+      let best = null;
+      for (const c of list) {
+        const dt = Math.abs(c.t - rec.t), bt = best && Math.abs(best.t - rec.t);
+        if (!best || dt < bt - EPS || (Math.abs(dt - bt) <= EPS && c.t < best.t)) best = c;
+      }
+      return { kind: 'attached', rec: best, host: rec.cl.owner.name };
+    });
+    let res = null;
+    if (place.some(h => h.kind === 'residue')) {
+      const r8 = th.summary.units[8].find(u => u.kind === 'residue');
+      res = { kind: 'residue', id: 'residue', name: null, width: r8 ? r8.width : 0.5 };
+      add('residue', res);
+    }
+    const at = [], counts = { stated: 0, bent: 0, split: 0, attached: 0, residue: 0 };
+    const pos = place.map((h, k) => {
+      let p, U;
+      if (h.rec) ({ p, U } = own(h.rec));
+      else { U = res; p = { t: U.x, step: 0, d: U.width }; }
+      const n = notes[k];
+      if (h.kind === 'core') {
+        counts.stated++;
+        if (n.split) counts.split++;
+        else if (n.cellBent) counts.bent++;
+      } else counts[h.kind]++;
+      const a = { kind: h.kind, unit: U.id, entry: U.kind === 'entry' ? U.id : null };
+      if (h.kind === 'attached') a.host = h.host;
+      at.push(a);
+      if (h.kind !== 'attached') (U.keys ||= new Set()).add(r9(p.t) + '|' + r9(p.step));
+      U.notes = (U.notes || 0) + 1;
+      if (h.kind === 'attached') U.attached = (U.attached || 0) + 1;
+      return p;
+    });
+    for (const U of units) {
+      U.positions = U.kind === 'residue' ? 1 : (U.keys ? U.keys.size : 0);
+      delete U.keys;
+    }
+    return { pos, at, units, core, counts };
+  }
 
   // Stops 9 and 10 open the themes of stop 8 again. A note that sits on a
   // theme at stop 8 goes to the place of its slot's own note (fold8.rep) in

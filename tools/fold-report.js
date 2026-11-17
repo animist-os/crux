@@ -7,7 +7,8 @@
 // dictionary (one entry per distinct shape, with its count); the residue
 // (shapes with no definition that occur once); the repeats and near-misses
 // found at stops 6 and 7; the themes left at stop 8 with the notes each
-// explains; the cells the themes are made of (stop 10); a summary of the
+// explains; the cells the themes are made of (stop 10); the core named by
+// `// #core` and the notes stacked on it (stop 11); a summary of the
 // instance tree; and the numbers from
 // tools/reduction-score.js. See docs/crux-agent-guide.md.
 import fs from 'node:fs';
@@ -28,6 +29,7 @@ const STOPS = [
   '8 themes only',
   '9 themes opened',
   '10 cells',
+  '11 core only',
 ];
 
 export function foldReport(code, { treeDepth = 3, minLength } = {}) {
@@ -89,6 +91,22 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
       (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : '') + (splitIn(u.id) ? `, ${splitIn(u.id)} split` : ''));
   }
   lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes; split: ${c.cellSplit} notes`);
+  const core = m.inward.core;
+  lines.push('', `stop 11: core only (${core.names.length ? '#core ' + core.names.join(' ') : 'no core named, so as stop 10'}` +
+    `${core.missing.length ? '; no cell-level entry for ' + core.missing.join(' ') : ''}; attached: notes the core's hosts write)`);
+  if (c.core) {
+    const in11 = (id, f) => m.notes.filter(n => n.fold11.unit === id && f(n)).length;
+    for (const u of m.inward.units[11]) {
+      if (u.kind !== 'entry') continue;
+      const hosts = new Map();
+      for (const n of m.notes) if (n.fold11.unit === u.id && n.fold11.kind === 'attached') hosts.set(n.fold11.host, (hosts.get(n.fold11.host) || 0) + 1);
+      const own = in11(u.id, n => n.fold11.kind === 'core');
+      lines.push(`  ${String(u.id).padEnd(12)} ${('x' + u.count).padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(own).padStart(5)} notes` +
+        `, ${in11(u.id, n => n.fold11.kind === 'core' && n.cellBent && !n.split)} bent, ${in11(u.id, n => n.fold11.kind === 'core' && n.split)} split` +
+        `, +${u.attached || 0} attached${hosts.size ? ' (' + [...hosts].map(([h, k]) => `${h} ${k}`).join(', ') + ')' : ''}`);
+    }
+    lines.push(`  ${'residue'.padEnd(12)} ${''.padEnd(5)} ${String(c.core.residue ? 1 : 0).padStart(3)} positions ${String(c.core.residue).padStart(5)} notes`);
+  }
   lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes); ${c.attached} stacked as attachments`);
   lines.push('', `instance tree (to depth ${treeDepth})`);
   const walk = (node, depth) => {

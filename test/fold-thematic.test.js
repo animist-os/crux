@@ -106,7 +106,7 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   const m = fold(example('bach-invention14.keylane.v2.crux'));
   assert.equal(m.notes.length, 592);
   for (const n of m.notes) {
-    assert.equal(n.pos.length, 11);
+    assert.equal(n.pos.length, 12);
     for (let s = 1; s <= 8; s++) {
       const p = n.pos[s];
       assert.ok(p && Number.isFinite(p.t) && Number.isFinite(p.step) && Number.isFinite(p.d), `note ${n.id} stop ${s}`);
@@ -118,8 +118,8 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   assert.equal(e.program + e.repeat + e.near + e.none, m.counts.notes);
   for (let s = 6; s <= 8; s++) assert.ok(m.counts.positions[s] <= m.counts.positions[s - 1], `stop ${s}`);
   assert.equal(m.counts.positions[5], 96);
-  assert.equal(m.stops.length, 11);
-  assert.equal(m.counts.shapes.length, 11);
+  assert.equal(m.stops.length, 12);
+  assert.equal(m.counts.shapes.length, 12);
   // Every unit at stop 8 but the residue is a theme, a found shape or a stated cell.
   for (const u of m.thematic.units[8]) assert.ok(['theme', 'found', 'cell', 'residue'].includes(u.kind));
   assert.ok(m.thematic.themes.some(t => t.id === 'H'));
@@ -348,6 +348,12 @@ test('fold 9: BWV 578 has fewer positions at stop 9 than at stop 8', () => {
 // Stop 10: cells.
 
 const cellsOf = m => m.inward.units[10].map(u => [u.kind, u.id, u.positions, u.notes]);
+// The BWV 578 example up to the line before `subject = ...`: its directives
+// and the definitions the subject is made of.
+const subjectLines = () => {
+  const lines = example('bach-bwv578.keylane.crux').split('\n');
+  return lines.slice(0, lines.findIndex(l => l.startsWith('subject =')));
+};
 
 test('fold 10: a partial statement (A \\ 1) joins the full entry', () => {
   const m = fold('A = [0, 4, 2, 1]\nT = A, (A \\ 1)\nT, (T * [2]), (T * [4])');
@@ -492,7 +498,7 @@ test('fold 10 split: stops 0 to 9 do not read from', () => {
 });
 
 test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
-  const lines = example('bach-bwv578.keylane.crux').split('\n').slice(0, 54);
+  const lines = subjectLines();
   const m = fold([...lines, 'subject = ar, d', 'subject'].join('\n'));
   assert.deepEqual(m.dictionary.map(e => `${e.id} x${e.count}`), ['nug x1', 'nug#2 x2', 'nug#3 x2', 'nugb x2', 'nugd x2', 'a x1', 'd x1']);
   assert.equal(m.counts.positions[5], 14);
@@ -505,7 +511,7 @@ test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
 });
 
 test('fold 10 split: in the full BWV 578 subject br and nugc fold onto b and nug', () => {
-  const lines = example('bach-bwv578.keylane.crux').split('\n').slice(0, 54);
+  const lines = subjectLines();
   const m = fold([...lines, 'subject = ar, br, nugc, d', 'subject'].join('\n'));
   assert.equal(m.counts.notes, 41);
   // br splits the -3 at b's note 5; nugc splits b's notes 1 and 3 and nug's
@@ -531,4 +537,116 @@ test('fold 10: BWV 578 positions fall from stop 8 to 9 to 10, stops 0 to 8 uncha
   assert.equal(nug.positions, 4);
   assert.ok(!m.inward.units[10].some(u => /^nug[#bd]/.test(u.id)));
   for (const n of m.notes) assert.ok(n.pos[10] && Number.isFinite(n.pos[10].t) && Number.isFinite(n.pos[10].step) && Number.isFinite(n.pos[10].d));
+});
+
+// Stop 11: core only.
+
+const coreUnits = m => m.inward.units[11].map(u => [u.kind, u.id, u.positions, u.notes, u.attached || 0]);
+// A is the core. B bends a note of A and writes no note of its own, so the
+// host of the A in B is H, which writes [7]. S splits a note of A and writes
+// [9]. Only H is a theme at stop 8.
+const CORE_SRC = [
+  '// #core A',
+  'A = [0, 2, 1, 3]',
+  'B = (A * [1]) @[@1 5]',
+  'H = B, [7]',
+  'S = (A @[@2 [0, 1]/]), [9]',
+  'H, (H * [2]), S',
+].join('\n');
+
+test('fold 11: a core with a bent note and a split', () => {
+  const m = fold(CORE_SRC);
+  assert.deepEqual(m.inward.core, { names: ['A'], missing: [] });
+  assert.equal(m.stops[11], 'core only');
+  assert.equal(m.counts.shapes[11], 1);
+  assert.equal(m.counts.positions[11], 4);
+  assert.deepEqual(m.counts.core, { stated: 13, bent: 2, split: 2, attached: 3, residue: 0 });
+  assert.deepEqual(coreUnits(m), [['entry', 'A', 4, 16, 3]]);
+  // A bent note and the parts of a split are core notes on their slot of A.
+  const bent = m.notes.filter(n => n.cellBent && !n.split);
+  assert.deepEqual(bent.map(n => [n.owner, n.fold11.kind, at(n, 11)]), [['B', 'core', '1/2'], ['B', 'core', '1/2']]);
+  const parts = m.notes.filter(n => n.split);
+  assert.deepEqual(parts.map(n => [n.fold11.kind, at(n, 11)]), [['core', '2/1'], ['core', '2/1']]);
+});
+
+test('fold 11: the host writes a literal of its own, which stacks on the nearest core note', () => {
+  const m = fold(CORE_SRC);
+  const att = m.notes.filter(n => n.fold11.kind === 'attached');
+  // H's [7] (twice) and S's [9]. Each follows the last note of A, at A's note 3.
+  assert.deepEqual(att.map(n => [n.owner, n.fold11.host, n.fold11.entry, at(n, 11)]),
+    [['H', 'H', 'A', '3/3'], ['H', 'H', 'A', '3/3'], ['S', 'S', 'A', '3/3']]);
+  // Attached notes add no position.
+  assert.equal(m.counts.positions[11], 4);
+});
+
+test('fold 11: a definition that writes no notes is passed on the way to the host', () => {
+  const m = fold(CORE_SRC);
+  // B is between A and H. It is not a host: none of its notes is its own at the cell level.
+  assert.ok(!m.notes.some(n => n.fold11.host === 'B'));
+  assert.ok(!m.notes.some(n => n.cell === 'B'));
+  // Without the [7], H writes no notes either: the A in H has no host, and nothing attaches.
+  const m2 = fold(CORE_SRC.replace('H = B, [7]', 'H = B'));
+  assert.deepEqual(m2.notes.filter(n => n.fold11.kind === 'attached').map(n => n.fold11.host), ['S']);
+});
+
+test('fold 11: a core note outside every theme is still core', () => {
+  const m = fold(CORE_SRC);
+  const s = m.notes.filter(n => n.fold8.kind === 'residue');
+  assert.equal(s.length, 6);
+  assert.deepEqual(s.map(n => n.fold11.kind), ['core', 'core', 'core', 'core', 'core', 'attached']);
+});
+
+test('fold 11: a missing name is listed and is not a core', () => {
+  const m = fold(CORE_SRC.replace('// #core A', '// #core B A Q'));
+  assert.deepEqual(m.inward.core, { names: ['A'], missing: ['B', 'Q'] });
+  assert.equal(m.counts.shapes[11], 1);
+  // Only missing names: stop 11 is stop 10.
+  const m2 = fold(CORE_SRC.replace('// #core A', '// #core B'));
+  assert.deepEqual(m2.inward.core, { names: [], missing: ['B'] });
+  assert.equal(m2.counts.core, null);
+  m2.notes.forEach(n => assert.deepEqual(n.pos[11], n.pos[10]));
+});
+
+test('fold 11: with no core, stop 11 is stop 10', () => {
+  const m = fold(CORE_SRC.replace('// #core A\n', ''));
+  assert.deepEqual(m.inward.core, { names: [], missing: [] });
+  assert.equal(m.counts.core, null);
+  assert.equal(m.counts.shapes[11], m.counts.shapes[10]);
+  assert.equal(m.counts.positions[11], m.counts.positions[10]);
+  assert.deepEqual(m.inward.units[11], m.inward.units[10]);
+  m.notes.forEach(n => {
+    assert.deepEqual(n.pos[11], n.pos[10]);
+    assert.deepEqual(n.fold11, n.fold10);
+  });
+});
+
+test('fold 11: the core option wins over the directive', () => {
+  const m = fold(CORE_SRC.replace('// #core A', '// #core Q'), { core: ['A'] });
+  assert.deepEqual(m.inward.core, { names: ['A'], missing: [] });
+  assert.equal(m.counts.positions[11], 4);
+});
+
+test('fold 11: the directive changes no stop before 11', () => {
+  const a = fold(CORE_SRC), b = fold(CORE_SRC.replace('// #core A\n', ''));
+  assert.deepEqual(a.counts.positions.slice(0, 11), b.counts.positions.slice(0, 11));
+  assert.deepEqual(a.counts.shapes.slice(0, 11), b.counts.shapes.slice(0, 11));
+  a.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 11), b.notes[k].pos.slice(0, 11)));
+});
+
+test('fold 11: BWV 578 with #core nug is one shape of 4 positions and the residue marker', () => {
+  const src = example('bach-bwv578.keylane.crux');
+  assert.ok(/^\/\/ #core nug$/m.test(src));
+  const m = fold(src), b = fold(src.replace(/^\/\/ #core nug\n/m, ''));
+  assert.deepEqual(m.counts.positions.slice(0, 11), b.counts.positions.slice(0, 11));
+  assert.deepEqual(m.counts.shapes.slice(0, 11), b.counts.shapes.slice(0, 11));
+  m.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 11), b.notes[k].pos.slice(0, 11)));
+  assert.equal(m.counts.shapes[11], 1);
+  assert.equal(m.counts.positions[11], 5);
+  assert.deepEqual(m.inward.units[11].map(u => [u.kind, u.id, u.positions]), [['entry', 'nug', 4], ['residue', 'residue', 1]]);
+  const c = m.counts.core;
+  assert.equal(c.stated + c.attached + c.residue, m.counts.notes);
+  assert.deepEqual(c, { stated: 210, bent: 33, split: 12, attached: 120, residue: 1339 });
+  // The hosts of nug are a, b and d.
+  const hosts = new Set(m.notes.filter(n => n.fold11.kind === 'attached').map(n => n.fold11.host));
+  assert.deepEqual([...hosts].sort(), ['a', 'b', 'd']);
 });

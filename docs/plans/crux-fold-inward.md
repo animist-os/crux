@@ -349,3 +349,136 @@ crux: `trace.js` (`from`), `model.js` (cell level), `tools/fold-report.js`,
   three or four positions. A rule for a literal that an operator repeats
   would make them one.
 - Drawing the bent and split marks in the panel.
+
+## Core (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 5. Not committed. Browser
+check pending. See "Notes from the build (change set 5)".
+
+### Purpose
+
+Stop 10 of BWV 578 still shows 18 shapes. The fold has no more stated
+relations to undo, and it cannot know which shape the analysis is about.
+Andy names it by hand: `// #core nug`. One more stop shows the core only.
+
+Decision (Andy, 2026-11-17): this stop uses only what the program states.
+No search for unstated matches of the core.
+
+### Directive
+
+`// #core A B` names one or more definitions, as `#theme` does. The option
+`core: ['A', 'B']` of `crux_fold` does the same and wins over the directive.
+A core is the cell-level entry (stop 10) of a named definition. A name with
+no entry at the cell level (a definition that writes no note of its own,
+such as `nugb` or `subject`) is listed in `inward.core.missing` and is not
+a core.
+
+Mind the directive rule in guide 1.6: when the value has two or more tokens
+and the last is a positive integer, the directive is scoped to a sampler.
+Read `#core` the way `#theme` is read.
+
+### Stop 11: core only
+
+Each note is one of three kinds at stop 11 (`fold11.kind`):
+
+- `core`: its cell (`note.cell`) is a core entry. It sits on its core slot,
+  as at stop 10. Bent notes and parts of a split are core notes.
+- `attached`: a note that is not a core note, written by the definition that
+  holds a core statement. It stacks on a core note.
+- `residue`: every other note. One residue marker, after the last core.
+
+The attached rule. For a core note, go outward from its core definition
+frame. The first definition use whose definition writes notes of its own
+(some note has it as its cell-level owner) is the host use of that core
+statement. A definition between them that writes no notes (`nugb`, `nugd`)
+is passed. A note that is not a core note attaches when its cell-level
+owner use is a host use. In BWV 578 the hosts are `a` (its `[0]`), `b` (the
+`-3` pips and their split parts) and `d` (its `[4]` and `[1]`). `subject`
+writes no notes, and a voice section is not a host because `a`, `b` or `d`
+is found first.
+
+An attached note stacks on the core note of the same host use that is
+nearest in time (the earlier one on a tie), on that note's core slot and
+step. It does not add a position.
+
+A note on the residue marker at stop 10 stays residue when it is not a core
+note and not a host note. A core note or host note that the themes of stop 8
+did not reach (residue at stops 8 to 10) is `core` or `attached` at stop 11:
+the core is picked by hand, so it does not depend on the theme analysis.
+
+Layout: the core entries in source order, each with its stop 10 slot
+layout, packed side by side with the usual gap. Then the residue marker.
+
+Without a core (no directive, no option, or only missing names), stop 11 is
+the same as stop 10 and `inward.core.names` is empty.
+
+### Model, report, hosts
+
+- `pos[11]`, `fold11: { kind, unit, entry }`, `stops[11] = 'core only'`.
+- `inward.core = { names, missing }`, `inward.units[11]`.
+- `counts.shapes[11]` (core entries), `counts.positions[11]`, and
+  `counts.core = { stated, bent, split, attached, residue }` (`stated` is
+  all core notes; `bent` and `split` are parts of it).
+- `fold-report.js`: row 11, and a list: each core with its positions, notes,
+  bent, split and attached, then the residue count.
+- Golden: `STOPS = 12`, label `'core'`. Attached notes are drawn as the
+  notes attached at stop 8 are. Residue notes as at stop 8.
+- Add `// #core nug` to `examples/bach-bwv578.keylane.crux` (after the
+  `#theme` line, and say what it does in the comment block; a comment about
+  it must not start with `// #core`). The Golden library has a copy of this
+  program in `modules/golden/golden_crux_examples.js` ("Bach Fugue BWV 578
+  (key lane)"); change it the same way.
+- Guide: 1.6 (directive) and 1.8.
+
+### Change set 5
+
+- [x] directive and option, `inward.core`
+- [x] kinds, host rule, attachment target
+- [x] pos[11], layout, counts, stops
+- [x] report
+- [x] tests: a core with a bent note and a split; a host with its own
+      literal (attached); a definition that writes no notes between the
+      core and the host; a missing name; no core (stop 11 equals stop 10);
+      a core note outside every theme is still core
+- [x] example and library entry
+- [x] guide 1.6 and 1.8
+- [x] rebuild; Golden `STOPS`, label, drawing, tests
+
+### Checks
+
+- BWV 578 report rows 0 to 10 are the same as before this change set (the
+  added directive must not change them).
+- BWV 578 at stop 11: one shape (`nug`), 5 positions (4 and the residue
+  marker). Report the real counts of core, attached and residue notes.
+- crux 620 tests pass before; Golden 45.
+
+### Notes from the build (change set 5)
+
+- A core note sits on its own slot of its cell-level entry (`note.cell`),
+  not on the slot of its `fold8.rep` as at stop 10. The two differ for core
+  notes that the themes did not reach: at stop 10 they are on the residue
+  marker. In BWV 578 these are 6 notes (the `nug` notes inside `nugp`).
+- A definition use is told apart by its voice and every frame from the use
+  outward (the key `usesOf` uses). For a part of a split, the frames are
+  the chain through the replaced pip.
+- Each note gets `fold11.host` (the host's name) when attached.
+  `inward.units[11]` gives `attached` per core unit. Without a core,
+  `counts.core` is `null` and `fold11` and `pos[11]` are copies of
+  `fold10` and `pos[10]`.
+- BWV 578 at stop 11: `nug` x57, 4 positions, and the residue marker: 1
+  shape, 5 positions. `counts.core`: stated 210 (33 bent, 12 split),
+  attached 120 (a 9, b 99, d 12), residue 1339. b's 99: its 27 own `-3`
+  pips and 72 parts of the splits of those pips in `br` and `nugc`. Of the
+  core notes, 6 are outside every theme (`nug` in `nugp`), and so are 12
+  attached notes (b's notes in `nugp`). Rows 0 to 10 are unchanged.
+- Of the 274 notes on `nug` at stop 10, 70 are residue at stop 11: notes
+  of other definitions (s7, tail, a5, t6 and others) that stops 6 and 7
+  moved onto the subject, and `nugp`'s own `[1, -3]`.
+- Golden: at stop 11 a core note takes the core's colour and an attached
+  note its host's. Only a core note keeps a bent mark, its `cellBent`.
+  The badge of a core unit shows its attached notes. Nothing is drawn as
+  text on the canvas, as before.
+- The BWV 578 tests in `test/fold-thematic.test.js` took the first 54
+  lines of the example. The new directive and comment move the lines, so
+  they now take the lines before `subject =`.
+

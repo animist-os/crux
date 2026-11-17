@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-17T00:27:26.445Z
+// Generated: 2026-11-17T09:41:55.945Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4430,7 +4430,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T00:27:26.445Z";
+golden.cruxBuiltAt = "2026-11-17T09:41:55.945Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -6047,6 +6047,13 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
   // Stop 7 never matches fewer than 3 notes, whatever minLength is.
   const nearLength = Math.max(3, minLength);
   const themeLength = options.themeLength ?? 3;
+  // A theme folds onto another theme on a match of foldLength notes or more.
+  // A shorter match counts only when it is all of both themes, or all of the
+  // target and all but one note of the theme that folds.
+  const foldLength = options.foldLength ?? 5;
+  // Stop 8 shows the program's themes. With showFound, the repeats that the
+  // fold found outside them are units too. Without it they go to the residue.
+  const showFound = !!options.showFound;
   const gap = options.gap ?? 0.5;
   // A bent note moves at most a third (2 scale steps) from the theme.
   const maxBend = options.maxBend ?? 2;
@@ -6124,11 +6131,14 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
     for (const R of runs) {
       for (let i = 0; i + L <= R.slots.length; i++) {
         const win = R.slots.slice(i, i + L);
-        if (win.some(S => assigned.has(S))) continue;
+        // A slot that moved is gone. A slot that stayed as the copy of an
+        // earlier repeat can be the copy again (fixed), but cannot move.
+        if (win.some(S => move6.has(S))) continue;
+        const fixed = win.some(S => assigned.has(S));
         const c = canon(win);
         let list = byKey.get(c.key);
         if (!list) byKey.set(c.key, (list = []));
-        list.push({ run: R, start: i, slots: win, c });
+        list.push({ run: R, start: i, slots: win, c, fixed });
       }
     }
     const keys = [...byKey.values()].filter(l => l.length >= 2).sort((a, b) => b.length - a.length);
@@ -6136,18 +6146,19 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
       const picked = [];
       const used = new Set();
       for (const o of list) {
-        if (o.slots.some(S => assigned.has(S) || used.has(S))) continue;
+        if (o.slots.some(S => move6.has(S) || used.has(S)) || (!o.fixed && o.slots.some(S => assigned.has(S)))) continue;
         picked.push(o);
         o.slots.forEach(S => used.add(S));
       }
       if (picked.length < 2) continue;
       // The copy that stays: in the most used stated definition, else the first.
-      const rep = picked.slice().sort((a, b) => rank(b) - rank(a))[0];
+      // A fixed copy comes before a free one of the same rank.
+      const rep = picked.slice().sort((a, b) => rank(b) - rank(a) || (b.fixed ? 1 : 0) - (a.fixed ? 1 : 0))[0];
       // A stated definition moves only as a whole run: the fold does not cut
       // the program's own cells apart. A part of one can still be the copy
       // that stays, and it counts as an occurrence.
       const whole = o => o.slots.length === o.run.slots.length;
-      const movers = picked.filter(o => o !== rep && (!stated(o.run.entry) || whole(o)));
+      const movers = picked.filter(o => o !== rep && !o.fixed && (!stated(o.run.entry) || whole(o)));
       if (!movers.length) continue;
       // A short shape is weak evidence: it needs 3 occurrences, or a mover
       // that is a whole stated definition.
@@ -6155,7 +6166,7 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
       const kept = [rep, ...movers];
       const group = { id: 'F' + (found.length + 1), length: L, rep, occurrences: kept };
       for (const o of kept) {
-        o.slots.forEach(S => { assigned.add(S); S.found = group; });
+        o.slots.forEach(S => { assigned.add(S); S.found ||= group; });
         if (o === rep) continue;
         const mir = o.c.mir !== rep.c.mir, rev = o.c.rev !== rep.c.rev;
         o.c.seq.forEach((x, k) => {
@@ -6242,6 +6253,9 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
   // or a part of 3 or more notes on either side. The match must cover all of
   // the target, or all but one note of the theme that folds: a short common
   // fragment (a triad, three notes of a scale) does not make two themes one.
+  // Two themes are two shapes in the program, so one bent note at most, and
+  // none in a match shorter than foldLength.
+  const themeBent = (L, ratio) => (L < foldLength ? 0 : Math.min(1, maxBent(L, ratio)));
   const landed = new Map();
   for (const S of allSlots) {
     const F = finalOf(S, 7).S;
@@ -6269,8 +6283,9 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
   for (const C of ranked) {
     let best = null;
     for (let L = C.slots.length; L >= nearLength; L--) {
-      const targets = alive.filter(D => L >= C.slots.length - 1 || L === D.slots.length);
-      for (let i = 0; i + L <= C.slots.length; i++) best = bestMatch(C.slots.slice(i, i + L), targets, maxBent, maxBend, best);
+      const whole = L >= C.slots.length - 1;
+      const targets = alive.filter(D => (L >= foldLength ? whole || L === D.slots.length : whole && L === D.slots.length));
+      for (let i = 0; i + L <= C.slots.length; i++) best = bestMatch(C.slots.slice(i, i + L), targets, themeBent, maxBend, best);
     }
     if (!best) { alive.push(C); continue; }
     const D = best.target;
@@ -6444,7 +6459,7 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
     U.cell = C;
     units8.push(U);
   }
-  for (const g of found) {
+  for (const g of showFound ? found : []) {
     if (moveAt(g.rep.slots[0], 7) || kindOf(g.rep.slots[0]) !== 'found') continue;
     units8.push(unitFor('found', g.id, null, g.rep.slots.slice().sort((a, b) => a.t - b.t)));
   }
@@ -6452,9 +6467,9 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
   const placeOf = S => {
     const F = finalOf(S, 7).S;
     const k = kindOf(F);
-    if (k === 'theme' || k === 'found') return { F, H: F, kind: k };
-    const H = hostSlot.get(F);
-    return H ? { F, H, kind: 'attached' } : { F, H: null, kind: 'residue' };
+    if (k === 'theme' || (k === 'found' && showFound)) return { F, H: F, kind: k };
+    const H = k === 'found' ? null : hostSlot.get(F);
+    return H && (showFound || kindOf(H) !== 'found') ? { F, H, kind: 'attached' } : { F, H: null, kind: 'residue' };
   };
   const places = notes.map(n => placeOf(slotOfNote[n.id]));
   if (places.some(p => p.kind === 'residue')) units8.push(residueUnit);
@@ -6492,7 +6507,10 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
     pos.push(p8.capped ? { t: p8.t, step: p8.step, d: p8.d, capped: true } : { t: p8.t, step: p8.step, d: p8.d });
     const owner = pl.F.entry.name ?? pl.F.entry.id;
     return { pos, bent: finalOf(S, 7).bent, explainedBy: explainedOf(S),
-      fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null },
+      // rep: a note of the slot this note sits on at stop 8, the theme's (or
+      // found shape's) own note there. Stops 9 and 10 open the themes from it.
+      fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null,
+        rep: pl.H ? pl.H.first.id : null },
       unit6: layouts[6].at.get(finalOf(S, 6).S).unit, unit7: layouts[7].at.get(finalOf(S, 7).S).unit, unit8: p8.unit };
   });
 
@@ -6524,7 +6542,7 @@ function thematicFolds({ notes, recs, entries, relate, written }, options = {}) 
   const residueNotes = out.filter(o => o.fold8.kind === 'residue');
 
   return {
-    notes: out.map(o => ({ pos: o.pos, bent: o.bent, explainedBy: o.explainedBy, fold8: o.fold8 })),
+    notes: out.map(o => ({ pos: o.pos, bent: o.bent, explainedBy: o.explainedBy, fold8: o.fold8, unit8: units8.indexOf(o.unit8) })),
     summary: {
       minLength,
       slots: allSlots.length,
@@ -6570,6 +6588,10 @@ return thematicFolds;
 //   6  unstated exact repeats removed (thematic.js)
 //   7  near-misses folded onto the program's definitions (thematic.js)
 //   8  themes only, with a residue group for what no theme explains (thematic.js)
+//   9  themes opened: each theme note goes to the stop 5 place of its slot's
+//      own note, so a theme shows the innermost shapes it is made of
+//  10  cells: as 9, on the cell level, where partial and edited statements of
+//      a definition fold onto it (an edited note keeps its offset in cellBent)
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -6579,6 +6601,7 @@ return thematicFolds;
 // operator is used as its source.
 const EPS = 1e-9;
 const r9 = x => Math.round(x / EPS) * EPS;
+const round9 = x => Math.round(x * 1e9) / 1e9;
 const z = x => (x === 0 ? 0 : x); // no -0 in the output
 const TRANSPARENT = new Set([',', '_', ':']);
 
@@ -6625,15 +6648,56 @@ function frameKey(f) {
   return 'l';
 }
 
-function analysePip(pip) {
+// Without `level` the owner is the innermost definition. With it the owner is
+// at the theme level:
+// - level.named: definitions picked by hand. The outermost of them that the
+//   pip passed through owns it.
+// - else the owner climbs from the innermost definition C, and again from
+//   where it lands. When C is never used by itself (level.part: each use of
+//   C is inside a definition that is used more than once), it goes to the
+//   definition next around it, if that one is used 3 times or more: a shape
+//   stated twice is more often a passage that returns than a theme. If not,
+//   it goes to the outermost definition D
+//   around it for which level.inside(C, D) holds: most uses of C are inside
+//   D, and D is used more than once.
+// With `cells` (the cell level, stop 10) an edited pip can stay with its
+// innermost definition as a bent note (cellBend).
+function analysePip(pip, level = null, cells = null) {
   const frames = framesOf(pip);
   let e = -1;
   for (let i = 0; i < frames.length; i++) {
     const f = frames[i];
     if (f.kind === 'op' && !f.exact && !f.kept) e = i;
   }
+  const bend = cells && e >= 0 ? cellBend(frames, cells) : null;
+  if (bend !== null) e = -1;
   let owner = -1;
   for (let i = e + 1; i < frames.length; i++) if (frames[i].kind === 'ref') { owner = i; break; }
+  if (level && owner >= 0) {
+    let named = -1;
+    for (let i = frames.length - 1; i >= owner; i--) {
+      if (frames[i].kind === 'ref' && level.named.has(frames[i].name)) { named = i; break; }
+    }
+    if (named >= 0) owner = named;
+    else {
+      for (let moved = true; moved;) {
+        moved = false;
+        const C = frames[owner].name;
+        // The climb stops at an operator that makes two or more copies of C
+        // (a sequence): what is around it states C several times.
+        let end = frames.length;
+        for (let i = owner + 1; i < frames.length; i++) if (frames[i].kind === 'op' && level.fan(frames[i])) { end = i; break; }
+        if (level.part(C)) {
+          let next = -1;
+          for (let i = owner + 1; i < end; i++) if (frames[i].kind === 'ref') { next = i; break; }
+          if (next >= 0 && level.uses(frames[next].name) >= 3) { owner = next; moved = true; continue; }
+        }
+        for (let i = end - 1; i > owner; i--) {
+          if (frames[i].kind === 'ref' && level.inside(C, frames[i].name)) { owner = i; moved = true; break; }
+        }
+      }
+    }
+  }
   let s, d, start;
   if (e >= 0) {
     const out = frames[e].out || { step: pip.step, ts: pip.timeScale };
@@ -6662,7 +6726,179 @@ function analysePip(pip) {
   // Instance: the owner use plus every frame outside it.
   const pathFrames = owner >= 0 ? frames.slice(owner) : outer;
   const instanceKey = pathFrames.length ? pathFrames.map(frameKey).join('/') : null;
-  return { frames, edited: e >= 0, owner: ownerFrame, body, full: at(FULL), noTranspose: at(NO_TRANSPOSE), canon, instanceKey, lit, outer };
+  return { frames, edited: e >= 0, owner: ownerFrame, body, full: at(FULL), noTranspose: at(NO_TRANSPOSE), canon, instanceKey, lit, outer,
+    bend: bend ?? 0 };
+}
+
+// Cell level: a pip that operators with exact: false changed stays with the
+// innermost definition when the frames inside each such operator lead to a
+// literal through a definition, the operator kept the duration, and it made
+// one pip from one pip (cells.split holds the frames of operators that made
+// two pips from one). Returns the bend in the definition's own frame: the
+// step the outermost operator gave, less the step the frames inside it give,
+// divided by the scale of the exact frames between the definition and that
+// operator. Returns null when a condition fails: the pip stays edited.
+function cellBend(frames, cells) {
+  if (!frames.length || frames[0].kind !== 'lit') return null;
+  const o = frames.findIndex(f => f.kind === 'ref');
+  if (o < 0) return null;
+  let s = frames[0].step, d = Math.abs(Number(frames[0].ts)), c = -1, bent = 0;
+  for (let i = 1; i < frames.length; i++) {
+    const f = frames[i];
+    if (f.kind === 'op' && !f.exact && !f.kept) {
+      if (i < o || !f.out || cells.split.has(f) || Math.abs(Math.abs(f.out.ts) - d) > 1e-6) return null;
+      c = i;
+      bent = f.out.step - s;
+    }
+    [s, d] = apply(f, s, d, FULL);
+  }
+  const g = x => { for (let i = o + 1; i < c; i++) [x] = apply(frames[i], x, 1, FULL); return x; };
+  const a = g(1) - g(0);
+  if (Math.abs(a) < EPS) return null;
+  return z(round9(bent / a));
+}
+
+// One level of the dictionary. A(rec) is the pip's analysis and K(rec) its
+// instance key. Returns the instances, the entries in layout order, and
+// per-pip layout data: { I, off, shownOff, shown, capped }. With `partial`
+// (the cell level) a part of an entry joins that entry.
+function buildLevel(all, A, K, gap, capWidth, partial = false) {
+  const info = new Map();
+  // Instances: start time and canonical offsets (stop 3).
+  const inst = new Map();
+  for (const rec of all) {
+    const a = A(rec), key = K(rec);
+    let I = inst.get(key);
+    if (!I) {
+      I = { key, voice: rec.voice, t0: rec.t, t1: rec.t + rec.d, recs: [], name: a.owner ? a.owner.name : null, ownerPos: a.owner ? a.owner.pos : null };
+      inst.set(key, I);
+    }
+    I.t0 = Math.min(I.t0, rec.t);
+    I.t1 = Math.max(I.t1, rec.t + rec.d);
+    I.recs.push(rec);
+    info.set(rec, { I });
+  }
+  for (const I of inst.values()) {
+    const order = I.recs.slice().sort((x, y) => (A(x).canon ?? x.index) - (A(y).canon ?? y.index) || x.index - y.index);
+    let off = 0;
+    for (const rec of order) { info.get(rec).off = off; off += A(rec).body.d; }
+    I.length = off;
+    I.order = order;
+    I.signature = (I.name ?? '#') + '|' + order.map(r => pipKey(A, r)).join(',');
+  }
+
+  // Dictionary: one entry per distinct shape.
+  const entries = new Map();
+  const byName = new Map();
+  const instancesSorted = [...inst.values()].sort((x, y) => x.voice - y.voice || x.t0 - y.t0);
+  for (const I of instancesSorted) {
+    if (!I.recs.some(r => r.sounding)) continue;
+    let E = entries.get(I.signature);
+    if (!E) {
+      const n = (byName.get(I.name) || 0) + 1;
+      byName.set(I.name, n);
+      const litPos = Math.min(...I.recs.map(r => (A(r).lit && A(r).lit.pos != null ? A(r).lit.pos : Infinity)));
+      E = { id: (I.name ?? '_') + (n > 1 ? '#' + n : ''), name: I.name, signature: I.signature, count: 0,
+        instances: [], firstInVoice: new Map(), litPos: Number.isFinite(litPos) ? litPos : null,
+        refPos: I.ownerPos, length: I.length, pips: I.recs.filter(r => r.sounding).length };
+      entries.set(I.signature, E);
+    }
+    E.count++;
+    E.instances.push({ voice: I.voice, t0: I.t0, t1: I.t1 });
+    if (!E.firstInVoice.has(I.voice)) E.firstInVoice.set(I.voice, I.t0);
+    I.entry = E;
+  }
+  if (partial) joinParts(inst, entries);
+  // Shown widths (stops 5 to 8). A written duration means something only
+  // beside the other durations of its own shape, so each shape gets its own
+  // unit: the most common duration of its sounding pips (the shorter one on a
+  // tie). No pip is wider than capWidth units.
+  for (const I of inst.values()) {
+    const E = I.entry;
+    if (!E || I.part) continue;
+    if (E.unit === undefined) {
+      const tally = new Map();
+      for (const rec of I.recs) if (rec.sounding) tally.set(r9(A(rec).body.d), (tally.get(r9(A(rec).body.d)) || 0) + 1);
+      let unit = 0, best = 0;
+      for (const [d, n] of tally) if (d > 0 && (n > best || (n === best && d < unit))) { unit = d; best = n; }
+      E.unit = unit || 1;
+    }
+    let off = 0;
+    for (const rec of I.order) {
+      const w = A(rec).body.d / E.unit, R = info.get(rec);
+      R.shownOff = off;
+      R.shown = Math.min(w, capWidth);
+      R.capped = w > capWidth + 1e-9;
+      off += R.shown;
+      if (partial) (E.layout ||= new Map()).set(pipKey(A, rec), R);
+    }
+    E.shownLength = off;
+  }
+  // A part takes the places of its pips in the whole entry.
+  for (const I of inst.values()) {
+    if (!I.part) continue;
+    for (const rec of I.order) {
+      const W = I.entry.layout.get(pipKey(A, rec)), R = info.get(rec);
+      Object.assign(R, { off: W.off, shownOff: W.shownOff, shown: W.shown, capped: W.capped });
+    }
+  }
+  // Folded layout: entries side by side in source order. `slot` is the shown
+  // layout. `at` is the same layout in written durations, which the later
+  // folds match on.
+  const entryList = [...entries.values()].sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
+  let x = 0, xw = 0;
+  for (const E of entryList) {
+    E.slot = { x, width: E.shownLength, unit: E.unit };
+    E.at = xw;
+    x += E.shownLength + gap;
+    xw += E.length + gap;
+    E.residue = E.name == null && E.count === 1;
+  }
+  return { inst, entryList, info };
+}
+
+function pipKey(A, r) {
+  const a = A(r);
+  return [a.canon ?? '', r9(a.body.s), r9(a.body.d), r.tag ?? ''].join(':');
+}
+
+// Partial statements (cell level). An entry whose pips are all pips of a
+// larger entry of the same definition (same canon, body step, body duration
+// and tag) is a part of it, and its instances join that entry. Of two larger
+// entries, the one with more pips wins, then the first in source order.
+// Entry ids are given again, so that they count the entries that are left.
+function joinParts(inst, entries) {
+  const list = [...entries.values()];
+  const keys = new Map(list.map(E => [E, new Set(E.signature.slice(E.signature.indexOf('|') + 1).split(','))]));
+  const order = list.slice().sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
+  for (const P of list) {
+    if (P.name == null) continue;
+    const mine = keys.get(P);
+    let best = null;
+    for (const F of order) {
+      const theirs = keys.get(F);
+      if (F === P || F.name !== P.name || theirs.size <= mine.size || (best && theirs.size <= keys.get(best).size)) continue;
+      if ([...mine].every(k => theirs.has(k))) best = F;
+    }
+    if (best) P.partOf = best;
+  }
+  for (const I of inst.values()) {
+    const P = I.entry;
+    if (!P || !P.partOf) continue;
+    const F = P.partOf;
+    I.part = true;
+    I.entry = F;
+    F.count++;
+    F.instances.push({ voice: I.voice, t0: I.t0, t1: I.t1 });
+    if (!F.firstInVoice.has(I.voice) || F.firstInVoice.get(I.voice) > I.t0) F.firstInVoice.set(I.voice, I.t0);
+  }
+  const byName = new Map();
+  for (const E of list) {
+    if (E.partOf) { entries.delete(E.signature); continue; }
+    const n = (byName.get(E.name) || 0) + 1;
+    byName.set(E.name, n);
+    E.id = (E.name ?? '_') + (n > 1 ? '#' + n : '');
+  }
 }
 
 function foldModel(trace, options = {}) {
@@ -6682,7 +6918,7 @@ function foldModel(trace, options = {}) {
       const d = Math.abs(pip.timeScale);
       const a = analysePip(pip);
       const sounding = pip.tag !== 'r';
-      const rec = { voice, index, t, d, step: pip.step, tag: pip.tag ?? null, sounding, a,
+      const rec = { pip, voice, index, t, d, step: pip.step, tag: pip.tag ?? null, sounding, a,
         diad: pip.diad ? pip.diad.map(x => x - pip.step) : null };
       if (rec.a.instanceKey === null) rec.a.instanceKey = `p${voice}:${index}`;
       rec.instance = `${voice}|${rec.a.instanceKey}`;
@@ -6692,115 +6928,130 @@ function foldModel(trace, options = {}) {
     voices.push({ voice, duration: t, pips: mot.values.length });
   });
 
-  // Instances: start time and canonical offsets (stop 3).
-  const inst = new Map();
-  for (const rec of all) {
-    let I = inst.get(rec.instance);
-    if (!I) {
-      I = { key: rec.instance, voice: rec.voice, t0: rec.t, t1: rec.t + rec.d, recs: [], name: rec.a.owner ? rec.a.owner.name : null, ownerPos: rec.a.owner ? rec.a.owner.pos : null };
-      inst.set(rec.instance, I);
-    }
-    I.t0 = Math.min(I.t0, rec.t);
-    I.t1 = Math.max(I.t1, rec.t + rec.d);
-    I.recs.push(rec);
-  }
-  for (const I of inst.values()) {
-    const order = I.recs.slice().sort((x, y) => (x.a.canon ?? x.index) - (y.a.canon ?? y.index) || x.index - y.index);
-    let off = 0;
-    for (const rec of order) { rec.off = off; off += rec.a.body.d; }
-    I.length = off;
-    I.order = order;
-    I.signature = (I.name ?? '#') + '|' + order.map(r => [r.a.canon ?? '', r9(r.a.body.s), r9(r.a.body.d), r.tag ?? ''].join(':')).join(',');
-  }
+  // Stops 3 to 5: the innermost definition owns a note.
+  const { entryList, info } = buildLevel(all, rec => rec.a, rec => rec.instance, gap, capWidth);
 
-  // Dictionary: one entry per distinct shape.
-  const entries = new Map();
-  const byName = new Map();
-  const instancesSorted = [...inst.values()].sort((x, y) => x.voice - y.voice || x.t0 - y.t0);
-  for (const I of instancesSorted) {
-    if (!I.recs.some(r => r.sounding)) continue;
-    let E = entries.get(I.signature);
-    if (!E) {
-      const n = (byName.get(I.name) || 0) + 1;
-      byName.set(I.name, n);
-      const litPos = Math.min(...I.recs.map(r => (r.a.lit && r.a.lit.pos != null ? r.a.lit.pos : Infinity)));
-      E = { id: (I.name ?? '_') + (n > 1 ? '#' + n : ''), name: I.name, signature: I.signature, count: 0,
-        instances: [], firstInVoice: new Map(), litPos: Number.isFinite(litPos) ? litPos : null,
-        refPos: I.ownerPos, length: I.length, pips: I.recs.filter(r => r.sounding).length };
-      entries.set(I.signature, E);
-    }
-    E.count++;
-    E.instances.push({ voice: I.voice, t0: I.t0, t1: I.t1 });
-    if (!E.firstInVoice.has(I.voice)) E.firstInVoice.set(I.voice, I.t0);
-    I.entry = E;
-  }
-  // Shown widths (stops 5 to 8). A written duration means something only
-  // beside the other durations of its own shape, so each shape gets its own
-  // unit: the most common duration of its sounding pips (the shorter one on a
-  // tie). No pip is wider than capWidth units.
-  for (const I of inst.values()) {
-    const E = I.entry;
-    if (!E) continue;
-    if (E.unit === undefined) {
-      const tally = new Map();
-      for (const rec of I.recs) if (rec.sounding) tally.set(r9(rec.a.body.d), (tally.get(r9(rec.a.body.d)) || 0) + 1);
-      let unit = 0, best = 0;
-      for (const [d, n] of tally) if (d > 0 && (n > best || (n === best && d < unit))) { unit = d; best = n; }
-      E.unit = unit || 1;
-    }
-    let off = 0;
-    for (const rec of I.order) {
-      const w = rec.a.body.d / E.unit;
-      rec.shownOff = off;
-      rec.shown = Math.min(w, capWidth);
-      rec.capped = w > capWidth + 1e-9;
-      off += rec.shown;
-    }
-    E.shownLength = off;
-  }
-  // Folded layout (stop 5): entries side by side in source order. `slot` is
-  // the shown layout. `at` is the same layout in written durations, which the
-  // later folds match on.
-  const entryList = [...entries.values()].sort((x, y) => (x.litPos ?? Infinity) - (y.litPos ?? Infinity) || x.id.localeCompare(y.id));
-  let x = 0, xw = 0;
-  for (const E of entryList) {
-    E.slot = { x, width: E.shownLength, unit: E.unit };
-    E.at = xw;
-    x += E.shownLength + gap;
-    xw += E.length + gap;
-    E.residue = E.name == null && E.count === 1;
-  }
-
-  // Notes and their positions.
-  const written = []; // stop 5 in written durations, by note id
+  // Theme level, for stops 6 to 8. A definition that is used mostly inside
+  // a larger one belongs to it, so a theme built from smaller definitions is
+  // one shape (analysePip). `// #theme A B` in the program, or
+  // options.themes, picks the themes by hand.
+  const usesOf = new Map(); // name -> Map(instance key -> names of the definitions around it)
   for (const rec of all) {
     if (!rec.sounding) continue;
-    const I = inst.get(rec.instance);
+    const fr = rec.a.frames;
+    for (let i = 1; i < fr.length; i++) {
+      if (fr[i].kind !== 'ref') continue;
+      let uses = usesOf.get(fr[i].name);
+      if (!uses) usesOf.set(fr[i].name, (uses = new Map()));
+      const key = rec.voice + '|' + fr.slice(i).map(frameKey).join('/');
+      if (!uses.has(key)) uses.set(key, new Set(fr.slice(i + 1).filter(f => f.kind === 'ref').map(f => f.name)));
+    }
+  }
+  const insideMemo = new Map();
+  const inside = (C, D) => {
+    const k = C + '\n' + D;
+    if (!insideMemo.has(k)) {
+      const uses = usesOf.get(C), outer = usesOf.get(D);
+      let n = 0;
+      if (uses && outer && outer.size >= 2) for (const around of uses.values()) if (around.has(D)) n++;
+      insideMemo.set(k, !!uses && 2 * n > uses.size);
+    }
+    return insideMemo.get(k);
+  };
+  const copies = new Map(); // operator application -> highest copy index
+  for (const rec of all) {
+    for (const f of rec.a.frames) if (f.kind === 'op' && f.copy != null) copies.set(f.app, Math.max(copies.get(f.app) || 0, f.copy));
+  }
+  const used = name => (usesOf.get(name) || { size: 0 }).size >= 2;
+  const partMemo = new Map();
+  const part = C => {
+    if (!partMemo.has(C)) partMemo.set(C, [...usesOf.get(C).values()].every(around => [...around].some(used)));
+    return partMemo.get(C);
+  };
+  const picked = options.themes ?? String((trace.directives && trace.directives.theme) || '').split(/[\s,]+/).filter(Boolean);
+  const level = { named: new Set(picked.filter(name => usesOf.has(name))), inside, part, fan: f => (f.op === '*' || f.op === '^' || f.op === '->') && (copies.get(f.app) || 0) >= 1, uses: name => (usesOf.get(name) || { size: 0 }).size };
+  for (const rec of all) {
+    rec.th = analysePip(rec.pip, level);
+    if (rec.th.instanceKey === null) rec.th.instanceKey = `p${rec.voice}:${rec.index}`;
+    rec.thInstance = `${rec.voice}|${rec.th.instanceKey}`;
+  }
+  const themeLevel = buildLevel(all, rec => rec.th, rec => rec.thInstance, gap, capWidth);
+
+  // Notes and their positions.
+  const written = []; // the theme level layout in written durations, by note id
+  const themeNotes = []; // what the later folds read: the theme level as their stop 5
+  for (const rec of all) {
+    if (!rec.sounding) continue;
+    const R = info.get(rec), I = R.I;
     const E = I.entry;
     const p1 = { t: rec.t, step: z(rec.a.full.s), d: rec.d };
     const p2 = { t: rec.t, step: z(rec.a.noTranspose.s), d: rec.d };
-    const p3 = { t: I.t0 + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
-    const p4 = { t: E.firstInVoice.get(rec.voice) + rec.off, step: z(rec.a.body.s), d: rec.a.body.d };
-    const p5 = { t: E.slot.x + rec.shownOff, step: z(rec.a.body.s), d: rec.shown };
-    if (rec.capped) p5.capped = true;
-    written.push({ t: E.at + rec.off, d: rec.a.body.d });
+    const p3 = { t: I.t0 + R.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p4 = { t: E.firstInVoice.get(rec.voice) + R.off, step: z(rec.a.body.s), d: rec.a.body.d };
+    const p5 = { t: E.slot.x + R.shownOff, step: z(rec.a.body.s), d: R.shown };
+    if (R.capped) p5.capped = true;
+    const T = themeLevel.info.get(rec), TE = T.I.entry;
     rec.note = {
       id: notes.length, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
       step: rec.step, edited: rec.a.edited, owner: I.name, entry: E.id, instance: rec.instance,
+      theme: TE.id,
       litPos: rec.a.lit ? rec.a.lit.pos : null, refPos: I.ownerPos,
       pos: [null, p1, p2, p3, p4, p5],
     };
     notes.push(rec.note);
+    const t5 = { t: TE.slot.x + T.shownOff, step: z(rec.th.body.s), d: T.shown };
+    if (T.capped) t5.capped = true;
+    written.push({ t: TE.at + T.off, d: rec.th.body.d });
+    themeNotes.push({ id: rec.note.id, voice: rec.voice, index: rec.index, tag: rec.tag, diad: rec.diad,
+      entry: TE.id, instance: rec.thInstance, pos: [null, p1, null, null, null, t5] });
   }
 
-  // Stops 6 to 8.
-  const th = thematicFolds({ notes, recs: all, entries: entryList, relate, written }, { gap, minLength: options.minLength, themeLength: options.themeLength });
+  // Stops 6 to 8, on the theme level.
+  const themeRecs = all.map(rec => Object.assign(Object.create(rec), { a: rec.th, note: rec.sounding ? themeNotes[rec.note.id] : undefined }));
+  const th = thematicFolds({ notes: themeNotes, recs: themeRecs, entries: themeLevel.entryList, relate, written },
+    { gap, minLength: options.minLength, themeLength: options.themeLength, foldLength: options.foldLength, showFound: options.showFound });
   notes.forEach((n, k) => {
     n.pos.push(...th.notes[k].pos);
     n.bent = th.notes[k].bent;
     n.explainedBy = th.notes[k].explainedBy;
     n.fold8 = th.notes[k].fold8;
   });
+
+  // Stop 9: the inward reduction again, inside the themes.
+  const o9 = openThemes({ entryList, info }, rec => rec.a);
+  notes.forEach((n, k) => {
+    n.pos[9] = o9.pos[k];
+    n.fold9 = o9.at[k];
+  });
+
+  // Stop 10: the cell level. A changed pip of an operator that made two pips
+  // from one is not one pip for one pip.
+  const changed = new Map();
+  for (const rec of all) {
+    for (const f of rec.a.frames) {
+      if (f.kind !== 'op' || f.exact || f.kept) continue;
+      const k = f.app + '|' + f.index;
+      if (!changed.has(k)) changed.set(k, new Set());
+      changed.get(k).add(f);
+    }
+  }
+  const split = new Set();
+  for (const set of changed.values()) if (set.size > 1) for (const f of set) split.add(f);
+  for (const rec of all) {
+    rec.cl = analysePip(rec.pip, null, { split });
+    if (rec.cl.instanceKey === null) rec.cl.instanceKey = `p${rec.voice}:${rec.index}`;
+    rec.clInstance = `${rec.voice}|${rec.cl.instanceKey}`;
+  }
+  const cellLevel = buildLevel(all, rec => rec.cl, rec => rec.clInstance, gap, capWidth, true);
+  const o10 = openThemes(cellLevel, rec => rec.cl);
+  for (const rec of all) {
+    if (!rec.sounding) continue;
+    const n = rec.note;
+    n.pos[10] = o10.pos[n.id];
+    n.fold10 = o10.at[n.id];
+    n.cell = cellLevel.info.get(rec).I.entry.id;
+    n.cellBent = rec.cl.bend;
+  }
 
   // Counts.
   const distinct = (fn) => new Set(notes.map(fn)).size;
@@ -6809,9 +7060,12 @@ function foldModel(trace, options = {}) {
   const counts = {
     notes: notes.length,
     edited: notes.filter(n => n.edited).length,
-    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8].map(s => (s === null ? null : distinct(n => pk(n, s)))),
+    cellEdited: all.filter(rec => rec.sounding && rec.cl.edited).length,
+    cellBent: notes.filter(n => n.cellBent).length,
+    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (s === null ? null : distinct(n => pk(n, s)))),
     shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length,
-      th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length],
+      th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length,
+      o9.units.filter(u => u.kind !== 'residue').length, o10.units.filter(u => u.kind !== 'residue').length],
     pipsWritten: distinct(n => pk(n, 5)),
     entries: entryList.length,
     explained: th.summary.explained,
@@ -6830,9 +7084,66 @@ function foldModel(trace, options = {}) {
     })),
     counts,
     thematic: th.summary,
+    inward: { themed: o9.themed, units: { 9: o9.units, 10: o10.units } },
     stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
-      'no unstated repeats', 'near-misses folded', 'themes only'],
+      'no unstated repeats', 'near-misses folded', 'themes only', 'themes opened', 'cells'],
   };
+
+  // Stops 9 and 10 open the themes of stop 8 again. A note that sits on a
+  // theme at stop 8 goes to the place of its slot's own note (fold8.rep) in
+  // a level of the dictionary L: the innermost level (stop 9) or the cell
+  // level (stop 10). Only the entries that a theme reaches are shown, side by
+  // side in source order with the stop 5 gap. Found units (showFound) follow
+  // as at stop 8, then the residue marker. With no theme at stop 8, every
+  // note opens in place and all entries are shown.
+  function openThemes(L, A) {
+    const recOf = [];
+    for (const rec of all) if (rec.sounding) recOf[rec.note.id] = rec;
+    const units8 = th.summary.units[8];
+    const themed = units8.some(u => u.kind === 'theme');
+    const host = notes.map((n, k) => {
+      if (!themed) return { kind: 'entry', rec: recOf[k] };
+      const u = units8[th.notes[k].unit8];
+      if (u.kind === 'theme') return { kind: 'entry', rec: recOf[n.fold8.rep] };
+      return { kind: u.kind, u };
+    });
+    const reached = new Set(host.filter(h => h.rec).map(h => L.info.get(h.rec).I.entry));
+    const units = [], unitOf = new Map();
+    let x = 0;
+    const add = (key, U) => { U.x = x; units.push(U); unitOf.set(key, U); x += U.width + gap; };
+    for (const E of L.entryList) if (reached.has(E)) add(E, { kind: 'entry', id: E.id, name: E.name, count: E.count, width: E.shownLength });
+    for (const u of units8) if (u.kind === 'found' && host.some(h => h.u === u)) add(u, { kind: 'found', id: u.id, name: u.name, width: u.width, from: u.x });
+    const res = units8.find(u => u.kind === 'residue');
+    if (res && host.some(h => h.kind === 'residue')) add(res, { kind: 'residue', id: 'residue', name: null, width: res.width });
+    const at = [];
+    const pos = host.map((h, k) => {
+      let p, U;
+      if (h.rec) {
+        const R = L.info.get(h.rec);
+        U = unitOf.get(R.I.entry);
+        p = { t: U.x + R.shownOff, step: z(A(h.rec).body.s), d: R.shown };
+        if (R.capped) p.capped = true;
+      } else if (h.kind === 'found') {
+        const p8 = notes[k].pos[8];
+        U = unitOf.get(h.u);
+        p = { t: U.x + p8.t - U.from, step: p8.step, d: p8.d };
+        if (p8.capped) p.capped = true;
+      } else {
+        U = unitOf.get(res);
+        p = { t: U.x, step: 0, d: U.width };
+      }
+      at.push({ kind: h.kind, unit: U.id, entry: U.kind === 'entry' ? U.id : null });
+      (U.keys ||= new Set()).add(r9(p.t) + '|' + r9(p.step));
+      U.notes = (U.notes || 0) + 1;
+      return p;
+    });
+    for (const U of units) {
+      U.positions = U.kind === 'residue' ? 1 : U.keys.size;
+      delete U.keys;
+      delete U.from;
+    }
+    return { pos, at, units, themed };
+  }
 }
 
 // Instance tree per voice: definition uses and operator copies, outermost

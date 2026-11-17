@@ -7,7 +7,8 @@
 // dictionary (one entry per distinct shape, with its count); the residue
 // (shapes with no definition that occur once); the repeats and near-misses
 // found at stops 6 and 7; the themes left at stop 8 with the notes each
-// explains; a summary of the instance tree; and the numbers from
+// explains; the cells the themes are made of (stop 10); a summary of the
+// instance tree; and the numbers from
 // tools/reduction-score.js. See docs/crux-agent-guide.md.
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -25,6 +26,8 @@ const STOPS = [
   '6 no unstated repeats',
   '7 near-misses folded',
   '8 themes only',
+  '9 themes opened',
+  '10 cells',
 ];
 
 export function foldReport(code, { treeDepth = 3, minLength } = {}) {
@@ -78,6 +81,13 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   lines.push(`  ${'residue'.padEnd(8)} ${''.padEnd(6)} ${String(rz.positions).padStart(3)} positions ${String(rz.notes).padStart(5)} notes` +
     (rz.cells.length ? `  (${rz.unexplained} not explained, cells with no theme: ${rz.cells.map(a => `${a.owner} ${a.notes}`).join(', ')})` : ''));
   const e = c.explained;
+  const bentIn = id => m.notes.filter(n => n.fold10.unit === id && n.cellBent).length;
+  lines.push('', `stop 10: cells (entries the themes reach${m.inward.themed ? '' : '; no theme at stop 8, so all entries'}; bent: notes an edit moves off the cell)`);
+  for (const u of m.inward.units[10]) {
+    lines.push(`  ${String(u.id).padEnd(12)} ${u.kind === 'entry' ? ('x' + u.count).padEnd(5) : ''.padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(u.notes).padStart(5)} notes` +
+      (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : ''));
+  }
+  lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes`);
   lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes); ${c.attached} stacked as attachments`);
   lines.push('', `instance tree (to depth ${treeDepth})`);
   const walk = (node, depth) => {

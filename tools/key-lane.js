@@ -3,6 +3,7 @@
 //
 //   node tools/key-lane.js program.crux                      print each voice with inflections applied
 //   node tools/key-lane.js program.crux --compare other.crux check against a half-step program
+//   add --semitones to either: steps are semitones above the tonic (this can show a lowered note)
 //
 // The program holds integer scale steps only. One directive comment carries the key lane:
 //
@@ -10,10 +11,12 @@
 //   // #keyLane 1 I, 7 V, 15 ii, 16 IV, 25:1:-2 IV, 29 I
 //
 // Each entry is a bar address and a key as a Roman numeral (upper case major, lower case
-// harmonic minor, "+" melodic minor, "-" natural minor). The first form, a mot of scale
-// degrees and lengths, is still read: // #keyLane [0 | 3, 3 | 4]. Full description:
-// disrupterbox docs/crux-key-lane.md. Output uses the half-step code of the diatonic lens:
-// degree + 1/2 is the degree raised a semitone.
+// harmonic minor, "+" melodic minor, "-" natural minor, "~" minor that follows the line).
+// An entry can be a note mark instead, "32:2 #6": one note on degree 6 of the home scale,
+// raised. The first form, a mot of scale degrees and lengths, is still read:
+// // #keyLane [0 | 3, 3 | 4]. Full description: disrupterbox docs/crux-key-lane.md.
+// Output uses the half-step code of the diatonic lens: degree + 1/2 is the degree raised a
+// semitone. With --semitones it is semitones above the tonic instead.
 import fs from 'node:fs';
 import '../src/index.js';
 
@@ -34,16 +37,25 @@ function parseMeter(text) {
     return { beats: Number(m[1]), unit: Number(m[2]) };
 }
 
-// "IV", "ii", "ii+", "ii-", "bVI" -> a key area, or null.
-// Upper case: major. Lower case: harmonic minor, "+" melodic, "-" natural.
+// "IV", "ii", "ii+", "ii-", "ii~", "bVI" -> a key area, or null.
+// Upper case: major. Lower case: harmonic minor, "+" melodic, "-" natural,
+// "~" a minor whose sixth and seventh follow the line (see lineForm).
 function parseNumeral(text) {
-    const m = /^([b#]?)([IViv]+)([+-]?)$/.exec(text);
+    const m = /^([b#]?)([IViv]+)([+~-]?)$/.exec(text);
     if (!m) return null;
     const key = NUMERALS.indexOf(m[2].toLowerCase());
     const upper = m[2] === m[2].toUpperCase(), lower = m[2] === m[2].toLowerCase();
     if (key < 0 || (!upper && !lower) || (upper && m[3])) return null;
     const local = upper ? MAJOR : m[3] === '+' ? MELODIC_MINOR : m[3] === '-' ? NATURAL_MINOR : HARMONIC_MINOR;
-    return { key, local, alter: m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0, name: text };
+    return { key, local, alter: m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0, name: text, ...(m[3] === '~' ? { dir: true } : {}) };
+}
+
+// "#4", "b2", "n6" -> a note mark on a degree of the home scale (1 to 7), or
+// null. "#" is the home form raised a semitone, "b" lowered, "n" the home form.
+function parseMark(text) {
+    const m = /^([#bn])([1-7])$/.exec(text);
+    if (!m) return null;
+    return { degree: Number(m[2]) - 1, value: m[1] === '#' ? 1 : m[1] === 'b' ? -1 : 0, name: text };
 }
 
 // "7", "7:3", "8:-1", "8:1:-2" -> quarter notes from the start of bar 1, or { err }.
@@ -117,22 +129,34 @@ function parseLane(text, options = {}) {
         return { spans, unit: 'crux', form: 'mot' };
     }
     const meter = options.meter || { beats: 4, unit: 4 };
-    const spans = [];
+    // Keys and note marks. An entry with an Arabic digit is a mark.
+    const spans = [], marks = [];
+    let prev = -Infinity;
     for (const raw of source.split(',')) {
-        const m = /^(\S+)\s+(\S+)$/.exec(raw.trim());
-        if (!m) return { err: `Key lane entry "${raw.trim()}" should be an address and a key, as in "7 V".` };
+        const entry = raw.trim();
+        const m = /^(\S+)\s+(\S+)$/.exec(entry);
+        if (!m) return { err: `Key lane entry "${entry}" should be an address and a key, as in "7 V", or a note mark, as in "7 #4".` };
         const at = parseAddress(m[1], meter);
         if (at.err) return at;
+        if (at.quarters < prev - EPS) return { err: `Key lane entry "${entry}" is earlier than the entry before it.` };
+        prev = at.quarters;
+        if (/\d/.test(m[2])) {
+            const mark = parseMark(m[2]);
+            if (!mark) return { err: `"${m[2]}" in "${entry}" is not a note mark. Use #, b or n and a degree from 1 to 7, as in #4.` };
+            if (marks.some(k => k.degree === mark.degree && Math.abs(k.at - at.quarters) < EPS)) return { err: `Key lane entry "${entry}" marks a degree that another mark at the same address marks.` };
+            marks.push({ at: at.quarters, ...mark, entry });
+            continue;
+        }
         const area = parseNumeral(m[2]);
-        if (!area) return { err: `"${m[2]}" is not a key. Use Roman numerals: IV, ii, ii+, ii-, bVI.` };
+        if (!area) return { err: `"${m[2]}" is not a key. Use Roman numerals: IV, ii, ii+, ii-, ii~, bVI.` };
         const last = spans[spans.length - 1];
-        if (last && at.quarters <= last.start + EPS) return { err: `Key lane entry "${raw.trim()}" is not later than the entry before it.` };
+        if (last && at.quarters <= last.start + EPS) return { err: `Key lane entry "${entry}" is not later than the key before it.` };
         if (last) last.end = at.quarters;
         spans.push({ start: at.quarters, end: Infinity, ...area });
     }
-    if (!spans.length) return { err: 'The key lane is empty.' };
-    if (spans[0].start > EPS) spans.unshift({ start: 0, end: spans[0].start, home: true, name: '(home)' });
-    return { spans, unit: 'quarter', form: 'address', meter };
+    if (!spans.length && !marks.length) return { err: 'The key lane is empty.' };
+    if (!spans.length || spans[0].start > EPS) spans.unshift({ start: 0, end: spans.length ? spans[0].start : Infinity, home: true, name: '(home)' });
+    return { spans, marks, unit: 'quarter', form: 'address', meter };
 }
 
 // The key area in force at `time` (in the lane's unit). The last one holds.
@@ -146,13 +170,78 @@ function spanAt(lane, time) {
     return spans[lo];
 }
 
+// In a "~" key: the form of local degree j (0 = its tonic) for a note on
+// `step`. 1 raised (melodic minor), -1 lowered (natural minor), 0 harmonic
+// minor. The seventh is lowered only in a falling line 7-6-5 (or 7-6 at the
+// end). The sixth is raised only when it steps up to the seventh.
+function lineForm(j, step, ctx) {
+    const a = ctx ? ctx.next : undefined, b = ctx ? ctx.next2 : undefined;
+    if (j === 6 && a === step - 1 && (b == null || b === a - 1)) return -1;
+    if (j === 5 && a === step + 1) return 1;
+    return 0;
+}
+
+// Steps of one voice in time order (rests left out) -> for each note
+// { next, next2 }: the step of the next note that differs from it, and the
+// step of the next note after that one that differs again. Repeated notes are
+// skipped. Undefined at the end of the voice.
+function lineContexts(steps) {
+    const n = steps.length, after = new Array(n), out = new Array(n);
+    for (let i = n - 1; i >= 0; i--) after[i] = (i + 1 < n && steps[i + 1] === steps[i]) ? after[i + 1] : i + 1;
+    for (let i = 0; i < n; i++) {
+        const a = after[i], b = a < n ? after[a] : n;
+        out[i] = { next: a < n ? steps[a] : undefined, next2: b < n ? steps[b] : undefined };
+    }
+    return out;
+}
+
+// Give each note mark the onset it lands on: the first note on its degree
+// that starts at or after the mark, in any voice and octave. `onsets` holds
+// { time, step } in the lane's unit for every sounding note, diad steps too.
+// A mark with no such note gets time null and does nothing. Returns those
+// marks. A mark that was never bound applies at its own address only.
+function bindMarks(lane, onsets) {
+    const lost = [];
+    if (!lane || !lane.marks) return lost;
+    for (const mark of lane.marks) {
+        let best = null;
+        for (const o of onsets) {
+            if (!Number.isInteger(o.step) || mod(o.step, 7) !== mark.degree || o.time < mark.at - EPS) continue;
+            if (best === null || o.time < best) best = o.time;
+        }
+        mark.time = best;
+        if (best === null) lost.push(mark);
+    }
+    return lost;
+}
+
 // Semitones to add to scale step `step` at `time` (in the lane's unit).
-function inflectionAt(lane, time, step, home = MAJOR) {
+// ctx = { next, next2 } from lineContexts. Only "~" keys use it. Without it
+// a "~" key is harmonic minor.
+function inflectionAt(lane, time, step, home = MAJOR, ctx) {
     if (!lane || !Number.isInteger(step)) return 0;
+    const degree = mod(step, 7);
+    if (lane.marks) for (const mark of lane.marks) {
+        const at = mark.time === undefined ? mark.at : mark.time;
+        if (mark.degree === degree && at !== null && Math.abs(time - at) < EPS) return mark.value;
+    }
     const area = spanAt(lane, time);
     const tag = home.join(',');
-    if (area._home !== tag) { area._v = areaInflections(area, home); area._home = tag; }
-    return area._v ? area._v[mod(step, 7)] : 0;
+    if (area._home !== tag) {
+        area._v = areaInflections(area, home);
+        if (area.dir) {
+            area._raised = areaInflections({ ...area, local: MELODIC_MINOR }, home);
+            area._lowered = areaInflections({ ...area, local: NATURAL_MINOR }, home);
+        }
+        area._home = tag;
+    }
+    if (!area._v) return 0;
+    if (area.dir) {
+        const form = lineForm(mod(degree - area.key, 7), step, ctx);
+        if (form > 0) return area._raised[degree];
+        if (form < 0) return area._lowered[degree];
+    }
+    return area._v[degree];
 }
 
 // A directive's value from program text (the last one wins), or null. Names
@@ -186,7 +275,14 @@ function laneFromCode(code, interp) {
 // ---- end of key lane core ----
 
 const interp = source => globalThis.golden.crux_interp(source);
-export { parseMeter, parseNumeral, parseAddress, inflections, areaInflections, parseLane, spanAt, inflectionAt, quantaQuarters, directive };
+export { parseMeter, parseNumeral, parseMark, parseAddress, inflections, areaInflections, parseLane, spanAt, inflectionAt, lineContexts, bindMarks, quantaQuarters, directive };
+
+// Home scales by #pitchRegime name, for the seven-note regimes used with a lane.
+const REGIMES = { Major: MAJOR, Ionian: MAJOR, Minor: NATURAL_MINOR, Aeolian: NATURAL_MINOR, HarmonicMinor: HARMONIC_MINOR, MelodicMinor: MELODIC_MINOR };
+/** The home scale that the program's #pitchRegime names. Major when it names none of the above. */
+export function homeScale(code) {
+  return REGIMES[(directive(code, 'pitchRegime') || '').trim()] || MAJOR;
+}
 
 export function readLane(code) {
   const lane = laneFromCode(code, interp);
@@ -195,21 +291,37 @@ export function readLane(code) {
   return lane;
 }
 
-/** Interpret the program and apply the lane to every voice. Home scale: major. */
-export function applyKeyLane(code, home = MAJOR) {
+/**
+ * Interpret the program and apply the lane to every voice. Home scale: from #pitchRegime
+ * (see homeScale), or `home`. Note marks are bound to the notes of all voices first, and
+ * "~" keys read each voice's following notes. Each pip gets `semitones` (the inflection)
+ * and `pitch` (semitones above the tonic).
+ */
+export function applyKeyLane(code, home = homeScale(code)) {
   const lane = readLane(code);
   const meter = lane.meter || parseMeter(directive(code, 'meter')) || { beats: 4, unit: 4 };
   // Quarter notes per timeScale unit, for a lane addressed in bars.
   const perUnit = lane.unit === 'quarter' ? (quantaQuarters(directive(code, 'quanta') || '8n', meter) ?? 0.5) : 1;
-  return interp(code).sections.map(section => {
+  const voices = interp(code).sections.map(section => {
     let t = 0;
     return section.values.map(p => {
       const at = t * perUnit;
       t += Math.abs(p.timeScale);
-      if (p.tag === 'r') return { step: 0, timeScale: Math.abs(p.timeScale), tag: 'r' };
+      if (p.tag === 'r') return { tag: 'r', timeScale: Math.abs(p.timeScale) };
       if (!Number.isInteger(p.step)) throw new Error(`Key-lane programs use integer steps, got ${p.step}.`);
-      const inf = inflectionAt(lane, at, p.step, home);
-      return { step: p.step + inf / 2, timeScale: Math.abs(p.timeScale), semitones: inf };
+      return { at, step: p.step, diad: p.diad || [], timeScale: Math.abs(p.timeScale) };
+    });
+  });
+  bindMarks(lane, voices.flat().filter(p => !p.tag).flatMap(p => [p.step, ...p.diad].map(step => ({ time: p.at, step }))));
+  const scale = s => 12 * Math.floor(s / 7) + home[((s % 7) + 7) % 7];
+  return voices.map(voice => {
+    const notes = voice.filter(p => !p.tag);
+    const ctx = lineContexts(notes.map(p => p.step));
+    let k = 0;
+    return voice.map(p => {
+      if (p.tag) return { step: 0, timeScale: p.timeScale, tag: 'r' };
+      const inf = inflectionAt(lane, p.at, p.step, home, ctx[k++]);
+      return { step: p.step + inf / 2, timeScale: p.timeScale, semitones: inf, pitch: scale(p.step) + inf };
     });
   });
 }
@@ -225,8 +337,10 @@ function mergeRests(pips) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [file, flag, other] = process.argv.slice(2);
-  const voices = applyKeyLane(fs.readFileSync(file, 'utf8'));
+  const args = process.argv.slice(2);
+  const semis = args.includes('--semitones');
+  const [file, flag, other] = args.filter(a => a !== '--semitones');
+  const voices = applyKeyLane(fs.readFileSync(file, 'utf8')).map(v => semis ? v.map(p => p.tag ? p : { ...p, step: p.pitch }) : v);
   if (flag === '--compare') {
     const expected = interp(fs.readFileSync(other, 'utf8')).sections.map(s => mergeRests(s.values));
     let bad = expected.length === voices.length ? 0 : 1, inflected = 0;
@@ -235,7 +349,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (got.length !== exp.length) bad++;
       got.forEach((p, j) => {
         const e = exp[j];
-        if (!p.tag && !Number.isInteger(p.step)) inflected++;
+        if (!p.tag && p.semitones) inflected++;
         if (!e || (p.tag ?? null) !== (e.tag ?? null) || Math.abs(p.timeScale - e.timeScale) > 1e-9 ||
             (!p.tag && Math.abs(p.step - e.step) > 1e-9)) {
           if (bad++ < 5) console.log(`voice ${v + 1} pip ${j}: got ${p.tag ?? p.step}, expected ${e?.tag ?? e?.step}`);

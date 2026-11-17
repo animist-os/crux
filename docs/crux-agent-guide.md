@@ -228,6 +228,19 @@ the innermost definition outside that operator.
 Stops 6 to 8 (`src/fold/thematic.js`) find what the program does not state.
 They are analysis, and their rules will change.
 
+They work at the theme level, not on the innermost definitions of stop 5:
+
+- A definition that is never used by itself goes to the definition around it
+  (if that one is used 3 times or more). A definition that is used mostly
+  inside one larger definition goes to that one. So a subject built from
+  small cells is one shape. A definition that is used freely (a turn that is
+  in many themes) stays a shape by itself, and so does a shape under an
+  operator that makes a sequence of it (`D * [4, 2, 0]`).
+- `// #theme subject CS` in the program picks the themes by hand. So does the
+  option `themes: ['subject', 'CS']`. The outermost named definition that a
+  note passed through owns it.
+- Each note has `theme`, the id of its shape at this level.
+
 - 6: sub-runs of the stop 5 literal runs that are equal under transpose,
   mirror, reverse and uniform stretch stack on one copy (`minLength`, default
   3). A rest breaks a run.
@@ -238,11 +251,45 @@ They are analysis, and their rules will change.
 - 8: only themes stay, each as its own run (stated definitions that keep 3 or
   more of their own pips). Short stated cells stack on a theme note. The rest
   stacks on one residue marker.
+  Repeats that stop 6 found outside the themes go to the residue too. The
+  option `showFound: true` keeps them as units.
+- A theme folds onto another theme (stop 7) on a match of 5 notes or more
+  (`foldLength`) with one bent note at most. A shorter match must be exact
+  and must be all of both themes.
 - Each note gets `pos[6]` to `pos[8]`, `bent`, `explainedBy` (`'program'`,
   `'repeat'`, `'near'` or `null`) and `fold8` (where it sits at stop 8:
   `theme`, `found`, `attached` or `residue`). `thematic` lists the found
   repeats, the near-misses, the theme folds, the layout units of stops 6 to 8
   with their note counts, the themes with their attachments, and the residue.
+
+Stops 9 and 10 put the inward reduction after the reduction across. Stops 6
+to 8 start again from the theme level, so a theme is long again at stop 8.
+Stops 9 and 10 open each theme to what it is made of.
+
+- `fold8.rep` is the id of a note of the slot a note sits on at stop 8: the
+  theme's (or found shape's) own note there. It is `null` on the residue.
+- 9, themes opened: a note on a theme goes to the stop 5 place of its `rep`
+  note. Only the entries that a theme reaches are shown, side by side in
+  source order. Attached cells go with their theme note. Found units
+  (`showFound`) stay as at stop 8, after the entries. The residue marker comes
+  last.
+- 10, cells: as 9, on the cell level. There a partial statement (`A \ 1`)
+  joins the full entry of its definition, and an edited statement
+  (`A @ [@1 5]`) stays with the definition as a bent note when the operator
+  kept the duration, made one pip from one pip, and the frames inside it lead
+  to a literal through a definition. `cellBent` is the bend in the
+  definition's own frame (an operator such as `m` between the definition and
+  the edit changes its sign). The bend has no limit: the program states it.
+  Splits such as `@5 [4,3]/` and edits that change a duration stay edited.
+- At stops 9 and 10 a bent note stacks on its cell note, as at stops 7 and 8.
+  The bend is a mark, not a position.
+- With no theme at stop 8, stops 9 and 10 open every note in place: all the
+  entries, and no residue marker.
+- Each note gets `pos[9]`, `pos[10]`, `fold9` and `fold10` (`kind`: `entry`,
+  `found` or `residue`, and the `unit`), `cell` (its own cell-level entry) and
+  `cellBent` (0 when not bent). `edited` does not change: it describes stops
+  3 to 5. `counts.cellEdited` counts the notes still edited at the cell
+  level. `inward.units[9]` and `inward.units[10]` are the layout units.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text.
@@ -278,7 +325,7 @@ There are two mechanisms. Know which one a file uses.
 | Mechanism | Where | Status |
 |---|---|---|
 | **Half step** | In the voice. `k + 1/2` means degree k raised a semitone. `7/2` is F-sharp in C major. | A convention of the score converter. Golden and Wad (0.6.5) play it as the degree below raised a semitone, added on top of any key lane. |
-| **Key lane** | A `// #keyLane` directive. Voices keep integer steps. | Golden (3.4) and Wad (4.3). |
+| **Key lane** | A `// #keyLane` directive. Voices keep integer steps. A note mark in the lane (`32:2 #6`) gives one note its accidental. | Golden (3.4) and Wad (4.3). Wad does not read `~` keys or note marks yet. |
 
 The design intent: voices hold plain scale steps, so one mot can be transposed
 and reused. Inflection is applied afterwards, like the tonic.
@@ -336,6 +383,15 @@ and reused. Inflection is applied afterwards, like the tonic.
 - Keys are Roman numerals for degrees of the home scale: upper case major,
   lower case harmonic minor, `ii+` melodic minor, `ii-` natural minor, `bVI`
   or `#iv` for a tonic moved a semitone.
+- `ii~` is a minor whose sixth and seventh follow the voice's line. The
+  seventh is raised unless the line falls 7-6-5. The sixth is lowered unless
+  it steps up to the seventh. Repeated notes are skipped. With no following
+  note it is harmonic minor.
+- A note mark is an accidental and a home-scale degree from 1 to 7: `#6`
+  raised, `b2` lowered, `n7` the home form. It applies once, to the next note
+  on that degree at or after its address, in any voice (all notes on that
+  degree at that onset). It replaces the key's inflection and does not end
+  the key. An Arabic digit makes a mark: `#4` is a mark, `#iv` a key.
 - Addresses are `bar`, `bar:beat` or `bar:beat:sixteenth`, counted from one.
   A negative last field counts back: `8:-1` is one beat before bar 8, and
   `8:1:-2` is a half-beat pickup into bar 8. `#meter` defaults to 4/4.
@@ -345,14 +401,17 @@ and reused. Inflection is applied afterwards, like the tonic.
 - An older form, a mot of degrees and lengths (`[0 | 3, 3 | 4]`), is still
   read. Use the address form for new programs.
 - `RenderMotToNotes` sets `note.inflection` in semitones. Playback adds it.
+  The panel binds note marks to the notes of all sections before it renders
+  (`CruxKeyLane.bindMots`). A mark that no note takes logs one warning.
 - Full description: `docs/crux-key-lane.md`. Check:
   `node --test modules/golden/golden_crux_keylane.test.js`.
 
 ### 3.5 Examples to read
 
 In the example library, tag `baroque`: "Bach Invention 14 (key lane)",
-"Bach Invention 5 (key lane)", "Bach Invention 8 (key lane)". The same programs
-are in `crux/examples/`.
+"Bach Invention 5 (key lane)", "Bach Invention 8 (key lane)", and "Bach Fugue
+BWV 578 (key lane)", which uses `~` keys and note marks. The same programs are
+in `crux/examples/`.
 
 ## 4. Wad (macOS app, Swift)
 
@@ -416,7 +475,8 @@ Wad is a native DAW. The facts below are from its `DESIGN.md` and
   A hand-edited line updates the track at Execute. The home scale is the key
   the note is pitched in (the project key, or the program's own). Wad does not
   read the older `[degree | length]` form or `#meter` (it uses the project's
-  meter map). Code: `Sources/Wad/CruxKeyLane.swift`.
+  meter map). It does not read `~` keys or note marks (3.4). Code:
+  `Sources/Wad/CruxKeyLane.swift`.
 - **Half steps and custom scales.** As in Golden: `Regime.halfStep` and
   `Regime.custom` in `Sources/Wad/Regime.swift`. A custom scale is named
   "Custom 0 1 3 5 6 8 11". An invalid list plays steps as semitones, like an

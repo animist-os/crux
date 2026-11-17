@@ -77,25 +77,27 @@ test('fold 8: a run that matches nothing goes to the residue', () => {
 });
 
 test('fold 8: a short stated cell stacks on the nearest note of the theme next to it', () => {
+  // T9 is also used by itself, so T does not take it over and T's own [2] is a short cell.
   const m = fold([
     'H  = [0, 1, 2, 1, 0 | 2] || [1/8]',
     'T9 = H, ([4, 2, 7, 4] || [1/4])',
     'T  = T9, [2 | 1/4]',
-    'T, (T * [3])',
+    'T, (T * [3]), (T9 * [1]), (T9 * [2]), (T9 * [4])',
   ].join('\n'));
   const T9 = m.thematic.units[8].find(u => u.id === 'T9');
   const last = m.notes.filter(n => n.entry === 'T');
   assert.equal(last.length, 2);
-  // T's [2] comes after T9, so it stacks on T9's last note (step 4).
+  // T's [2] comes after T9, so it stacks on T9's last note (step 4). H is
+  // never used by itself, so T9 is one shape of nine notes: four of 1/2,
+  // then five of 1 (the unit is its most common duration, 1/4).
   for (const n of last) {
-    // T9's own four pips are each one unit wide, so the last starts at 3.
-    assert.equal(n.pos[8].t, T9.x + 3);
+    assert.equal(n.pos[8].t, T9.x + 6);
     assert.equal(n.pos[8].step, 4);
     assert.equal(n.fold8.kind, 'attached');
     assert.equal(n.explainedBy, 'program');
   }
-  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions, t.attachedNotes]), [['H', 5, 0], ['T9', 4, 2]]);
-  assert.deepEqual(m.thematic.themes[1].attached, [{ owner: 'T', notes: 2 }]);
+  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions, t.attachedNotes]), [['T9', 9, 2]]);
+  assert.deepEqual(m.thematic.themes[0].attached, [{ owner: 'T', notes: 2 }]);
   assert.equal(m.counts.positions[8], 9);
   assert.equal(m.counts.attached, 2);
 });
@@ -104,7 +106,7 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   const m = fold(example('bach-invention14.keylane.v2.crux'));
   assert.equal(m.notes.length, 592);
   for (const n of m.notes) {
-    assert.equal(n.pos.length, 9);
+    assert.equal(n.pos.length, 11);
     for (let s = 1; s <= 8; s++) {
       const p = n.pos[s];
       assert.ok(p && Number.isFinite(p.t) && Number.isFinite(p.step) && Number.isFinite(p.d), `note ${n.id} stop ${s}`);
@@ -116,8 +118,8 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   assert.equal(e.program + e.repeat + e.near + e.none, m.counts.notes);
   for (let s = 6; s <= 8; s++) assert.ok(m.counts.positions[s] <= m.counts.positions[s - 1], `stop ${s}`);
   assert.equal(m.counts.positions[5], 96);
-  assert.equal(m.stops.length, 9);
-  assert.equal(m.counts.shapes.length, 9);
+  assert.equal(m.stops.length, 11);
+  assert.equal(m.counts.shapes.length, 11);
   // Every unit at stop 8 but the residue is a theme, a found shape or a stated cell.
   for (const u of m.thematic.units[8]) assert.ok(['theme', 'found', 'cell', 'residue'].includes(u.kind));
   assert.ok(m.thematic.themes.some(t => t.id === 'H'));
@@ -129,14 +131,31 @@ test('fold 6-8: two runs give equal models', () => {
 });
 
 test('fold 7: a theme folds onto a theme ranked above it, with its bent note', () => {
-  const m = fold('P = [0, 2, 1, 3] || [1/4]\nQ = [5, 7, 6, 9] || [1/4]\nP, P, P, Q, Q');
-  assert.deepEqual(m.thematic.themeFolds.map(f => [f.from, f.onto, f.length, f.bent]), [['Q', 'P', 4, 1]]);
+  const m = fold('P = [0, 2, 1, 3, 4] || [1/4]\nQ = [5, 7, 6, 9, 9] || [1/4]\nP, P, P, Q, Q');
+  assert.deepEqual(m.thematic.themeFolds.map(f => [f.from, f.onto, f.length, f.bent]), [['Q', 'P', 5, 1]]);
   assert.deepEqual(m.thematic.themeFolds[0].bentNotes, [{ step: 9, onto: 3, bent: 1 }]);
-  const q = m.notes.slice(12);
+  const q = m.notes.slice(15);
   assert.ok(q.every(n => n.explainedBy === 'near'));
-  assert.deepEqual(q.map(n => n.bent), [0, 0, 0, 1, 0, 0, 0, 1]);
-  assert.deepEqual(m.counts.positions.slice(5), [8, 8, 4, 4]);
-  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.notes]), [['P', 20]]);
+  assert.deepEqual(q.map(n => n.bent), [0, 0, 0, 1, 0, 0, 0, 0, 1, 0]);
+  assert.deepEqual(m.counts.positions.slice(5, 9), [10, 10, 5, 5]);
+  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.notes]), [['P', 25]]);
+});
+
+test('fold 7: two themes need 5 notes in common, or an exact match of all of both', () => {
+  // Four notes with one bent: not one theme.
+  const bent = fold('P = [0, 2, 1, 3] || [1/4]\nQ = [5, 7, 6, 9] || [1/4]\nP, P, P, Q, Q');
+  assert.equal(bent.thematic.themeFolds.length, 0);
+  assert.deepEqual(bent.thematic.themes.map(t => t.id), ['P', 'Q']);
+  const exact = fold('P = [0, 2, 1, 3] || [1/4]\nQ = [8, 6, 7, 5] || [1/4]\nP, P, P, Q, Q');
+  // Four notes, exact (a mirror), all of both: one theme. Stop 6 finds it.
+  assert.deepEqual(exact.thematic.themes.map(t => [t.id, t.notes]), [['P', 20]]);
+  assert.ok(exact.notes.every(n => n.fold8.unit === 'P'));
+  // A three-note theme does not fold onto a part of a long one.
+  const part = fold('L = [0, 4, 2, 5, 3, 6, 1, 9] || [1/4]\nC = [0, 4, 2] || [1/4]\nL, L, L, (C * [10]), (C * [11])');
+  assert.equal(part.thematic.themeFolds.length, 0);
+  // Two bent notes are too many for two themes.
+  const two = fold('P = [0, 2, 1, 3, 4, 6, 5] || [1/4]\nQ = [5, 7, 7, 8, 9, 12, 10] || [1/4]\nP, P, P, Q, Q');
+  assert.equal(two.thematic.themeFolds.length, 0);
 });
 
 test('fold 7: a short shared fragment does not make two themes one', () => {
@@ -169,14 +188,246 @@ test('fold 6-8: stops 6, 7 and 8 reduce the v2 picture', () => {
   const m = fold(example('bach-invention14.keylane.v2.crux'));
   const p = m.counts.positions;
   assert.ok(p[6] < p[5] && p[7] < p[6] && p[8] < p[7], p.join(' '));
-  assert.ok(p[8] <= 25, `stop 8 has ${p[8]} positions`);
+  assert.ok(p[8] <= 35, `stop 8 has ${p[8]} positions`);
   // Each theme shows its own run only, plus one residue marker.
   const units = m.thematic.units[8];
   assert.equal(p[8], units.reduce((n, u) => n + u.positions, 0));
   assert.equal(units.filter(u => u.kind === 'residue').length, 1);
   assert.equal(m.thematic.themes.find(t => t.id === 'H').positions, 5);
-  assert.equal(m.thematic.themes.find(t => t.id === 'T9').positions, 4);
+  // T9 lives inside T, so T owns its four notes and its own last note.
+  assert.equal(m.thematic.themes.find(t => t.id === 'T').positions, 5);
   assert.equal(units.reduce((n, u) => n + u.notes, 0), 592);
   for (const f of m.thematic.themeFolds) assert.ok(f.length >= 3 && f.bent <= 2 && 2 * f.exact >= f.length);
   assert.ok(m.notes.every(n => Math.abs(n.bent) <= 2));
+});
+
+test('theme level: a theme built from parts that are never used alone is one shape', () => {
+  const src = 'n = [0, 4, 2]\na = n, (n * [1]), [9]\nS = a, [5, 6]\nS, (S * [2]), (S * [4])';
+  const m = fold(src);
+  // Stop 5 keeps the innermost shapes: n, a's own note, S's own two notes.
+  assert.equal(m.counts.positions[5], 6);
+  assert.deepEqual([...new Set(m.notes.map(n => n.owner))], ['n', 'a', 'S']);
+  // The later folds see S whole.
+  assert.ok(m.notes.every(n => n.theme === 'S' && n.explainedBy === 'program'));
+  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions, t.notes]), [['S', 9, 27]]);
+  assert.deepEqual(m.counts.positions.slice(6, 9), [9, 9, 9]);
+  const first = m.notes.slice(0, 9);
+  assert.deepEqual(first.map(n => n.pos[8].step), [0, 4, 2, 1, 5, 3, 9, 5, 6]);
+  assert.deepEqual(first.map(n => n.pos[8].t - first[0].pos[8].t), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('theme level: a sequence of a shape is not a theme, the shape is', () => {
+  const m = fold('D = [0, 1, 2, 1]\nDq = D * [4, 2, 0]\nDq, (Dq * [1]), (Dq * [3])');
+  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions, t.notes]), [['D', 4, 36]]);
+});
+
+test('theme level: a shape that is used freely stays apart from what holds it', () => {
+  const src = [
+    'X = [0, 1, 2, 3, 5]',
+    'Y = [7, 5, 6, 4, 9]',
+    'CS = X, Y',
+    'CS, (CS * [1]), (X * [3]), (X * [5]), (X * [2]), (Y * [2]), (Y * [1]), (Y * [4])',
+  ].join('\n');
+  const free = fold(src);
+  assert.deepEqual(free.thematic.themes.map(t => t.id), ['X', 'Y']);
+  assert.equal(free.counts.positions[8], 10);
+  // Picked by hand, in the program or as an option: CS is one shape, and X and Y fold onto it.
+  for (const m of [fold('// #theme CS\n' + src), fold(src, { themes: ['CS'] })]) {
+    assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions, t.notes]), [['CS', 10, 50]]);
+    assert.deepEqual(m.thematic.themeFolds.map(f => [f.from, f.onto, f.length, f.bent]).sort(), [['X', 'CS', 5, 0], ['Y', 'CS', 5, 0]]);
+    assert.equal(m.notes[0].theme, 'CS');
+  }
+  // A name that the program does not use is ignored.
+  assert.deepEqual(fold(src, { themes: ['Nope'] }).thematic.themes.map(t => t.id), ['X', 'Y']);
+});
+
+test('fold 8: found repeats go to the residue unless showFound is set', () => {
+  const src = 'P = [0, 2, 1, 3, 5, 7, 6, 8]\nP';
+  const m = fold(src);
+  assert.deepEqual(m.thematic.units[8].map(u => u.kind), ['residue']);
+  assert.equal(m.counts.positions[8], 1);
+  assert.ok(m.notes.every(n => n.fold8.kind === 'residue' && n.explainedBy === 'repeat'));
+  assert.equal(m.thematic.residue.unexplained, 0);
+  const shown = fold(src, { showFound: true });
+  assert.deepEqual(shown.thematic.units[8].map(u => [u.kind, u.positions, u.notes]), [['found', 4, 8]]);
+  assert.equal(shown.counts.positions[8], 4);
+  // Stops 6 and 7 are the same either way.
+  assert.deepEqual(m.notes.map(n => n.pos[7]), shown.notes.map(n => n.pos[7]));
+});
+
+test('fold 6: a second partial copy still stacks on the same stated shape', () => {
+  // Both passages repeat a part of S. The longer one is found first and must not block the shorter one.
+  const src = 'S = [0, 4, 2, 5, 3, 6, 1, 9, 7]\nS, (S * [1]), [20, 4, 2, 5, 3, 6, 1, 30], [40, 3, 6, 1, 9, 50]';
+  const m = fold(src);
+  const s = m.notes.slice(0, 9);
+  const a = m.notes.slice(19, 25), b = m.notes.slice(27, 31);
+  a.forEach((n, k) => assert.equal(at(n, 6), at(s[k + 1], 6)));
+  b.forEach((n, k) => assert.equal(at(n, 6), at(s[k + 4], 6)));
+});
+
+// Stop 9: themes opened (docs/plans/crux-fold-inward.md).
+
+test('fold 9: a theme made of two cells opens to the cells', () => {
+  // c1 and c2 are used only inside T, so T is one theme of 10 notes at stop 8.
+  const m = fold('c1 = [0, 2, 1]\nc2 = [4, 3, 5, 4]\nT = c1, (c1 * [3]), c2\nT, (T * [2]), (T * [4])');
+  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions]), [['T', 10]]);
+  assert.equal(m.counts.positions[8], 10);
+  assert.equal(m.counts.positions[9], 7);
+  assert.equal(m.counts.shapes[9], 2);
+  assert.deepEqual(m.inward.units[9].map(u => [u.kind, u.id, u.positions, u.notes, u.x]), [['entry', 'c1', 3, 18, 0], ['entry', 'c2', 4, 12, 3.5]]);
+  const first = m.notes.slice(0, 10);
+  assert.deepEqual(first.map(n => n.pos[9].t), [0, 1, 2, 0, 1, 2, 3.5, 4.5, 5.5, 6.5]);
+  assert.deepEqual(first.map(n => n.pos[9].step), [0, 2, 1, 0, 2, 1, 4, 3, 5, 4]);
+  // Every copy of T stacks on the first one.
+  m.notes.forEach((n, k) => assert.equal(at(n, 9), at(first[k % 10], 9)));
+  assert.ok(m.notes.every(n => n.fold9.kind === 'entry'));
+  assert.deepEqual(m.stops[9], 'themes opened');
+});
+
+test('fold 9: rep is the theme note of the slot; attached notes go with it; residue has none', () => {
+  const m = fold([
+    'H  = [0, 1, 2, 1, 0 | 2] || [1/8]',
+    'T9 = H, ([4, 2, 7, 4] || [1/4])',
+    'T  = T9, [2 | 1/4]',
+    'T, (T * [3]), (T9 * [1]), (T9 * [2]), (T9 * [4])',
+  ].join('\n'));
+  const T9 = m.notes.slice(0, 9);
+  // The notes of each slot share one rep, a note of the theme's own run.
+  m.notes.filter(n => n.fold8.kind === 'theme').forEach(n => {
+    const r = m.notes[n.fold8.rep];
+    assert.equal(r.fold8.kind, 'theme');
+    assert.equal(at(r, 8), at(n, 8));
+  });
+  // T's last note is attached to T9's last note at stop 8, and stays on it.
+  const last = m.notes.filter(n => n.entry === 'T');
+  for (const n of last) {
+    assert.equal(n.fold8.kind, 'attached');
+    assert.equal(m.notes[n.fold8.rep].entry, 'T9');
+    assert.equal(at(n, 9), at(T9[8], 9));
+  }
+  assert.deepEqual(m.inward.units[9].map(u => [u.id, u.positions]), [['H', 5], ['T9', 4]]);
+  assert.equal(m.counts.positions[9], 9);
+
+  const near = fold(NEAR);
+  const odd = near.notes.slice(12);
+  assert.ok(odd.every(n => n.fold8.kind === 'residue' && n.fold8.rep === null && n.fold9.kind === 'residue'));
+  // The residue marker is one position after the last entry.
+  assert.equal(new Set(odd.map(n => at(n, 9))).size, 1);
+  assert.deepEqual(near.inward.units[9].map(u => [u.kind, u.id, u.x]), [['entry', 'M', 0], ['residue', 'residue', 4.5]]);
+  assert.equal(near.counts.positions[9], 5);
+  assert.equal(near.counts.shapes[9], 1);
+});
+
+test('fold 9: found units stay as at stop 8, after the entries and before the residue', () => {
+  const src = 'M = [0, 3, 1, 2] || [1/4]\nM, (M * [3]), [9, 20, 15, 30, 10, 21, 16, 31, 11, 22, 17, 32], [0 | 1/2, 5 | 1/8, -3 | 1]';
+  const m = fold(src, { showFound: true });
+  assert.deepEqual(m.inward.units[9].map(u => [u.kind, u.id, u.positions, u.notes]), [['entry', 'M', 4, 8], ['found', 'F1', 4, 12], ['residue', 'residue', 1, 3]]);
+  const found = m.notes.filter(n => n.fold8.kind === 'found');
+  assert.ok(found.length === 12 && found.every(n => n.fold9.kind === 'found' && n.fold8.rep !== null));
+  found.forEach(n => assert.equal(n.pos[9].t - 4.5, n.pos[8].t - m.thematic.units[8][1].x));
+  assert.equal(m.counts.shapes[9], 2);
+});
+
+test('fold 9: with no theme at stop 8, every note opens in place', () => {
+  const m = fold('P = [0, 2, 1, 3, 5, 7, 6, 8]\nP');
+  assert.equal(m.inward.themed, false);
+  m.notes.forEach(n => assert.equal(at(n, 9), at(n, 5)));
+  assert.equal(m.counts.positions[9], m.counts.positions[5]);
+  assert.ok(m.inward.units[9].every(u => u.kind === 'entry'));
+});
+
+test('fold 9: BWV 578 has fewer positions at stop 9 than at stop 8', () => {
+  const m = fold(example('bach-bwv578.keylane.crux'));
+  const p = m.counts.positions;
+  assert.equal(p[5], 829);
+  assert.equal(p[8], 164);
+  assert.ok(p[9] < p[8], p.join(' '));
+  assert.equal(p[9], m.inward.units[9].reduce((n, u) => n + u.positions, 0));
+});
+
+// Stop 10: cells.
+
+const cellsOf = m => m.inward.units[10].map(u => [u.kind, u.id, u.positions, u.notes]);
+
+test('fold 10: a partial statement (A \\ 1) joins the full entry', () => {
+  const m = fold('A = [0, 4, 2, 1]\nT = A, (A \\ 1)\nT, (T * [2]), (T * [4])');
+  assert.deepEqual(m.dictionary.map(e => e.id), ['A', 'A#2']);
+  assert.equal(m.counts.positions[9], 7);
+  assert.equal(m.counts.positions[10], 4);
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 21]]);
+  assert.equal(m.inward.units[10][0].count, 6);
+  const [a, part] = [m.notes.slice(0, 4), m.notes.slice(4, 7)];
+  part.forEach((n, k) => {
+    assert.equal(n.entry, 'A#2');
+    assert.equal(n.cell, 'A');
+    assert.equal(at(n, 10), at(a[k], 10));
+  });
+  assert.ok(m.notes.every(n => n.cellBent === 0));
+});
+
+test('fold 10: an edited statement (A @ [@1 5]) is A with a bent note', () => {
+  // The second copy is mirrored before the edit: the bend is taken back into A's frame.
+  const m = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 5]), ((A m [0]) @ [@1 5])\nT, (T * [2]), (T * [4])');
+  const [a, ed, mir] = [m.notes.slice(0, 4), m.notes.slice(4, 8), m.notes.slice(8, 12)];
+  assert.deepEqual(ed.map(n => n.step), [0, 9, 2, 1]);
+  // Stops 3 to 5 do not change: the changed note is edited and T owns it.
+  assert.equal(ed[1].edited, true);
+  assert.equal(ed[1].owner, 'T');
+  assert.equal(ed[1].cell, 'A');
+  assert.equal(ed[1].cellBent, 5);
+  assert.equal(mir[1].cellBent, -5);
+  assert.ok([...ed, ...mir].every((n, k) => at(n, 10) === at(a[k % 4], 10)));
+  assert.ok(m.notes.filter(n => !n.edited).every(n => n.cellBent === 0));
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 36]]);
+  assert.equal(m.counts.cellEdited, 0);
+  assert.equal(m.counts.cellBent, 6);
+  assert.equal(m.counts.edited, 6);
+});
+
+test('fold 10: reverse and rotate between the cell and the edit', () => {
+  const m = fold('A = [0, 4, 2, 1]\nT = A, ((A * |-1) ~ -1 @[@3 -3])\nT, (T * [2]), (T * [4])');
+  const ed = m.notes.slice(4, 8);
+  // (A * |-1) ~ -1 is [0, 1, 2, 4]. The edit moves A's 4 (its note 1) down 3.
+  assert.deepEqual(ed.map(n => n.step), [0, 1, 2, 1]);
+  assert.deepEqual(ed.map(n => n.cellBent), [0, 0, 0, -3]);
+  assert.equal(at(ed[3], 10), at(m.notes[1], 10));
+  assert.equal(at(ed[0], 10), at(m.notes[0], 10));
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 24]]);
+});
+
+test('fold 10: an edit that changes a duration, or makes two pips from one, stays edited', () => {
+  const m = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 5 | 2])\nT, (T * [2]), (T * [4])');
+  const n = m.notes[5];
+  assert.equal(n.cell, 'T');
+  assert.equal(n.cellBent, 0);
+  assert.equal(m.counts.cellEdited, 3);
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 21], ['entry', 'T', 1, 3]]);
+  const split = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 [4,3]/])\nT, (T * [2]), (T * [4])');
+  assert.ok(split.notes.filter(x => x.edited).every(x => x.cellBent === 0 && x.cell === 'T'));
+  assert.equal(split.counts.cellEdited, 6);
+});
+
+test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
+  const lines = example('bach-bwv578.keylane.crux').split('\n').slice(0, 54);
+  const m = fold([...lines, 'subject = ar, d', 'subject'].join('\n'));
+  assert.deepEqual(m.dictionary.map(e => `${e.id} x${e.count}`), ['nug x1', 'nug#2 x2', 'nug#3 x2', 'nugb x2', 'nugd x2', 'a x1', 'd x1']);
+  assert.equal(m.counts.positions[5], 14);
+  // No theme at stop 8: stops 9 and 10 open every entry in place.
+  assert.equal(m.inward.themed, false);
+  assert.deepEqual(cellsOf(m), [['entry', 'nug', 4, 18], ['entry', 'a', 1, 1], ['entry', 'd', 2, 2]]);
+  assert.equal(m.counts.positions[10], 7);
+  // nugb and nugd change one note of nug each: bent notes at the cell level.
+  assert.deepEqual(m.notes.filter(n => n.cellBent).map(n => [n.owner, n.cellBent]), [['nugb', -3], ['nugd', -2], ['nugb', -3], ['nugd', -2]]);
+});
+
+test('fold 10: BWV 578 positions fall from stop 8 to 9 to 10, stops 0 to 8 unchanged', () => {
+  const m = fold(example('bach-bwv578.keylane.crux'));
+  const p = m.counts.positions;
+  assert.deepEqual(p.slice(0, 9), [1669, 1669, 1669, 1665, 1053, 829, 467, 379, 164]);
+  assert.deepEqual(m.counts.shapes.slice(0, 9), [259, 259, 259, 259, 118, 73, 56, 52, 11]);
+  assert.ok(p[10] < p[9] && p[9] < p[8], p.join(' '));
+  const nug = m.inward.units[10].find(u => u.id === 'nug');
+  assert.equal(nug.positions, 4);
+  assert.ok(!m.inward.units[10].some(u => /^nug[#bd]/.test(u.id)));
+  for (const n of m.notes) assert.ok(n.pos[10] && Number.isFinite(n.pos[10].t) && Number.isFinite(n.pos[10].step) && Number.isFinite(n.pos[10].d));
 });

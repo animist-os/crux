@@ -278,3 +278,27 @@ about the same number of pips, 96, 82, 63, 62 on v2):
 - Where the folded dictionary sits: at the left of the roll (as in the
   sketch) or in its own panel. As built: in the roll. At stop 5 the voices
   merge into one lane and the entries sit side by side from the left.
+
+## Theme level, found shapes, theme folds (2026-11-16)
+
+Stop 8 of BWV 578 had 226 positions and no subject. Three changes:
+
+- Stops 6 to 8 work at the theme level. Stops 1 to 5 are not changed. The
+  owner of a note climbs from the innermost definition: to the definition
+  next around it when the definition is never used by itself (and the outer
+  one is used 3 times or more), else to the outermost definition that holds
+  most of its uses. The climb stops at an operator that makes two or more
+  copies. `// #theme A B` or the option `themes` picks the themes by hand.
+- At stop 8 the found repeats go to the residue. `showFound` (the "found"
+  button in the Golden panel) keeps them as units.
+- A theme folds onto a theme on 5 notes or more with one bent note at most.
+  A shorter match must be exact and all of both themes.
+- Stop 6: the copy of an earlier repeat can be the copy of a later one, so a
+  second partial copy of a theme still stacks on it.
+
+Stop 8 positions, before and after: BWV 578 226 to 164 (172 without its
+`#theme` line), Invention 14 v2 22 to 32, Invention 5 39 to 49, Invention 8
+76 to 92. The Inventions grow because a theme now shows the notes of its
+parts (T is five positions, not T9's four). No rule here is known to be the
+right one. They are defaults, and `#theme` is the way out.
+

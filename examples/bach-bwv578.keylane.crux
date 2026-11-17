@@ -7,6 +7,7 @@
 // #preset PipeOrgan3
 // #volume 3
 // #reverb 0.65
+// #theme subject CS
 //
 // The whole fugue, grown from the reading of its first five bars in the Crux
 // tutorial (nug, ar, br, nugc, nugd). Hand analysis. Transcribed from Frank
@@ -22,15 +23,22 @@
 // bar. The short trill of the countersubject is written as its main note and
 // its two-note ending (TR). A long trill is one long note.
 //
-// The 287 chromatic notes come from the key lane. Each entry is a bar address
-// and a key, read against G harmonic minor: i = home, i+ = G melodic minor
-// (E natural), i- = G natural minor (F natural), v = D minor (C-sharp,
-// E natural, F natural), III = B-flat major, bVII = F major, VI = E-flat
-// major, iv = C minor (A-flat, B natural), I = G major for the last chord.
-// 6:-1 is one beat before bar 6. See docs/crux-key-lane.md.
+// The 287 chromatic notes come from the key lane, read against G harmonic
+// minor. Most entries are a bar address and a key. i~ is G minor, v~ D minor,
+// iv~ C minor. In a ~ key the sixth and seventh follow the line: raised going
+// up, lowered in a falling 7-6-5. v- and iv- are natural minor, III is B-flat
+// major, bVII F major (the trill on E natural in bars 34 and 42, and bar
+// 60), I G major for the last chord. 23:-1 is one beat before bar 23. Ten
+// entries are note marks for single notes: an accidental and a degree of the
+// home scale. For example 32:2 #6 is the E natural in that beat and 39:2 b2
+// the A-flat. A mark applies to the next note on its degree, once. n7 keeps
+// F-sharp where the ~ rule would lower it. See docs/crux-key-lane.md.
+//
+// The theme directive names the shapes that the fold view shows whole at its
+// last stops.
 //
 // #meter 4/4
-// #keyLane 1 i, 6:-1 i+, 6 v, 11:-1 v+, 11 i, 13:-1 i+, 13 i, 17:2 i+, 17:3 v, 22 v-, 23:-1 III, 24:2 i, 25:3 i+, 27:-1 i-, 27:3 i, 31:2 III, 32:2 bVII, 32:3 III, 34 bVII, 34:3 III, 39:-1 bVII, 39 III, 39:2 VI, 41:-1 III, 42 bVII, 42:3 III, 47:3 iv-, 48 iv, 49 iv+, 49:3 iv, 50 iv+, 50:3 iv, 54:2 iv+, 54:3 iv, 55:2 III, 57:2 i+, 57:3 i, 60:-1 III, 60:2 iv, 60:3 v-, 60:4 v, 61 i, 61:2 i+, 61:3:2 iv, 61:3:4 i, 61:4:2 i-, 63 i, 63:4 i+, 64 i, 65 i+, 65:2 i, 68 I
+// #keyLane 1 i~, 6 v~, 11 i~, 17:3 v~, 22 v-, 23:-1 III, 24:2 i~, 26:4 b7, 31:2 III, 32:2 #6, 34 bVII, 34:3 III, 38:4 #6, 39:2 b2, 42 bVII, 42:3 III, 47:3 iv-, 48 iv~, 55:2 III, 57:2 i~, 57:2 #6, 59:4 III, 60:2 #3, 60:3 bVII, 60:4 #4, 61 i~, 61:3 b2, 62 III, 63 i~, 65:1:3 n7, 65:1:4 #6, 68 I
 
 // The subject, as in the tutorial. Three changes: the second group of bar 2
 // is written without a half step, the D that ends bar 2 is a quarter note,

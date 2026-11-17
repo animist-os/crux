@@ -129,6 +129,13 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
   // Stop 7 never matches fewer than 3 notes, whatever minLength is.
   const nearLength = Math.max(3, minLength);
   const themeLength = options.themeLength ?? 3;
+  // A theme folds onto another theme on a match of foldLength notes or more.
+  // A shorter match counts only when it is all of both themes, or all of the
+  // target and all but one note of the theme that folds.
+  const foldLength = options.foldLength ?? 5;
+  // Stop 8 shows the program's themes. With showFound, the repeats that the
+  // fold found outside them are units too. Without it they go to the residue.
+  const showFound = !!options.showFound;
   const gap = options.gap ?? 0.5;
   // A bent note moves at most a third (2 scale steps) from the theme.
   const maxBend = options.maxBend ?? 2;
@@ -206,11 +213,14 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
     for (const R of runs) {
       for (let i = 0; i + L <= R.slots.length; i++) {
         const win = R.slots.slice(i, i + L);
-        if (win.some(S => assigned.has(S))) continue;
+        // A slot that moved is gone. A slot that stayed as the copy of an
+        // earlier repeat can be the copy again (fixed), but cannot move.
+        if (win.some(S => move6.has(S))) continue;
+        const fixed = win.some(S => assigned.has(S));
         const c = canon(win);
         let list = byKey.get(c.key);
         if (!list) byKey.set(c.key, (list = []));
-        list.push({ run: R, start: i, slots: win, c });
+        list.push({ run: R, start: i, slots: win, c, fixed });
       }
     }
     const keys = [...byKey.values()].filter(l => l.length >= 2).sort((a, b) => b.length - a.length);
@@ -218,18 +228,19 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
       const picked = [];
       const used = new Set();
       for (const o of list) {
-        if (o.slots.some(S => assigned.has(S) || used.has(S))) continue;
+        if (o.slots.some(S => move6.has(S) || used.has(S)) || (!o.fixed && o.slots.some(S => assigned.has(S)))) continue;
         picked.push(o);
         o.slots.forEach(S => used.add(S));
       }
       if (picked.length < 2) continue;
       // The copy that stays: in the most used stated definition, else the first.
-      const rep = picked.slice().sort((a, b) => rank(b) - rank(a))[0];
+      // A fixed copy comes before a free one of the same rank.
+      const rep = picked.slice().sort((a, b) => rank(b) - rank(a) || (b.fixed ? 1 : 0) - (a.fixed ? 1 : 0))[0];
       // A stated definition moves only as a whole run: the fold does not cut
       // the program's own cells apart. A part of one can still be the copy
       // that stays, and it counts as an occurrence.
       const whole = o => o.slots.length === o.run.slots.length;
-      const movers = picked.filter(o => o !== rep && (!stated(o.run.entry) || whole(o)));
+      const movers = picked.filter(o => o !== rep && !o.fixed && (!stated(o.run.entry) || whole(o)));
       if (!movers.length) continue;
       // A short shape is weak evidence: it needs 3 occurrences, or a mover
       // that is a whole stated definition.
@@ -237,7 +248,7 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
       const kept = [rep, ...movers];
       const group = { id: 'F' + (found.length + 1), length: L, rep, occurrences: kept };
       for (const o of kept) {
-        o.slots.forEach(S => { assigned.add(S); S.found = group; });
+        o.slots.forEach(S => { assigned.add(S); S.found ||= group; });
         if (o === rep) continue;
         const mir = o.c.mir !== rep.c.mir, rev = o.c.rev !== rep.c.rev;
         o.c.seq.forEach((x, k) => {
@@ -324,6 +335,9 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
   // or a part of 3 or more notes on either side. The match must cover all of
   // the target, or all but one note of the theme that folds: a short common
   // fragment (a triad, three notes of a scale) does not make two themes one.
+  // Two themes are two shapes in the program, so one bent note at most, and
+  // none in a match shorter than foldLength.
+  const themeBent = (L, ratio) => (L < foldLength ? 0 : Math.min(1, maxBent(L, ratio)));
   const landed = new Map();
   for (const S of allSlots) {
     const F = finalOf(S, 7).S;
@@ -351,8 +365,9 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
   for (const C of ranked) {
     let best = null;
     for (let L = C.slots.length; L >= nearLength; L--) {
-      const targets = alive.filter(D => L >= C.slots.length - 1 || L === D.slots.length);
-      for (let i = 0; i + L <= C.slots.length; i++) best = bestMatch(C.slots.slice(i, i + L), targets, maxBent, maxBend, best);
+      const whole = L >= C.slots.length - 1;
+      const targets = alive.filter(D => (L >= foldLength ? whole || L === D.slots.length : whole && L === D.slots.length));
+      for (let i = 0; i + L <= C.slots.length; i++) best = bestMatch(C.slots.slice(i, i + L), targets, themeBent, maxBend, best);
     }
     if (!best) { alive.push(C); continue; }
     const D = best.target;
@@ -526,7 +541,7 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
     U.cell = C;
     units8.push(U);
   }
-  for (const g of found) {
+  for (const g of showFound ? found : []) {
     if (moveAt(g.rep.slots[0], 7) || kindOf(g.rep.slots[0]) !== 'found') continue;
     units8.push(unitFor('found', g.id, null, g.rep.slots.slice().sort((a, b) => a.t - b.t)));
   }
@@ -534,9 +549,9 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
   const placeOf = S => {
     const F = finalOf(S, 7).S;
     const k = kindOf(F);
-    if (k === 'theme' || k === 'found') return { F, H: F, kind: k };
-    const H = hostSlot.get(F);
-    return H ? { F, H, kind: 'attached' } : { F, H: null, kind: 'residue' };
+    if (k === 'theme' || (k === 'found' && showFound)) return { F, H: F, kind: k };
+    const H = k === 'found' ? null : hostSlot.get(F);
+    return H && (showFound || kindOf(H) !== 'found') ? { F, H, kind: 'attached' } : { F, H: null, kind: 'residue' };
   };
   const places = notes.map(n => placeOf(slotOfNote[n.id]));
   if (places.some(p => p.kind === 'residue')) units8.push(residueUnit);
@@ -574,7 +589,10 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
     pos.push(p8.capped ? { t: p8.t, step: p8.step, d: p8.d, capped: true } : { t: p8.t, step: p8.step, d: p8.d });
     const owner = pl.F.entry.name ?? pl.F.entry.id;
     return { pos, bent: finalOf(S, 7).bent, explainedBy: explainedOf(S),
-      fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null },
+      // rep: a note of the slot this note sits on at stop 8, the theme's (or
+      // found shape's) own note there. Stops 9 and 10 open the themes from it.
+      fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null,
+        rep: pl.H ? pl.H.first.id : null },
       unit6: layouts[6].at.get(finalOf(S, 6).S).unit, unit7: layouts[7].at.get(finalOf(S, 7).S).unit, unit8: p8.unit };
   });
 
@@ -606,7 +624,7 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
   const residueNotes = out.filter(o => o.fold8.kind === 'residue');
 
   return {
-    notes: out.map(o => ({ pos: o.pos, bent: o.bent, explainedBy: o.explainedBy, fold8: o.fold8 })),
+    notes: out.map(o => ({ pos: o.pos, bent: o.bent, explainedBy: o.explainedBy, fold8: o.fold8, unit8: units8.indexOf(o.unit8) })),
     summary: {
       minLength,
       slots: allSlots.length,

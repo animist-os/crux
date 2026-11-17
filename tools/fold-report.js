@@ -81,13 +81,14 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   lines.push(`  ${'residue'.padEnd(8)} ${''.padEnd(6)} ${String(rz.positions).padStart(3)} positions ${String(rz.notes).padStart(5)} notes` +
     (rz.cells.length ? `  (${rz.unexplained} not explained, cells with no theme: ${rz.cells.map(a => `${a.owner} ${a.notes}`).join(', ')})` : ''));
   const e = c.explained;
-  const bentIn = id => m.notes.filter(n => n.fold10.unit === id && n.cellBent).length;
-  lines.push('', `stop 10: cells (entries the themes reach${m.inward.themed ? '' : '; no theme at stop 8, so all entries'}; bent: notes an edit moves off the cell)`);
+  const bentIn = id => m.notes.filter(n => n.fold10.unit === id && n.cellBent && !n.split).length;
+  const splitIn = id => m.notes.filter(n => n.fold10.unit === id && n.split).length;
+  lines.push('', `stop 10: cells (entries the themes reach${m.inward.themed ? '' : '; no theme at stop 8, so all entries'}; bent: notes an edit moves off the cell; split: notes that \`@\` put in the place of one note)`);
   for (const u of m.inward.units[10]) {
     lines.push(`  ${String(u.id).padEnd(12)} ${u.kind === 'entry' ? ('x' + u.count).padEnd(5) : ''.padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(u.notes).padStart(5)} notes` +
-      (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : ''));
+      (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : '') + (splitIn(u.id) ? `, ${splitIn(u.id)} split` : ''));
   }
-  lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes`);
+  lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes; split: ${c.cellSplit} notes`);
   lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes); ${c.attached} stacked as attachments`);
   lines.push('', `instance tree (to depth ${treeDepth})`);
   const walk = (node, depth) => {

@@ -16,6 +16,9 @@
 // as given. Op frames can also carry `reverse` (fan copy played backwards),
 // `kept` (non-exact operator passed this pip through unchanged) and `out`
 // (non-exact operator: the pip's step and timeScale after the operator).
+// A new pip of `@` that took the place of one operand pip also has `from`:
+// { origin, index, part, parts }, the operand pip's origin and index, and the
+// new pip's place in the run of pips that replaced it (see markReplaced).
 //
 // The trace works by wrapping the evaluator's methods for the length of one
 // call. crux_interp is not changed and does no extra work. Pips that the
@@ -144,7 +147,7 @@ function genericMap(op, out, cap) {
   const app = ++T.app;
   const xs = x ? x.values : [];
   const byObj = new Map(xs.map((p, i) => [p, i]));
-  return out.values.map((p, k) => {
+  const res = out.values.map((p, k) => {
     let index = byObj.has(p) ? byObj.get(p) : -1;
     if (index < 0 && p.origin) index = xs.findIndex(q => q.origin === p.origin && sameValue(p, q));
     if (index >= 0) {
@@ -160,6 +163,32 @@ function genericMap(op, out, cap) {
       out: { step: p.step, ts: p.timeScale }, next,
     });
   });
+  if (op === '@') markReplaced(res, xs);
+  return res;
+}
+
+// `@` only: a run of new pips (no operand index) between two pips whose
+// operand index is known (or an end of the mot) replaced the operand pips in
+// the same gap. When that gap holds exactly one operand pip, each pip of the
+// run gets `from` on its frame: the origin and index of the operand pip, its
+// own place in the run and the run's length. `index` and `next` stay as they
+// are.
+function markReplaced(res, xs) {
+  const idx = res.map(p => p.origin.index);
+  for (let k = 0; k < res.length;) {
+    if (idx[k] >= 0) { k++; continue; }
+    let e = k;
+    while (e < res.length && idx[e] < 0) e++;
+    const lo = k > 0 ? idx[k - 1] : -1;
+    const hi = e < res.length ? idx[e] : xs.length;
+    if (hi - lo === 2) {
+      const index = lo + 1;
+      for (let j = k; j < e; j++) {
+        res[j].origin.from = { origin: originOf(xs[index]), index, part: j - k, parts: e - k };
+      }
+    }
+    k = e;
+  }
 }
 
 function post(name, node, out, cap) {

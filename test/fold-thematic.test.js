@@ -395,16 +395,100 @@ test('fold 10: reverse and rotate between the cell and the edit', () => {
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 24]]);
 });
 
-test('fold 10: an edit that changes a duration, or makes two pips from one, stays edited', () => {
+test('fold 10: an edit that changes a duration stays edited', () => {
   const m = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 5 | 2])\nT, (T * [2]), (T * [4])');
   const n = m.notes[5];
   assert.equal(n.cell, 'T');
   assert.equal(n.cellBent, 0);
   assert.equal(m.counts.cellEdited, 3);
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 21], ['entry', 'T', 1, 3]]);
-  const split = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 [4,3]/])\nT, (T * [2]), (T * [4])');
-  assert.ok(split.notes.filter(x => x.edited).every(x => x.cellBent === 0 && x.cell === 'T'));
-  assert.equal(split.counts.cellEdited, 6);
+});
+
+// Splits: `@` puts two pips in the place of one.
+const splitOf = src => fold(`A = [0, 4, 2, 1]\nT = A, (${src})\nT, (T * [2]), (T * [4])`);
+
+test('fold 10 split: A @[@1 [0, 2]/] puts two parts on one slot of A', () => {
+  const m = splitOf('A @ [@1 [0, 2]/]');
+  const [a, ed] = [m.notes.slice(0, 4), m.notes.slice(4, 9)];
+  assert.deepEqual(ed.map(n => n.step), [0, 4, 6, 2, 1]);
+  const [p0, p1] = [ed[1], ed[2]];
+  // Stops 3 to 5 do not change: T owns the parts.
+  assert.ok(p0.edited && p0.owner === 'T' && p1.edited && p1.owner === 'T');
+  assert.deepEqual([p0.cell, p1.cell], ['A', 'A']);
+  assert.deepEqual([p0.split, p1.split], [{ part: 0, parts: 2 }, { part: 1, parts: 2 }]);
+  assert.deepEqual([p0.cellBent, p1.cellBent], [0, 2]);
+  // One slot: both parts sit on A's note 1, with its width.
+  assert.equal(at(p0, 10), at(a[1], 10));
+  assert.equal(at(p1, 10), at(a[1], 10));
+  assert.equal(p0.pos[10].d, a[1].pos[10].d);
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 27]]);
+  assert.equal(m.inward.units[10][0].count, 6);
+  assert.deepEqual([m.counts.cellEdited, m.counts.cellBent, m.counts.cellSplit], [0, 0, 6]);
+  assert.equal(m.counts.positions[10], 4);
+  // Notes that are not parts have no split field.
+  assert.ok(m.notes.filter(n => n !== p0 && n !== p1 && n.voice === 0 && n.index < 9 && n.index !== 5 && n.index !== 6).every(n => !('split' in n)));
+});
+
+test('fold 10 split: a split seen through \\ 1 joins the full entry', () => {
+  const m = splitOf('(A @ [@1 [0, 2]/]) \\ 1');
+  const ed = m.notes.slice(4, 8);
+  assert.deepEqual(ed.map(n => n.step), [0, 4, 6, 2]);
+  assert.deepEqual(ed.map(n => n.cell), ['A', 'A', 'A', 'A']);
+  assert.deepEqual(ed.map(n => n.cellBent), [0, 0, 2, 0]);
+  assert.equal(at(ed[2], 10), at(m.notes[1], 10));
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 24]]);
+  assert.equal(m.counts.cellEdited, 0);
+});
+
+test('fold 10 split: a split of a bent note adds the bend', () => {
+  const m = splitOf('(A @ [@1 5]) @ [@1 [0, 2]/]');
+  const [p0, p1] = m.notes.slice(5, 7);
+  assert.deepEqual([p0.step, p1.step], [9, 11]);
+  assert.deepEqual([p0.cellBent, p1.cellBent], [5, 7]);
+  assert.equal(at(p0, 10), at(m.notes[1], 10));
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 27]]);
+  // Through a mirror, the bend is taken back into A's frame.
+  const mir = splitOf('((A * [3]) m [1]) @ [@1 [0, 2]/]');
+  assert.deepEqual(mir.notes.slice(5, 7).map(n => [n.step, n.cellBent]), [[-5, 0], [-3, -2]]);
+  assert.deepEqual(cellsOf(mir), [['entry', 'A', 4, 27]]);
+});
+
+test('fold 10 split: a split of a split stacks on the first replaced note', () => {
+  const m = splitOf('(A @ [@1 [0, 2]/]) @ [@2 [0, 1]/]');
+  const parts = m.notes.slice(5, 8);
+  assert.deepEqual(parts.map(n => n.step), [4, 6, 7]);
+  assert.deepEqual(parts.map(n => n.cellBent), [0, 2, 3]);
+  // `split` describes the innermost `@`.
+  assert.deepEqual(parts.map(n => n.split), [{ part: 0, parts: 2 }, { part: 1, parts: 2 }, { part: 1, parts: 2 }]);
+  assert.ok(parts.every(n => at(n, 10) === at(m.notes[1], 10)));
+  assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 30]]);
+});
+
+test('fold 10 split: parts whose durations do not add up stay edited', () => {
+  const m = splitOf('A @ [@1 [0, 2]]');
+  const [p0, p1] = m.notes.slice(5, 7);
+  assert.deepEqual([p0.step, p1.step], [4, 6]);
+  assert.deepEqual([p0.cell, p1.cell], ['T', 'T']);
+  assert.ok(!p0.split && !p1.split && p0.cellBent === 0);
+  assert.equal(m.counts.cellEdited, 6);
+  assert.equal(m.counts.cellSplit, 0);
+});
+
+test('fold 10 split: stops 0 to 9 do not read from', () => {
+  for (const src of ['A @ [@1 [0, 2]/]', '(A @ [@1 5]) @ [@1 [0, 2]/]', '(A @ [@1 [0, 2]/]) @ [@2 [0, 1]/]']) {
+    const code = `A = [0, 4, 2, 1]\nT = A, (${src})\nT, (T * [2]), (T * [4])`;
+    const t = golden.crux_trace(code);
+    const m = foldModel(t);
+    // The same trace with every `from` taken away: the frames as before this rule.
+    const seen = new Set();
+    const strip = f => { for (; f && !seen.has(f); f = f.next) { seen.add(f); if (f.from) { strip(f.from.origin); delete f.from; } } };
+    for (const mot of t.sections) for (const p of mot.values) strip(p.origin);
+    const old = foldModel(t);
+    assert.deepEqual(m.notes.map(n => n.pos.slice(0, 10)), old.notes.map(n => n.pos.slice(0, 10)), src);
+    assert.deepEqual(m.counts.positions.slice(0, 10), old.counts.positions.slice(0, 10), src);
+    assert.equal(old.counts.cellSplit, 0, src);
+    assert.ok(m.counts.cellSplit > 0, src);
+  }
 });
 
 test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
@@ -418,6 +502,23 @@ test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
   assert.equal(m.counts.positions[10], 7);
   // nugb and nugd change one note of nug each: bent notes at the cell level.
   assert.deepEqual(m.notes.filter(n => n.cellBent).map(n => [n.owner, n.cellBent]), [['nugb', -3], ['nugd', -2], ['nugb', -3], ['nugd', -2]]);
+});
+
+test('fold 10 split: in the full BWV 578 subject br and nugc fold onto b and nug', () => {
+  const lines = example('bach-bwv578.keylane.crux').split('\n').slice(0, 54);
+  const m = fold([...lines, 'subject = ar, br, nugc, d', 'subject'].join('\n'));
+  assert.equal(m.counts.notes, 41);
+  // br splits the -3 at b's note 5; nugc splits b's notes 1 and 3 and nug's
+  // bent note 1. b has four places now: the split -3 is one of them.
+  assert.deepEqual(cellsOf(m), [['entry', 'nug', 4, 27], ['entry', 'a', 1, 1], ['entry', 'b', 4, 11], ['entry', 'd', 2, 2]]);
+  assert.equal(m.counts.positions[10], 11);
+  assert.equal(m.counts.cellSplit, 10);
+  // Still edited: the three -3 notes that `.,` takes from its second operand.
+  const edited = m.notes.filter(n => n.cell === 'b' && !n.split);
+  assert.deepEqual(edited.map(n => n.step), [-3, -3, -3]);
+  assert.equal(m.counts.cellEdited, 3);
+  // nugc's split of nugb's bent note: the bend of the note plus the offset of the part.
+  assert.deepEqual(m.notes.filter(n => n.cell === 'nug' && n.split).map(n => n.cellBent), [-3, -7]);
 });
 
 test('fold 10: BWV 578 positions fall from stop 8 to 9 to 10, stops 0 to 8 unchanged', () => {

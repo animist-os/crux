@@ -209,3 +209,143 @@ fold work from 2026-11-16; build on it and do not revert it.
 - `br` and `nugc` change a pip to two pips (`@5 [4,3]/`). These stay edited
   under condition 3. A later rule can show them as a split of the cell note.
 - Should stops 4 and 5 use the partial rule too? Not in this work.
+
+## Splits (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 4. Not committed. Browser
+check pending. See "Notes from the build (change set 4)".
+
+### What a split is
+
+`X @[@5 [4, 3]/]` puts two pips in the place of pip 5 of X. Each new pip is
+the old pip's step plus an offset (4, 3), and the two share the old pip's
+duration. In BWV 578 `br` splits one pip of `b`, and `nugc` splits three
+pips of `br`. These notes are edited at the cell level today: 13 of the 41
+notes of the subject, and most of the 288 notes of the whole fugue.
+
+Trace of the subject today (frames outermost first):
+
+```
+16 br E    ... br@5 < @(out 1|0.5)@-1
+17 br E    ... br@6 < @(out 0|0.5)@-1
+21 nugc E  ... nugc@1 < \(kept) < @(out -3|0.5)@-1
+27 br E    ... nugc@7 < \(kept) < @(kept)@5 < br@5 < @(out 1|0.5)@-1
+```
+
+The `@` frame of a new pip has `index: -1` and no `next`. The trace does not
+know which pip of the operand it replaced, so the fold cannot place it.
+
+Note what the split pips replace. `b = nugb ., [-3]` puts the literal `-3`
+between the notes of `nugb`. `br@5` and `nugc@1`, `nugc@3` split that `-3`.
+Only `nugc@7` splits a note of `nug` (the bent one). So most splits fold onto
+`b`, not onto `nug`.
+
+### Trace: say what a new pip replaced
+
+In `genericMap` (trace.js), for `@` only. The kept pips have a known operand
+index. Take each run of output pips with no operand index that lies between
+two kept pips (or an end of the mot). When exactly one operand pip lies in
+the same gap, each pip of the run gets, on its `@` frame:
+
+```
+from: { origin, index, part, parts }
+```
+
+`origin` is the origin of the operand pip, `index` its index in the operand,
+`part` the place of this pip in the run (from 0) and `parts` the length of
+the run. `index` on the frame stays -1 and `next` stays as it is, so
+`framesOf`, the theme level and stops 0 to 8 read the same frames as before.
+A run of one pip gets `from` too (`parts: 1`): it is a replacement whose
+operand is now known.
+
+### Cell level: parts stack on the pip they replaced
+
+For a pip whose changing frame has `from`, the cell level analyses the pip
+it replaced, seen through the same outer frames: the frames outside the `@`,
+then the `@` as a frame that kept the pip, then the frames of `from.origin`.
+That gives the owner, `canon`, body step and body duration of the replaced
+pip, by the rules that are there now (kept, bent or edited).
+
+The pip then takes that owner, canon and body. It is a part of a split when:
+
+- the durations of the parts of its run add up to the duration that the
+  replaced pip has at the `@` (within 1e-6);
+- the replaced pip, analysed this way, has an owner.
+
+Its `cellBent` is its step after the `@`, less the step of the replaced pip
+at the `@`, taken back into the owner's frame, plus the bend of the replaced
+pip if it has one. Its note gets `split: { part, parts }`. A pip that fails
+a condition stays edited, as today.
+
+In `buildLevel` at the cell level, the parts of one split are one slot: one
+key in the signature, one offset, and the width of the replaced pip. The
+partial rule then sees `br` and `nugc` as statements of `b`.
+
+The conditions of stop 10 for a bent note (duration kept, one pip for one
+pip) do not apply to a part; the split rule replaces them for pips with
+`from`. A `from` with `parts: 1` goes through the bent rule with the
+operand now known.
+
+A replaced pip that is itself a part of a split (a split of a split) follows
+the same rule again. `split` then describes the innermost `@` only.
+
+### Counts and report
+
+- `counts.cellSplit`: notes that are parts of a split. `cellEdited` goes
+  down by the same notes.
+- The stop 10 cell list in `fold-report.js` adds "N split" beside "N bent".
+- Golden: no drawing change. `bentMark` text for a part may add its place
+  (for example `1/2`), but nothing draws it yet.
+
+### Change set 4
+
+crux: `trace.js` (`from`), `model.js` (cell level), `tools/fold-report.js`,
+`test/trace.test.js`, `test/fold-thematic.test.js`, guide 1.8. Then rebuild
+`dist/` and `modules/golden/crux.js`. About 200 lines.
+
+- [x] trace: `from` on `@` frames, runs between kept pips
+- [x] cell level: parts take the replaced pip's owner, canon and body
+- [x] one slot for the parts of a split; partial rule over them
+- [x] `split`, `cellSplit`, report
+- [x] tests: `A @[@1 [0, 2]/]` (two parts on one slot of A); a split seen
+      through `\ 1`; a split of a bent note; a replacement whose durations
+      do not add up stays edited; the frames that `framesOf` gives are the
+      same as before for these programs
+- [x] guide 1.8 (frame `from`, note `split`)
+- [x] rebuild, Golden tests
+
+### Checks
+
+- All rows for stops 0 to 9 in the BWV 578 report are the same as before
+  this change set. Stop 10 positions go down or stay.
+- The full subject (`subject = ar, br, nugc, d`, 41 notes): today the cell
+  list is nug 4, a 1, b 3, d 2, br 2, nugc 6. After: no `br` and no `nugc`
+  entry, 10 positions, 0 edited at the cell level.
+- crux 611 tests pass before; Golden 45.
+
+### Notes from the build (change set 4)
+
+- The runs in `markReplaced` lie between pips with a known operand index:
+  kept pips, and changed pips whose index the trace knows.
+- The parts' durations are read from the output, and from the `from.origin`
+  chains (a part that a later `@` splits again is not in the output). A
+  split whose parts are not all there (a later `\` drops one) stays edited.
+- A replaced pip whose owner is outside the `@` (`[0, 4] @ [@1 [0, 2]/]`
+  with no definition inside) gives no split: the parts stay edited.
+- `counts.cellBent` does not count parts of a split, so edited, bent and
+  split are three separate counts.
+- The old set of one-to-many frames in `model.js` is now `oneToMany`.
+- Full subject: the cell list is nug 4, a 1, b 4, d 2: 11 positions, not 10.
+  b has four places now: the `-3` at b's note 5, which br splits, is one of
+  them. 3 notes stay edited, not 0: the `-3` pips that `.,` takes from its
+  second operand (b's notes 1, 3 and 7). The split rule does not touch them.
+- BWV 578: stop 10 goes from 20 shapes / 141 positions to 18 / 134. Rows 0
+  to 9 are unchanged. Edited at the cell level: 288 to 204, all of them
+  second-operand pips of `zip` (P1, P2, P3: 177) and `.,` (b: 27).
+
+### Not in this work
+
+- The four `-3` pips that `.,` puts in `b` come from one literal but are
+  three or four positions. A rule for a literal that an operator repeats
+  would make them one.
+- Drawing the bent and split marks in the panel.

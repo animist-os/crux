@@ -16,7 +16,7 @@
 // the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
-// Generated: 2026-11-17T09:41:55.945Z
+// Generated: 2026-11-17T15:22:29.032Z
 // =============================================================================
 Doh.Module('crux', [
   'ohm',
@@ -4440,7 +4440,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T09:41:55.945Z";
+golden.cruxBuiltAt = "2026-11-17T15:22:29.032Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -5681,6 +5681,9 @@ golden.decompose = function (input, options = {}) {
 // as given. Op frames can also carry `reverse` (fan copy played backwards),
 // `kept` (non-exact operator passed this pip through unchanged) and `out`
 // (non-exact operator: the pip's step and timeScale after the operator).
+// A new pip of `@` that took the place of one operand pip also has `from`:
+// { origin, index, part, parts }, the operand pip's origin and index, and the
+// new pip's place in the run of pips that replaced it (see markReplaced).
 //
 // The trace works by wrapping the evaluator's methods for the length of one
 // call. crux_interp is not changed and does no extra work. Pips that the
@@ -5807,7 +5810,7 @@ function genericMap(op, out, cap) {
   const app = ++T.app;
   const xs = x ? x.values : [];
   const byObj = new Map(xs.map((p, i) => [p, i]));
-  return out.values.map((p, k) => {
+  const res = out.values.map((p, k) => {
     let index = byObj.has(p) ? byObj.get(p) : -1;
     if (index < 0 && p.origin) index = xs.findIndex(q => q.origin === p.origin && sameValue(p, q));
     if (index >= 0) {
@@ -5823,6 +5826,32 @@ function genericMap(op, out, cap) {
       out: { step: p.step, ts: p.timeScale }, next,
     });
   });
+  if (op === '@') markReplaced(res, xs);
+  return res;
+}
+
+// `@` only: a run of new pips (no operand index) between two pips whose
+// operand index is known (or an end of the mot) replaced the operand pips in
+// the same gap. When that gap holds exactly one operand pip, each pip of the
+// run gets `from` on its frame: the origin and index of the operand pip, its
+// own place in the run and the run's length. `index` and `next` stay as they
+// are.
+function markReplaced(res, xs) {
+  const idx = res.map(p => p.origin.index);
+  for (let k = 0; k < res.length;) {
+    if (idx[k] >= 0) { k++; continue; }
+    let e = k;
+    while (e < res.length && idx[e] < 0) e++;
+    const lo = k > 0 ? idx[k - 1] : -1;
+    const hi = e < res.length ? idx[e] : xs.length;
+    if (hi - lo === 2) {
+      const index = lo + 1;
+      for (let j = k; j < e; j++) {
+        res[j].origin.from = { origin: originOf(xs[index]), index, part: j - k, parts: e - k };
+      }
+    }
+    k = e;
+  }
 }
 
 function post(name, node, out, cap) {
@@ -6601,7 +6630,9 @@ return thematicFolds;
 //   9  themes opened: each theme note goes to the stop 5 place of its slot's
 //      own note, so a theme shows the innermost shapes it is made of
 //  10  cells: as 9, on the cell level, where partial and edited statements of
-//      a definition fold onto it (an edited note keeps its offset in cellBent)
+//      a definition fold onto it (an edited note keeps its offset in cellBent),
+//      and the pips that `@` put in the place of one pip stack on that pip
+//      (note.split)
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -6671,9 +6702,14 @@ function frameKey(f) {
 //   around it for which level.inside(C, D) holds: most uses of C are inside
 //   D, and D is used more than once.
 // With `cells` (the cell level, stop 10) an edited pip can stay with its
-// innermost definition as a bent note (cellBend).
+// innermost definition as a bent note (cellBend), and a pip that `@` put in
+// the place of another goes where that pip was (splitPart).
 function analysePip(pip, level = null, cells = null) {
   const frames = framesOf(pip);
+  return (cells && splitPart(frames, cells)) || analyseFrames(frames, pip, level, cells);
+}
+
+function analyseFrames(frames, pip, level, cells) {
   let e = -1;
   for (let i = 0; i < frames.length; i++) {
     const f = frames[i];
@@ -6743,8 +6779,8 @@ function analysePip(pip, level = null, cells = null) {
 // Cell level: a pip that operators with exact: false changed stays with the
 // innermost definition when the frames inside each such operator lead to a
 // literal through a definition, the operator kept the duration, and it made
-// one pip from one pip (cells.split holds the frames of operators that made
-// two pips from one). Returns the bend in the definition's own frame: the
+// one pip from one pip (cells.oneToMany holds the frames of operators that
+// made two pips from one). Returns the bend in the definition's own frame: the
 // step the outermost operator gave, less the step the frames inside it give,
 // divided by the scale of the exact frames between the definition and that
 // operator. Returns null when a condition fails: the pip stays edited.
@@ -6756,7 +6792,7 @@ function cellBend(frames, cells) {
   for (let i = 1; i < frames.length; i++) {
     const f = frames[i];
     if (f.kind === 'op' && !f.exact && !f.kept) {
-      if (i < o || !f.out || cells.split.has(f) || Math.abs(Math.abs(f.out.ts) - d) > 1e-6) return null;
+      if (i < o || !f.out || cells.oneToMany.has(f) || Math.abs(Math.abs(f.out.ts) - d) > 1e-6) return null;
       c = i;
       bent = f.out.step - s;
     }
@@ -6768,10 +6804,80 @@ function cellBend(frames, cells) {
   return z(round9(bent / a));
 }
 
+// Cell level, splits. The changing frame of the pip is an `@` frame with
+// `from`: the pip is one of `from.parts` pips that took the place of one
+// operand pip. That pip is analysed as if the `@` had kept it (the frames of
+// from.origin, the `@` as a kept frame, then the frames outside the `@`),
+// and the part takes its owner, canon and body. Its bend is its step after
+// the `@`, less the replaced pip's step there, taken back into the owner's
+// frame, plus the replaced pip's own bend. Returns null when the durations
+// of the parts do not add up to the replaced pip's duration, or the replaced
+// pip has no owner inside the `@`: the pip stays edited. A run of one pip
+// (parts: 1) is a replacement, not a split: it is bent, with no `split`.
+// A replaced pip that is itself a part follows the same rule again; `split`
+// and `slot` then come from the innermost `@`.
+function splitPart(frames, cells) {
+  let e = -1;
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    if (f.kind === 'op' && !f.exact && !f.kept) e = i;
+  }
+  const f = frames[e];
+  if (!f || !f.from || !f.out) return null;
+  const inner = framesOf({ origin: f.from.origin });
+  const v = inner.length ? valueOf(inner) : null;
+  if (!v) return null;
+  const parts = cells.parts.get(f.app + '|' + f.from.index);
+  if (!parts || parts.size !== f.from.parts) return null;
+  let sum = 0;
+  for (const d of parts.values()) sum += d;
+  if (Math.abs(sum - v.d) > 1e-6) return null;
+  const at = Object.assign({}, f, { kept: true, index: f.from.index });
+  delete at.out;
+  delete at.from;
+  const vframes = [...inner, at, ...frames.slice(e + 1)];
+  const R = splitPart(vframes, cells) || analyseFrames(vframes, null, null, cells);
+  // A replaced pip that is a part itself was expanded again: its chain holds
+  // this `@` too.
+  const chain = R.chain || vframes;
+  const o = R.owner ? chain.indexOf(R.owner) : -1;
+  const c = chain.indexOf(at);
+  if (o < 0 || o > c) return null;
+  const g = x => { for (let i = o + 1; i < c; i++) [x] = apply(chain[i], x, 1, FULL); return x; };
+  const a = g(1) - g(0);
+  if (Math.abs(a) < EPS) return null;
+  const bend = z(round9((f.out.step - v.s) / a + R.bend));
+  let split = R.split, slot = R.slot;
+  if (!split && f.from.parts > 1) {
+    split = { part: f.from.part, parts: f.from.parts };
+    slot = f.app + '|' + f.from.index;
+  }
+  return { ...R, frames, chain, edited: false, bend, split: split ?? null, slot: slot ?? null };
+}
+
+// Step and duration of a pip from its frames, innermost first: the value
+// after the outermost operator that changed it, or the literal, then the
+// exact frames outside.
+function valueOf(frames) {
+  let k = -1;
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    if (f.kind === 'op' && !f.exact && !f.kept && f.out) k = i;
+  }
+  let s, d;
+  if (k >= 0) { s = frames[k].out.step; d = Math.abs(frames[k].out.ts); }
+  else if (frames[0].kind === 'lit') { s = frames[0].step; d = Math.abs(Number(frames[0].ts)); }
+  else return null;
+  for (let i = k + 1; i < frames.length; i++) [s, d] = apply(frames[i], s, d, FULL);
+  return { s, d };
+}
+
 // One level of the dictionary. A(rec) is the pip's analysis and K(rec) its
 // instance key. Returns the instances, the entries in layout order, and
 // per-pip layout data: { I, off, shownOff, shown, capped }. With `partial`
-// (the cell level) a part of an entry joins that entry.
+// (the cell level) a part of an entry joins that entry. Pips with the same
+// `slot` in one instance (the parts of one split) are one slot: one key in
+// the signature, one offset, the width of the pip they replaced.
 function buildLevel(all, A, K, gap, capWidth, partial = false) {
   const info = new Map();
   // Instances: start time and canonical offsets (stop 3).
@@ -6790,11 +6896,18 @@ function buildLevel(all, A, K, gap, capWidth, partial = false) {
   }
   for (const I of inst.values()) {
     const order = I.recs.slice().sort((x, y) => (A(x).canon ?? x.index) - (A(y).canon ?? y.index) || x.index - y.index);
+    const slots = new Map(), keys = [];
     let off = 0;
-    for (const rec of order) { info.get(rec).off = off; off += A(rec).body.d; }
+    for (const rec of order) {
+      const first = slotOf(A, rec, slots);
+      if (first) { info.get(rec).off = info.get(first).off; continue; }
+      info.get(rec).off = off;
+      off += A(rec).body.d;
+      keys.push(pipKey(A, rec));
+    }
     I.length = off;
     I.order = order;
-    I.signature = (I.name ?? '#') + '|' + order.map(r => pipKey(A, r)).join(',');
+    I.signature = (I.name ?? '#') + '|' + keys.join(',');
   }
 
   // Dictionary: one entry per distinct shape.
@@ -6827,15 +6940,18 @@ function buildLevel(all, A, K, gap, capWidth, partial = false) {
     const E = I.entry;
     if (!E || I.part) continue;
     if (E.unit === undefined) {
-      const tally = new Map();
-      for (const rec of I.recs) if (rec.sounding) tally.set(r9(A(rec).body.d), (tally.get(r9(A(rec).body.d)) || 0) + 1);
+      const tally = new Map(), slots = new Map();
+      for (const rec of I.order) if (rec.sounding && !slotOf(A, rec, slots)) tally.set(r9(A(rec).body.d), (tally.get(r9(A(rec).body.d)) || 0) + 1);
       let unit = 0, best = 0;
       for (const [d, n] of tally) if (d > 0 && (n > best || (n === best && d < unit))) { unit = d; best = n; }
       E.unit = unit || 1;
     }
     let off = 0;
+    const slots = new Map();
     for (const rec of I.order) {
       const w = A(rec).body.d / E.unit, R = info.get(rec);
+      const first = slotOf(A, rec, slots);
+      if (first) { Object.assign(R, { shownOff: info.get(first).shownOff, shown: info.get(first).shown, capped: info.get(first).capped }); continue; }
       R.shownOff = off;
       R.shown = Math.min(w, capWidth);
       R.capped = w > capWidth + 1e-9;
@@ -6865,6 +6981,16 @@ function buildLevel(all, A, K, gap, capWidth, partial = false) {
     E.residue = E.name == null && E.count === 1;
   }
   return { inst, entryList, info };
+}
+
+// The first pip of rec's slot seen so far in `slots`, or undefined (and rec
+// is now the first). Pips with no slot are each their own.
+function slotOf(A, rec, slots) {
+  const sl = A(rec).slot;
+  if (sl == null) return undefined;
+  const first = slots.get(sl);
+  if (!first) slots.set(sl, rec);
+  return first;
 }
 
 function pipKey(A, r) {
@@ -7035,8 +7161,24 @@ function foldModel(trace, options = {}) {
   });
 
   // Stop 10: the cell level. A changed pip of an operator that made two pips
-  // from one is not one pip for one pip.
+  // from one is not one pip for one pip (oneToMany). The pips that `@` put in
+  // the place of one operand pip (`from`) are the parts of a split: `parts`
+  // holds their durations, by `@` application and operand index. A part that
+  // a later `@` replaced is not in the output, but its frame is on the
+  // from.origin chain of the pips that replaced it.
   const changed = new Map();
+  const parts = new Map();
+  const seen = new Set();
+  const addParts = frames => {
+    for (const f of frames) {
+      if (f.kind !== 'op' || !f.from || !f.out || seen.has(f)) continue;
+      seen.add(f);
+      const pk = f.app + '|' + f.from.index;
+      if (!parts.has(pk)) parts.set(pk, new Map());
+      parts.get(pk).set(f, Math.abs(f.out.ts));
+      addParts(framesOf({ origin: f.from.origin }));
+    }
+  };
   for (const rec of all) {
     for (const f of rec.a.frames) {
       if (f.kind !== 'op' || f.exact || f.kept) continue;
@@ -7044,11 +7186,12 @@ function foldModel(trace, options = {}) {
       if (!changed.has(k)) changed.set(k, new Set());
       changed.get(k).add(f);
     }
+    addParts(rec.a.frames);
   }
-  const split = new Set();
-  for (const set of changed.values()) if (set.size > 1) for (const f of set) split.add(f);
+  const oneToMany = new Set();
+  for (const set of changed.values()) if (set.size > 1) for (const f of set) oneToMany.add(f);
   for (const rec of all) {
-    rec.cl = analysePip(rec.pip, null, { split });
+    rec.cl = analysePip(rec.pip, null, { oneToMany, parts });
     if (rec.cl.instanceKey === null) rec.cl.instanceKey = `p${rec.voice}:${rec.index}`;
     rec.clInstance = `${rec.voice}|${rec.cl.instanceKey}`;
   }
@@ -7061,6 +7204,7 @@ function foldModel(trace, options = {}) {
     n.fold10 = o10.at[n.id];
     n.cell = cellLevel.info.get(rec).I.entry.id;
     n.cellBent = rec.cl.bend;
+    if (rec.cl.split) n.split = { ...rec.cl.split };
   }
 
   // Counts.
@@ -7071,7 +7215,8 @@ function foldModel(trace, options = {}) {
     notes: notes.length,
     edited: notes.filter(n => n.edited).length,
     cellEdited: all.filter(rec => rec.sounding && rec.cl.edited).length,
-    cellBent: notes.filter(n => n.cellBent).length,
+    cellBent: notes.filter(n => n.cellBent && !n.split).length,
+    cellSplit: notes.filter(n => n.split).length,
     positions: [null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => (s === null ? null : distinct(n => pk(n, s)))),
     shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length,
       th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length,

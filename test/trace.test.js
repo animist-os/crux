@@ -142,6 +142,34 @@ test('trace: a non-exact operator writes one frame with exact false', () => {
   assert.equal(frames(v[2])[0].kind, 'lit');
 });
 
+test('trace: new @ pips in the place of one operand pip carry from', () => {
+  const src = '[0, 1, 2, 3] @ [@2 [0, 2]/]';
+  const v = golden.crux_trace(src).sections[0].values;
+  assert.deepEqual(v.map(p => [p.step, p.timeScale]), [[0, 1], [1, 1], [2, 0.5], [4, 0.5], [3, 1]]);
+  // The frames are as before: one `@` frame, index -1, no next.
+  assert.deepEqual(v.map(chain), [`lit@1 > @?`, `lit@4 > @?`, '@?', '@?', `lit@10 > @?`]);
+  const [a, b] = [v[2].origin, v[3].origin];
+  for (const f of [a, b]) {
+    assert.equal(f.index, -1);
+    assert.equal(f.next, null);
+    assert.deepEqual(Object.keys(f).sort(), ['app', 'arg', 'copy', 'exact', 'from', 'index', 'kept', 'kind', 'next', 'op', 'out']);
+  }
+  assert.deepEqual([a.from.index, a.from.part, a.from.parts], [2, 0, 2]);
+  assert.deepEqual([b.from.index, b.from.part, b.from.parts], [2, 1, 2]);
+  assert.equal(a.from.origin, b.from.origin);
+  const replaced = golden.crux_trace_frames({ origin: a.from.origin });
+  assert.equal(replaced.length, 1);
+  assert.deepEqual([replaced[0].kind, replaced[0].step, replaced[0].pos], ['lit', 2, src.indexOf('2,')]);
+  // Kept pips have no from.
+  assert.ok(!('from' in v[0].origin) && !('from' in v[4].origin));
+});
+
+test('trace: a run of new @ pips over two operand pips has no from', () => {
+  const v = golden.crux_trace('[0, 1, 2, 3] @ [@1 [0, 2]/, @2 [0, 1]/]').sections[0].values;
+  assert.equal(v.length, 6);
+  assert.ok(v.every(p => !('from' in p.origin)));
+});
+
 test('trace: global statements add one outer frame per voice', () => {
   const t = golden.crux_trace('[0, 1]\n!\n[2]\n_ * [7]');
   for (const m of t.sections) {

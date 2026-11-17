@@ -194,6 +194,14 @@ a new pip from nothing the trace can follow.
 - Every other operator writes one frame with `exact: false`. If the pip went
   through unchanged, the frame has `kept: true`. If not, it has `out`, the
   pip's step and timeScale after the operator.
+- `@` only: a run of new pips (no operand index) between two pips whose
+  operand index is known, or an end of the mot, took the place of the operand
+  pips in the same gap. When the gap holds exactly one operand pip, each pip
+  of the run has `from: { origin, index, part, parts }` on its `@` frame: the
+  origin and index of the operand pip it replaced, its place in the run (from
+  0) and the length of the run. `index` stays -1 and `next` does not change.
+  `X @ [@5 [4, 3]/]` gives two pips with `from.index` 5. Two splits side by
+  side (`@1 ..., @2 ...`) are one run over two operand pips: no `from`.
 - A `_` global statement adds an `op: '_'` frame, with the frames of its
   operators outside it.
 
@@ -280,7 +288,18 @@ Stops 9 and 10 open each theme to what it is made of.
   to a literal through a definition. `cellBent` is the bend in the
   definition's own frame (an operator such as `m` between the definition and
   the edit changes its sign). The bend has no limit: the program states it.
-  Splits such as `@5 [4,3]/` and edits that change a duration stay edited.
+  An edit that changes a duration stays edited.
+- Splits, at stop 10: a pip with `from` (`X @ [@5 [4, 3]/]`) is analysed as
+  the pip it replaced (the frames of `from.origin`, the `@` as a kept frame,
+  then the frames outside), and takes that pip's owner, canon and body. The
+  parts of one split are one slot of the entry, with the replaced pip's
+  width. Each part has `split: { part, parts }` and a `cellBent`: its step
+  less the replaced pip's step at the `@`, in the owner's frame, plus the
+  replaced pip's own bend. This holds when the parts' durations add up to
+  the replaced pip's duration and the replaced pip has an owner inside the
+  `@`; if not, the parts stay edited. A part that a later `@` splits again
+  follows the same rule; `split` then describes the innermost `@`. A run of
+  one pip (`parts: 1`) is a replacement: it is bent, with no `split`.
 - At stops 9 and 10 a bent note stacks on its cell note, as at stops 7 and 8.
   The bend is a mark, not a position.
 - With no theme at stop 8, stops 9 and 10 open every note in place: all the
@@ -289,7 +308,9 @@ Stops 9 and 10 open each theme to what it is made of.
   `found` or `residue`, and the `unit`), `cell` (its own cell-level entry) and
   `cellBent` (0 when not bent). `edited` does not change: it describes stops
   3 to 5. `counts.cellEdited` counts the notes still edited at the cell
-  level. `inward.units[9]` and `inward.units[10]` are the layout units.
+  level, `counts.cellBent` the bent notes that are not parts of a split, and
+  `counts.cellSplit` the parts of a split. `inward.units[9]` and
+  `inward.units[10]` are the layout units.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text.

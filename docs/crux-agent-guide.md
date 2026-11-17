@@ -136,7 +136,7 @@ means.
 - `// #target SECTION SAMPLER` routes a section to a sampler.
 - The last directive of a name wins.
 - The fold view reads two global directives: `// #theme A B` (the themes of
-  stops 6 to 8) and `// #core A B / C` (the focus levels, stops 11 and on).
+  stops 6 to 8) and `// #core A B / C` (the focus levels, stops 9 and on).
   Both are lists of definition names; `/` separates the levels of `#core`.
   By the rule above, a list whose last token is a positive integer is scoped
   to a sampler, and the fold does not see it. Definition names start with a
@@ -276,55 +276,67 @@ They work at the theme level, not on the innermost definitions of stop 5:
   repeats, the near-misses, the theme folds, the layout units of stops 6 to 8
   with their note counts, the themes with their attachments, and the residue.
 
-Stops 9 and 10 put the inward reduction after the reduction across. Stops 6
-to 8 start again from the theme level, so a theme is long again at stop 8.
-Stops 9 and 10 open each theme to what it is made of.
+After stop 8 there is one stop for each focus level that the program names
+with `// #core` (stops 9 and on). Without `#core` there is one stop, 9,
+cells. The option `core` of `crux_fold` wins over the directive: an array of
+names is one level, an array of arrays is several, a string is read as the
+directive, and `[]` turns the directive off. The model has `9 + levels`
+stops with `#core`, and 10 without.
+
+Every stop after 8 lays its shapes out in the order they had at the stop
+before. The key of a shape is the smallest x of its notes that are shown at
+the stop before; a note on the residue marker of stop 8 does not count,
+unless the shape has no other notes. Ties keep source order.
+
+The cell level. A partial statement (`A \ 1`) joins the full entry of its
+definition, and an edited statement (`A @ [@1 5]`) stays with the definition
+as a bent note when the operator kept the duration, made one pip from one
+pip, and the frames inside it lead to a literal through a definition.
+`cellBent` is the bend in the definition's own frame (an operator such as
+`m` between the definition and the edit changes its sign). The bend has no
+limit: the program states it. An edit that changes a duration stays edited.
+
+- Splits: a pip with `from` (`X @ [@5 [4, 3]/]`) is analysed as the pip it
+  replaced (the frames of `from.origin`, the `@` as a kept frame, then the
+  frames outside), and takes that pip's owner, canon and body. The parts of
+  one split are one slot of the entry, with the replaced pip's width. Each
+  part has `split: { part, parts }` and a `cellBent`: its step less the
+  replaced pip's step at the `@`, in the owner's frame, plus the replaced
+  pip's own bend. This holds when the parts' durations add up to the
+  replaced pip's duration and the replaced pip has an owner inside the `@`;
+  if not, the parts stay edited. A part that a later `@` splits again
+  follows the same rule; `split` then describes the innermost `@`. A run of
+  one pip (`parts: 1`) is a replacement: it is bent, with no `split`.
+- Each note gets `cell` (its own cell-level entry) and `cellBent` (0 when
+  not bent). `edited` does not change: it describes stops 3 to 5.
+  `counts.cellEdited` counts the notes still edited at the cell level,
+  `counts.cellBent` the bent notes that are not parts of a split, and
+  `counts.cellSplit` the parts of a split.
+
+The cells stop (stop 9, only without `#core`) opens the themes of stop 8 to
+the cell level.
 
 - `fold8.rep` is the id of a note of the slot a note sits on at stop 8: the
   theme's (or found shape's) own note there. It is `null` on the residue.
-- 9, themes opened: a note on a theme goes to the stop 5 place of its `rep`
-  note. Only the entries that a theme reaches are shown, side by side in
-  source order. Attached cells go with their theme note. Found units
-  (`showFound`) stay as at stop 8, after the entries. The residue marker comes
-  last.
-- 10, cells: as 9, on the cell level. There a partial statement (`A \ 1`)
-  joins the full entry of its definition, and an edited statement
-  (`A @ [@1 5]`) stays with the definition as a bent note when the operator
-  kept the duration, made one pip from one pip, and the frames inside it lead
-  to a literal through a definition. `cellBent` is the bend in the
-  definition's own frame (an operator such as `m` between the definition and
-  the edit changes its sign). The bend has no limit: the program states it.
-  An edit that changes a duration stays edited.
-- Splits, at stop 10: a pip with `from` (`X @ [@5 [4, 3]/]`) is analysed as
-  the pip it replaced (the frames of `from.origin`, the `@` as a kept frame,
-  then the frames outside), and takes that pip's owner, canon and body. The
-  parts of one split are one slot of the entry, with the replaced pip's
-  width. Each part has `split: { part, parts }` and a `cellBent`: its step
-  less the replaced pip's step at the `@`, in the owner's frame, plus the
-  replaced pip's own bend. This holds when the parts' durations add up to
-  the replaced pip's duration and the replaced pip has an owner inside the
-  `@`; if not, the parts stay edited. A part that a later `@` splits again
-  follows the same rule; `split` then describes the innermost `@`. A run of
-  one pip (`parts: 1`) is a replacement: it is bent, with no `split`.
-- At stops 9 and 10 a bent note stacks on its cell note, as at stops 7 and 8.
-  The bend is a mark, not a position.
-- With no theme at stop 8, stops 9 and 10 open every note in place: all the
-  entries, and no residue marker.
-- Each note gets `pos[9]`, `pos[10]`, `fold9` and `fold10` (`kind`: `entry`,
-  `found` or `residue`, and the `unit`), `cell` (its own cell-level entry) and
-  `cellBent` (0 when not bent). `edited` does not change: it describes stops
-  3 to 5. `counts.cellEdited` counts the notes still edited at the cell
-  level, `counts.cellBent` the bent notes that are not parts of a split, and
-  `counts.cellSplit` the parts of a split. `inward.units[9]` and
-  `inward.units[10]` are the layout units.
+- A note on a theme goes to the cell-level place of its `rep` note. Only the
+  entries that a theme reaches are shown. Attached cells go with their theme
+  note. Found units (`showFound`) keep their stop 8 layout. The residue
+  marker stays one position and comes last.
+- A bent note stacks on its cell note, as at stops 7 and 8. The bend is a
+  mark, not a position.
+- Place: a shape starts at its key when there is room, and otherwise right
+  after the shape before it (the stop 5 gap). So a shape that does not
+  change stays where it is, and the shapes to the right of a theme that gets
+  smaller do not slide. The residue marker stays at its stop 8 place when
+  there is room.
+- With no theme at stop 8, every note opens in place: all the entries, and
+  no residue marker.
+- Kinds: `cell`, `found` or `residue`.
 
-Stops 11 and on are focus levels: structure that the analysis is about,
-named by hand. `// #core a nugb nugc nugd / nug` names two levels, one stop
-each, in order. The option `core` wins over the directive: an array of
-names is one level, an array of arrays is several, and a string is read as
-the directive. The model has `11 + levels` stops; without `#core` the last
-stop is 10. The levels use only what the program states. They do not search
-for other matches.
+Focus levels are structure that the analysis is about, named by hand.
+`// #core a nugb nugc nugd / nug` names two levels, one stop each, in
+order. The levels use only what the program states. They do not search for
+other matches.
 
 - A level before the last shows whole definitions, as written. A note
   belongs to the outermost named definition of the level that it passed
@@ -333,10 +345,10 @@ for other matches.
   stop 5 (transposition, mirror, reverse and stretch removed, widths by the
   stop 5 rule), with the partial rule of the cell level: a partial
   statement (`ar \ 1`) joins its full entry. Kind: `shape`.
-- The last level is the core. A core is a cell-level entry (stop 10) of a
-  named definition. Kinds:
+- The last level is the core. A core is a cell-level entry of a named
+  definition. Kinds:
   - `core`: its `cell` is a core entry. It sits on its own slot of that
-    entry, as at stop 10. Bent notes and parts of a split are core notes.
+    entry. Bent notes and parts of a split are core notes.
   - `attached`: a note that is not a core note, written by the host of a
     core statement. From the core definition go outward: the first
     definition use whose definition writes notes of its own (is the
@@ -344,26 +356,30 @@ for other matches.
     that writes no notes is passed. The note stacks on the core note of the
     same host use that is nearest in time (the earlier one on a tie), and
     adds no position. `focus[i].host` is the host's name.
-- At every level a note that belongs to no named shape is `hidden`. It keeps
-  its position of the stop before, with `pos[k].hidden` true. Hosts fade it
-  out on the way to the stop and draw nothing for it there. There is no
-  residue marker. Counts at these stops do not count hidden notes.
-- The themes of stop 8 play no part. A core note that no theme reaches is
-  still a core note.
+- At every focus level a note that belongs to no named shape is `hidden`.
+  It keeps its position of the stop before, with `pos[k].hidden` true.
+  Hosts fade it out on the way to the stop and draw nothing for it there.
+  There is no residue marker. Counts at these stops do not count hidden
+  notes.
+- The themes of stop 8 play no part, except in the order of the shapes. A
+  core note that no theme reaches is still a core note.
 - A name with no note in a shape level, or with no cell-level entry in the
   core level (a definition that writes no note of its own, such as `nugb`),
   is listed in `missing` for that level. A level whose names are all
   missing hides every note.
-- Layout: the entries of a level in source order, side by side with the
-  stop 5 gap.
-- Each note gets `pos[11 + i]` and `focus[i] = { kind, unit, entry, host }`
-  for level i (`unit`, `entry` and `host` are null when they do not
-  apply). `inward.levels[i]` is `{ names, missing, kind: 'shapes' | 'core',
-  units, shown, attached, hidden }`; each unit has `positions`, `notes` and
-  (core) `attached`. `stops[11 + i]` is the names of the level joined by a
-  space. `counts.core` is `{ stated, bent, split, attached, hidden }` for the
-  last level (`stated` counts all core notes; `bent` and `split` are parts
-  of it), or `null` without `#core`.
+- Place: the shapes of a level are packed side by side from 0, with the
+  stop 5 gap, in the order above.
+
+One structure describes every stop after 8. Each note gets `pos[9 + i]` and
+`focus[i] = { kind, unit, entry, host }` for level i (`unit`, `entry` and
+`host` are null when they do not apply). `inward.levels[i]` is `{ names,
+missing, kind: 'cells' | 'shapes' | 'core', units, shown, attached, hidden }`,
+with the units in layout order; each unit has `x`, `width`, `positions`,
+`notes` and (core) `attached`. `inward.themed` is false when stop 8 has no
+theme. `stops[9 + i]` is the names of the level joined by a space, or
+`cells`. `counts.core` is `{ stated, bent, split, attached, hidden }` for the
+core level (`stated` counts all core notes; `bent` and `split` are parts of
+it), or `null` without `#core`.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text.

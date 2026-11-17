@@ -638,3 +638,151 @@ Kinds at a level: `shape` (levels before the last), `core`, `attached`
   A hidden note keeps the colour of the stop before. The panel has no hover
   handler today; `hitTest` skips a rect with `hidden`, and the panel does
   not draw or light (playhead) a note whose alpha is 0.
+
+## Fewer stops, stable order (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 7. Not committed. Browser
+check pending. See "Notes from the build (change set 7)".
+
+### What Andy saw
+
+From stop 8 to 9 to 10 little structure appears, and a group of notes goes
+from left to right and back.
+
+Measured on BWV 578:
+
+- The group is `br` and `nugc` (87 notes). Their edited notes have no
+  literal position, so the stop 9 layout sorts them to the right end, after
+  A8. At stop 10 the split rule folds them onto `nug` and `b` at the left.
+- 1660 of 1669 notes move between stops 8 and 9, most of them only because
+  the shapes are packed again. CS is nearly all literal, so only the subject
+  opens.
+- Stop 10 folds everything to `nug`. Then the first focus level opens it
+  again into `a`, `nugb`, `nugc`, `nugd`, and the last level folds it once
+  more.
+
+Decision (Andy, 2026-11-17): drop "themes opened" and, when the program has
+`#core`, drop "cells" too. Keep shapes in place across stops.
+
+### Stops
+
+- Stops 0 to 8 do not change.
+- With `#core` levels: stop 9 + i is level i. `stops.length` is 9 plus the
+  number of levels. BWV 578 has 11 stops: 8 themes, 9 `a nugb nugc nugd`,
+  10 `nug`.
+- Without `#core` (or with the option `core: []`, which turns the directive
+  off): one more stop, 9, "cells". It is what stop 10 is today (entries of
+  the cell level that the themes reach, then the residue marker; all
+  entries and no marker when stop 8 has no theme). `stops.length` is 10.
+- "Themes opened" is gone: `pos[9]` as it is today, `fold9`, `openThemes`
+  and its counts. Keep what the cell level and the levels need.
+
+One structure for every stop after 8: `inward.levels[i]` and
+`note.focus[i]` describe stop 9 + i. The cells stop is a level with
+`kind: 'cells'`; its notes have `focus[0].kind` `cell` or `residue`. This
+replaces `fold10` and `inward.units[9]`, `inward.units[10]`.
+
+### Order and place
+
+At each stop after 8, the shapes are laid out in the order they had at the
+stop before, not in source order:
+
+- The key of a shape is the smallest x of its shown notes at the stop
+  before. Ties: source order.
+- Cells stop: a shape starts at its key x when there is room, and
+  otherwise right after the shape before it (the usual gap). So a shape
+  that does not change stays where it is, and the shapes to the right of
+  the subject do not slide when the subject gets smaller. The residue
+  marker stays last, at its stop 8 place when there is room.
+- Focus levels: the shown shapes are packed side by side from x = 0 in
+  that order. The other notes are hidden where they are.
+
+A note that was on the residue marker at stop 8 and is shown at a level
+(the `nug` notes of `nugp`) does not count for the key of its shape, unless
+the shape has no other notes.
+
+### Hosts, report, docs
+
+- Golden: `CruxFold.STOPS` is 9 (the fixed stops). Labels and buttons come
+  from the model, as now. Check each use of stop numbers 9, 10 and 11 in
+  `golden_crux_fold.js` and `golden_crux_fold_ui.js` (colour, opacity, bent
+  mark, badges, cap marks).
+- `fold-report.js`: rows follow `stops`. One list for each level.
+- Guide 1.8 and the comment block of the BWV 578 example and its library
+  copy (the stop numbers changed).
+
+### Change set 7
+
+- [x] stops: 9 + levels, or 10 with the cells stop; `core: []`
+- [x] remove "themes opened"
+- [x] one structure: `inward.levels`, `note.focus` for the cells stop too
+- [x] order by the place at the stop before; cells stop keeps place
+- [x] report, guide, example comments
+- [x] tests: the old stop 9 tests go; the stop 10 tests become cells stop
+      tests (with `core: []` where the program has a directive); a shape
+      with edited notes stays between its neighbours; a shape that does not
+      change keeps its x at the cells stop; the order at a focus level
+- [x] rebuild; Golden fixed stops, tests
+
+### Checks
+
+- BWV 578 report rows 0 to 8 are the same as before this change set.
+- BWV 578: 11 stops. Stop 9: 4 shapes, 30 positions, 273 shown, 1396
+  hidden. Stop 10: `nug`, 4 positions, 210 core, 120 attached, 1339 hidden.
+- BWV 578 with `core: []`: 10 stops. Stop 9: 18 shapes, 134 positions (the
+  numbers of the old stop 10). From stop 8 to stop 9 the notes of link, K,
+  U, U2, Qr, D4, D2, R4 and A8 do not move.
+- crux 634 tests pass before; Golden 49.
+
+### Notes from the build (change set 7)
+
+- Stops: with `#core`, 9 + levels; without it (or with `core: []`, which
+  already worked as "off" in the option parser), 10, the last one `cells`.
+  `fold9`, `fold10`, `inward.units`, `openThemes` and the stop 9 counts are
+  gone. `inward.themed` stays (the report and the cells stop use it).
+- One structure: `inward.levels[i]` and `note.focus[i]` for stop 9 + i. The
+  cells level has `kind: 'cells'`, `names: []`, `missing: []`, `hidden: 0`.
+  Its notes have `focus[0].kind` `cell`, `residue`, or `found` (with
+  `showFound`; the plan names only `cell` and `residue`). `entry` is null for
+  found and residue notes. `inward.levels[i].units` are in layout order and
+  each unit has `x`.
+- Layout is one function, `layOut`, for every level. The level builders give
+  each note a unit and a position from the start of the unit; `layOut` reads
+  the keys from `pos[k - 1]`, orders and places the units, and then writes
+  `pos[k]`, the unit counts and the focus entries. Hidden notes at the first
+  focus level keep their stop 8 position.
+- A unit with no key (no shown note at the stop before) takes the smallest
+  x of all its notes there; this is the rule for a shape whose notes were
+  all on the residue marker, applied to hidden notes too.
+- BWV 578 with the directive: 11 stops. Stop 9: a 0-11, nugb 11.5-15.5,
+  nugc 16-30, nugd 30.5-34.5 (the same order as the source here); 30
+  positions, 273 shown, 1396 hidden. Stop 10: nug, 4 positions, 210 core,
+  120 attached, 1339 hidden. From stop 8 to 9, 265 notes move (mean 33.7 in
+  x); the hidden notes stay where they were. Before this change set: 1660,
+  mean 45.5.
+- BWV 578 with `core: []`: 10 stops; stop 9 has 18 shapes and 134
+  positions. 1196 notes move from stop 8 to 9 (mean 11.2). link and the
+  cells of the subject (nug 0, a 20, b 32, d 60) keep their key place; no
+  shape changes order with another. K, U, U2, Qr, D4 and D2 move +1, and R4,
+  A8 and the residue marker +4. Two causes:
+  - CS is one shape at stop 8 (79-143, no gap inside). Its cells get the
+    usual gap between them. Z is narrower at the cell level (its own unit is
+    1, not CS's 0.5: width 4, not 8), but TR keeps its key (95), so the room
+    that Z leaves is used before TR, not after it. P1 then starts at 111.5
+    (+0.5) and P2 at 128 (+1); P2 ends at 144, past K's key 143.5.
+  - D2 (`[0, -2, -4, -1 | 2, r | 3]`) is 8 wide at the cell level and 5 at
+    stop 8: the cell level counts the trailing rest, stop 8 measures the
+    notes. R4 then cannot start at 196.5.
+  The rule is as written. Two changes would give 0 moves for these shapes:
+  no gap between the cells of one stop 8 theme, and a cell unit's width
+  measured from its notes (as stop 8 does). Not done: each is a new rule.
+- Golden: `CruxFold.STOPS` is 9; `STOP_NAMES` and `STOP_LABELS` have 9
+  entries. The labels of the stops after 8 come from `model.stops` (`cells`
+  or the level names). `noteAlpha`, `bentMark`, `ownerAt` and `hiddenAt`
+  read `focus` for every stop after 8: at the cells stop a residue note is
+  dim, a cell note keeps its stop 7 bend plus `cellBent`, and a found or
+  residue note keeps its stop 8 colour. `owner9`, `owner10`, `fold9` and
+  `fold10` are gone from the view notes.
+- Tests: crux 634 before, 635 after (5 stop 9 tests out; 6 order tests in,
+  one of them for found units and the residue marker at the cells stop,
+  which only the old stop 9 tests covered). Golden 49 before and after.

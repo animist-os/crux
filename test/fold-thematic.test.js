@@ -106,7 +106,7 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   const m = fold(example('bach-invention14.keylane.v2.crux'));
   assert.equal(m.notes.length, 592);
   for (const n of m.notes) {
-    assert.equal(n.pos.length, 11);
+    assert.equal(n.pos.length, 10);
     for (let s = 1; s <= 8; s++) {
       const p = n.pos[s];
       assert.ok(p && Number.isFinite(p.t) && Number.isFinite(p.step) && Number.isFinite(p.d), `note ${n.id} stop ${s}`);
@@ -118,8 +118,8 @@ test('fold 6-8: invariants on bach-invention14.keylane.v2.crux', () => {
   assert.equal(e.program + e.repeat + e.near + e.none, m.counts.notes);
   for (let s = 6; s <= 8; s++) assert.ok(m.counts.positions[s] <= m.counts.positions[s - 1], `stop ${s}`);
   assert.equal(m.counts.positions[5], 96);
-  assert.equal(m.stops.length, 11);
-  assert.equal(m.counts.shapes.length, 11);
+  assert.equal(m.stops.length, 10);
+  assert.equal(m.counts.shapes.length, 10);
   // Every unit at stop 8 but the residue is a theme, a found shape or a stated cell.
   for (const u of m.thematic.units[8]) assert.ok(['theme', 'found', 'cell', 'residue'].includes(u.kind));
   assert.ok(m.thematic.themes.some(t => t.id === 'H'));
@@ -265,89 +265,9 @@ test('fold 6: a second partial copy still stacks on the same stated shape', () =
   b.forEach((n, k) => assert.equal(at(n, 6), at(s[k + 4], 6)));
 });
 
-// Stop 9: themes opened (docs/plans/crux-fold-inward.md).
+// The cells stop (stop 9 when the program has no #core).
 
-test('fold 9: a theme made of two cells opens to the cells', () => {
-  // c1 and c2 are used only inside T, so T is one theme of 10 notes at stop 8.
-  const m = fold('c1 = [0, 2, 1]\nc2 = [4, 3, 5, 4]\nT = c1, (c1 * [3]), c2\nT, (T * [2]), (T * [4])');
-  assert.deepEqual(m.thematic.themes.map(t => [t.id, t.positions]), [['T', 10]]);
-  assert.equal(m.counts.positions[8], 10);
-  assert.equal(m.counts.positions[9], 7);
-  assert.equal(m.counts.shapes[9], 2);
-  assert.deepEqual(m.inward.units[9].map(u => [u.kind, u.id, u.positions, u.notes, u.x]), [['entry', 'c1', 3, 18, 0], ['entry', 'c2', 4, 12, 3.5]]);
-  const first = m.notes.slice(0, 10);
-  assert.deepEqual(first.map(n => n.pos[9].t), [0, 1, 2, 0, 1, 2, 3.5, 4.5, 5.5, 6.5]);
-  assert.deepEqual(first.map(n => n.pos[9].step), [0, 2, 1, 0, 2, 1, 4, 3, 5, 4]);
-  // Every copy of T stacks on the first one.
-  m.notes.forEach((n, k) => assert.equal(at(n, 9), at(first[k % 10], 9)));
-  assert.ok(m.notes.every(n => n.fold9.kind === 'entry'));
-  assert.deepEqual(m.stops[9], 'themes opened');
-});
-
-test('fold 9: rep is the theme note of the slot; attached notes go with it; residue has none', () => {
-  const m = fold([
-    'H  = [0, 1, 2, 1, 0 | 2] || [1/8]',
-    'T9 = H, ([4, 2, 7, 4] || [1/4])',
-    'T  = T9, [2 | 1/4]',
-    'T, (T * [3]), (T9 * [1]), (T9 * [2]), (T9 * [4])',
-  ].join('\n'));
-  const T9 = m.notes.slice(0, 9);
-  // The notes of each slot share one rep, a note of the theme's own run.
-  m.notes.filter(n => n.fold8.kind === 'theme').forEach(n => {
-    const r = m.notes[n.fold8.rep];
-    assert.equal(r.fold8.kind, 'theme');
-    assert.equal(at(r, 8), at(n, 8));
-  });
-  // T's last note is attached to T9's last note at stop 8, and stays on it.
-  const last = m.notes.filter(n => n.entry === 'T');
-  for (const n of last) {
-    assert.equal(n.fold8.kind, 'attached');
-    assert.equal(m.notes[n.fold8.rep].entry, 'T9');
-    assert.equal(at(n, 9), at(T9[8], 9));
-  }
-  assert.deepEqual(m.inward.units[9].map(u => [u.id, u.positions]), [['H', 5], ['T9', 4]]);
-  assert.equal(m.counts.positions[9], 9);
-
-  const near = fold(NEAR);
-  const odd = near.notes.slice(12);
-  assert.ok(odd.every(n => n.fold8.kind === 'residue' && n.fold8.rep === null && n.fold9.kind === 'residue'));
-  // The residue marker is one position after the last entry.
-  assert.equal(new Set(odd.map(n => at(n, 9))).size, 1);
-  assert.deepEqual(near.inward.units[9].map(u => [u.kind, u.id, u.x]), [['entry', 'M', 0], ['residue', 'residue', 4.5]]);
-  assert.equal(near.counts.positions[9], 5);
-  assert.equal(near.counts.shapes[9], 1);
-});
-
-test('fold 9: found units stay as at stop 8, after the entries and before the residue', () => {
-  const src = 'M = [0, 3, 1, 2] || [1/4]\nM, (M * [3]), [9, 20, 15, 30, 10, 21, 16, 31, 11, 22, 17, 32], [0 | 1/2, 5 | 1/8, -3 | 1]';
-  const m = fold(src, { showFound: true });
-  assert.deepEqual(m.inward.units[9].map(u => [u.kind, u.id, u.positions, u.notes]), [['entry', 'M', 4, 8], ['found', 'F1', 4, 12], ['residue', 'residue', 1, 3]]);
-  const found = m.notes.filter(n => n.fold8.kind === 'found');
-  assert.ok(found.length === 12 && found.every(n => n.fold9.kind === 'found' && n.fold8.rep !== null));
-  found.forEach(n => assert.equal(n.pos[9].t - 4.5, n.pos[8].t - m.thematic.units[8][1].x));
-  assert.equal(m.counts.shapes[9], 2);
-});
-
-test('fold 9: with no theme at stop 8, every note opens in place', () => {
-  const m = fold('P = [0, 2, 1, 3, 5, 7, 6, 8]\nP');
-  assert.equal(m.inward.themed, false);
-  m.notes.forEach(n => assert.equal(at(n, 9), at(n, 5)));
-  assert.equal(m.counts.positions[9], m.counts.positions[5]);
-  assert.ok(m.inward.units[9].every(u => u.kind === 'entry'));
-});
-
-test('fold 9: BWV 578 has fewer positions at stop 9 than at stop 8', () => {
-  const m = fold(example('bach-bwv578.keylane.crux'));
-  const p = m.counts.positions;
-  assert.equal(p[5], 829);
-  assert.equal(p[8], 164);
-  assert.ok(p[9] < p[8], p.join(' '));
-  assert.equal(p[9], m.inward.units[9].reduce((n, u) => n + u.positions, 0));
-});
-
-// Stop 10: cells.
-
-const cellsOf = m => m.inward.units[10].map(u => [u.kind, u.id, u.positions, u.notes]);
+const cellsOf = m => m.inward.levels[0].units.map(u => [u.kind, u.id, u.positions, u.notes]);
 // The BWV 578 example up to the line before `subject = ...`: its directives
 // and the definitions the subject is made of.
 const subjectLines = () => {
@@ -355,23 +275,22 @@ const subjectLines = () => {
   return lines.slice(0, lines.findIndex(l => l.startsWith('subject =')));
 };
 
-test('fold 10: a partial statement (A \\ 1) joins the full entry', () => {
+test('cells: a partial statement (A \\ 1) joins the full entry', () => {
   const m = fold('A = [0, 4, 2, 1]\nT = A, (A \\ 1)\nT, (T * [2]), (T * [4])');
   assert.deepEqual(m.dictionary.map(e => e.id), ['A', 'A#2']);
-  assert.equal(m.counts.positions[9], 7);
-  assert.equal(m.counts.positions[10], 4);
+  assert.equal(m.counts.positions[9], 4);
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 21]]);
-  assert.equal(m.inward.units[10][0].count, 6);
+  assert.equal(m.inward.levels[0].units[0].count, 6);
   const [a, part] = [m.notes.slice(0, 4), m.notes.slice(4, 7)];
   part.forEach((n, k) => {
     assert.equal(n.entry, 'A#2');
     assert.equal(n.cell, 'A');
-    assert.equal(at(n, 10), at(a[k], 10));
+    assert.equal(at(n, 9), at(a[k], 9));
   });
   assert.ok(m.notes.every(n => n.cellBent === 0));
 });
 
-test('fold 10: an edited statement (A @ [@1 5]) is A with a bent note', () => {
+test('cells: an edited statement (A @ [@1 5]) is A with a bent note', () => {
   // The second copy is mirrored before the edit: the bend is taken back into A's frame.
   const m = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 5]), ((A m [0]) @ [@1 5])\nT, (T * [2]), (T * [4])');
   const [a, ed, mir] = [m.notes.slice(0, 4), m.notes.slice(4, 8), m.notes.slice(8, 12)];
@@ -382,7 +301,7 @@ test('fold 10: an edited statement (A @ [@1 5]) is A with a bent note', () => {
   assert.equal(ed[1].cell, 'A');
   assert.equal(ed[1].cellBent, 5);
   assert.equal(mir[1].cellBent, -5);
-  assert.ok([...ed, ...mir].every((n, k) => at(n, 10) === at(a[k % 4], 10)));
+  assert.ok([...ed, ...mir].every((n, k) => at(n, 9) === at(a[k % 4], 9)));
   assert.ok(m.notes.filter(n => !n.edited).every(n => n.cellBent === 0));
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 36]]);
   assert.equal(m.counts.cellEdited, 0);
@@ -390,18 +309,18 @@ test('fold 10: an edited statement (A @ [@1 5]) is A with a bent note', () => {
   assert.equal(m.counts.edited, 6);
 });
 
-test('fold 10: reverse and rotate between the cell and the edit', () => {
+test('cells: reverse and rotate between the cell and the edit', () => {
   const m = fold('A = [0, 4, 2, 1]\nT = A, ((A * |-1) ~ -1 @[@3 -3])\nT, (T * [2]), (T * [4])');
   const ed = m.notes.slice(4, 8);
   // (A * |-1) ~ -1 is [0, 1, 2, 4]. The edit moves A's 4 (its note 1) down 3.
   assert.deepEqual(ed.map(n => n.step), [0, 1, 2, 1]);
   assert.deepEqual(ed.map(n => n.cellBent), [0, 0, 0, -3]);
-  assert.equal(at(ed[3], 10), at(m.notes[1], 10));
-  assert.equal(at(ed[0], 10), at(m.notes[0], 10));
+  assert.equal(at(ed[3], 9), at(m.notes[1], 9));
+  assert.equal(at(ed[0], 9), at(m.notes[0], 9));
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 24]]);
 });
 
-test('fold 10: an edit that changes a duration stays edited', () => {
+test('cells: an edit that changes a duration stays edited', () => {
   const m = fold('A = [0, 4, 2, 1]\nT = A, (A @ [@1 5 | 2])\nT, (T * [2]), (T * [4])');
   const n = m.notes[5];
   assert.equal(n.cell, 'T');
@@ -413,7 +332,7 @@ test('fold 10: an edit that changes a duration stays edited', () => {
 // Splits: `@` puts two pips in the place of one.
 const splitOf = src => fold(`A = [0, 4, 2, 1]\nT = A, (${src})\nT, (T * [2]), (T * [4])`);
 
-test('fold 10 split: A @[@1 [0, 2]/] puts two parts on one slot of A', () => {
+test('cells split: A @[@1 [0, 2]/] puts two parts on one slot of A', () => {
   const m = splitOf('A @ [@1 [0, 2]/]');
   const [a, ed] = [m.notes.slice(0, 4), m.notes.slice(4, 9)];
   assert.deepEqual(ed.map(n => n.step), [0, 4, 6, 2, 1]);
@@ -424,34 +343,34 @@ test('fold 10 split: A @[@1 [0, 2]/] puts two parts on one slot of A', () => {
   assert.deepEqual([p0.split, p1.split], [{ part: 0, parts: 2 }, { part: 1, parts: 2 }]);
   assert.deepEqual([p0.cellBent, p1.cellBent], [0, 2]);
   // One slot: both parts sit on A's note 1, with its width.
-  assert.equal(at(p0, 10), at(a[1], 10));
-  assert.equal(at(p1, 10), at(a[1], 10));
-  assert.equal(p0.pos[10].d, a[1].pos[10].d);
+  assert.equal(at(p0, 9), at(a[1], 9));
+  assert.equal(at(p1, 9), at(a[1], 9));
+  assert.equal(p0.pos[9].d, a[1].pos[9].d);
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 27]]);
-  assert.equal(m.inward.units[10][0].count, 6);
+  assert.equal(m.inward.levels[0].units[0].count, 6);
   assert.deepEqual([m.counts.cellEdited, m.counts.cellBent, m.counts.cellSplit], [0, 0, 6]);
-  assert.equal(m.counts.positions[10], 4);
+  assert.equal(m.counts.positions[9], 4);
   // Notes that are not parts have no split field.
   assert.ok(m.notes.filter(n => n !== p0 && n !== p1 && n.voice === 0 && n.index < 9 && n.index !== 5 && n.index !== 6).every(n => !('split' in n)));
 });
 
-test('fold 10 split: a split seen through \\ 1 joins the full entry', () => {
+test('cells split: a split seen through \\ 1 joins the full entry', () => {
   const m = splitOf('(A @ [@1 [0, 2]/]) \\ 1');
   const ed = m.notes.slice(4, 8);
   assert.deepEqual(ed.map(n => n.step), [0, 4, 6, 2]);
   assert.deepEqual(ed.map(n => n.cell), ['A', 'A', 'A', 'A']);
   assert.deepEqual(ed.map(n => n.cellBent), [0, 0, 2, 0]);
-  assert.equal(at(ed[2], 10), at(m.notes[1], 10));
+  assert.equal(at(ed[2], 9), at(m.notes[1], 9));
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 24]]);
   assert.equal(m.counts.cellEdited, 0);
 });
 
-test('fold 10 split: a split of a bent note adds the bend', () => {
+test('cells split: a split of a bent note adds the bend', () => {
   const m = splitOf('(A @ [@1 5]) @ [@1 [0, 2]/]');
   const [p0, p1] = m.notes.slice(5, 7);
   assert.deepEqual([p0.step, p1.step], [9, 11]);
   assert.deepEqual([p0.cellBent, p1.cellBent], [5, 7]);
-  assert.equal(at(p0, 10), at(m.notes[1], 10));
+  assert.equal(at(p0, 9), at(m.notes[1], 9));
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 27]]);
   // Through a mirror, the bend is taken back into A's frame.
   const mir = splitOf('((A * [3]) m [1]) @ [@1 [0, 2]/]');
@@ -459,18 +378,18 @@ test('fold 10 split: a split of a bent note adds the bend', () => {
   assert.deepEqual(cellsOf(mir), [['entry', 'A', 4, 27]]);
 });
 
-test('fold 10 split: a split of a split stacks on the first replaced note', () => {
+test('cells split: a split of a split stacks on the first replaced note', () => {
   const m = splitOf('(A @ [@1 [0, 2]/]) @ [@2 [0, 1]/]');
   const parts = m.notes.slice(5, 8);
   assert.deepEqual(parts.map(n => n.step), [4, 6, 7]);
   assert.deepEqual(parts.map(n => n.cellBent), [0, 2, 3]);
   // `split` describes the innermost `@`.
   assert.deepEqual(parts.map(n => n.split), [{ part: 0, parts: 2 }, { part: 1, parts: 2 }, { part: 1, parts: 2 }]);
-  assert.ok(parts.every(n => at(n, 10) === at(m.notes[1], 10)));
+  assert.ok(parts.every(n => at(n, 9) === at(m.notes[1], 9)));
   assert.deepEqual(cellsOf(m), [['entry', 'A', 4, 30]]);
 });
 
-test('fold 10 split: parts whose durations do not add up stay edited', () => {
+test('cells split: parts whose durations do not add up stay edited', () => {
   const m = splitOf('A @ [@1 [0, 2]]');
   const [p0, p1] = m.notes.slice(5, 7);
   assert.deepEqual([p0.step, p1.step], [4, 6]);
@@ -480,7 +399,7 @@ test('fold 10 split: parts whose durations do not add up stay edited', () => {
   assert.equal(m.counts.cellSplit, 0);
 });
 
-test('fold 10 split: stops 0 to 9 do not read from', () => {
+test('cells split: stops 0 to 8 do not read from', () => {
   for (const src of ['A @ [@1 [0, 2]/]', '(A @ [@1 5]) @ [@1 [0, 2]/]', '(A @ [@1 [0, 2]/]) @ [@2 [0, 1]/]']) {
     const code = `A = [0, 4, 2, 1]\nT = A, (${src})\nT, (T * [2]), (T * [4])`;
     const t = golden.crux_trace(code);
@@ -490,34 +409,34 @@ test('fold 10 split: stops 0 to 9 do not read from', () => {
     const strip = f => { for (; f && !seen.has(f); f = f.next) { seen.add(f); if (f.from) { strip(f.from.origin); delete f.from; } } };
     for (const mot of t.sections) for (const p of mot.values) strip(p.origin);
     const old = foldModel(t);
-    assert.deepEqual(m.notes.map(n => n.pos.slice(0, 10)), old.notes.map(n => n.pos.slice(0, 10)), src);
-    assert.deepEqual(m.counts.positions.slice(0, 10), old.counts.positions.slice(0, 10), src);
+    assert.deepEqual(m.notes.map(n => n.pos.slice(0, 9)), old.notes.map(n => n.pos.slice(0, 9)), src);
+    assert.deepEqual(m.counts.positions.slice(0, 9), old.counts.positions.slice(0, 9), src);
     assert.equal(old.counts.cellSplit, 0, src);
     assert.ok(m.counts.cellSplit > 0, src);
   }
 });
 
-test('fold 10: the BWV 578 subject is one nug entry of 4 positions', () => {
+test('cells: the BWV 578 subject is one nug entry of 4 positions', () => {
   const lines = subjectLines();
-  const m = fold([...lines, 'subject = ar, d', 'subject'].join('\n'));
+  const m = fold([...lines, 'subject = ar, d', 'subject'].join('\n'), { core: [] });
   assert.deepEqual(m.dictionary.map(e => `${e.id} x${e.count}`), ['nug x1', 'nug#2 x2', 'nug#3 x2', 'nugb x2', 'nugd x2', 'a x1', 'd x1']);
   assert.equal(m.counts.positions[5], 14);
-  // No theme at stop 8: stops 9 and 10 open every entry in place.
+  // No theme at stop 8: the cells stop opens every entry in place.
   assert.equal(m.inward.themed, false);
   assert.deepEqual(cellsOf(m), [['entry', 'nug', 4, 18], ['entry', 'a', 1, 1], ['entry', 'd', 2, 2]]);
-  assert.equal(m.counts.positions[10], 7);
+  assert.equal(m.counts.positions[9], 7);
   // nugb and nugd change one note of nug each: bent notes at the cell level.
   assert.deepEqual(m.notes.filter(n => n.cellBent).map(n => [n.owner, n.cellBent]), [['nugb', -3], ['nugd', -2], ['nugb', -3], ['nugd', -2]]);
 });
 
-test('fold 10 split: in the full BWV 578 subject br and nugc fold onto b and nug', () => {
+test('cells split: in the full BWV 578 subject br and nugc fold onto b and nug', () => {
   const lines = subjectLines();
-  const m = fold([...lines, 'subject = ar, br, nugc, d', 'subject'].join('\n'));
+  const m = fold([...lines, 'subject = ar, br, nugc, d', 'subject'].join('\n'), { core: [] });
   assert.equal(m.counts.notes, 41);
   // br splits the -3 at b's note 5; nugc splits b's notes 1 and 3 and nug's
   // bent note 1. b has four places now: the split -3 is one of them.
   assert.deepEqual(cellsOf(m), [['entry', 'nug', 4, 27], ['entry', 'a', 1, 1], ['entry', 'b', 4, 11], ['entry', 'd', 2, 2]]);
-  assert.equal(m.counts.positions[10], 11);
+  assert.equal(m.counts.positions[9], 11);
   assert.equal(m.counts.cellSplit, 10);
   // Still edited: the three -3 notes that `.,` takes from its second operand.
   const edited = m.notes.filter(n => n.cell === 'b' && !n.split);
@@ -527,19 +446,19 @@ test('fold 10 split: in the full BWV 578 subject br and nugc fold onto b and nug
   assert.deepEqual(m.notes.filter(n => n.cell === 'nug' && n.split).map(n => n.cellBent), [-3, -7]);
 });
 
-test('fold 10: BWV 578 positions fall from stop 8 to 9 to 10, stops 0 to 8 unchanged', () => {
-  const m = fold(example('bach-bwv578.keylane.crux'));
+test('cells: BWV 578 positions fall from stop 8 to the cells stop, stops 0 to 8 unchanged', () => {
+  const m = fold(example('bach-bwv578.keylane.crux'), { core: [] });
   const p = m.counts.positions;
   assert.deepEqual(p.slice(0, 9), [1669, 1669, 1669, 1665, 1053, 829, 467, 379, 164]);
   assert.deepEqual(m.counts.shapes.slice(0, 9), [259, 259, 259, 259, 118, 73, 56, 52, 11]);
-  assert.ok(p[10] < p[9] && p[9] < p[8], p.join(' '));
-  const nug = m.inward.units[10].find(u => u.id === 'nug');
+  assert.ok(p[9] < p[8], p.join(' '));
+  const nug = m.inward.levels[0].units.find(u => u.id === 'nug');
   assert.equal(nug.positions, 4);
-  assert.ok(!m.inward.units[10].some(u => /^nug[#bd]/.test(u.id)));
-  for (const n of m.notes) assert.ok(n.pos[10] && Number.isFinite(n.pos[10].t) && Number.isFinite(n.pos[10].step) && Number.isFinite(n.pos[10].d));
+  assert.ok(!m.inward.levels[0].units.some(u => /^nug[#bd]/.test(u.id)));
+  for (const n of m.notes) assert.ok(n.pos[9] && Number.isFinite(n.pos[9].t) && Number.isFinite(n.pos[9].step) && Number.isFinite(n.pos[9].d));
 });
 
-// Stops 11 and on: focus levels. With one level, stop 11 is the core.
+// Stops 9 and on: focus levels. With one level, stop 9 is the core.
 
 const coreUnits = (m, i = 0) => m.inward.levels[i].units.map(u => [u.kind, u.id, u.positions, u.notes, u.attached || 0]);
 const kinds = (m, i) => m.notes.map(n => n.focus[i].kind);
@@ -557,29 +476,29 @@ const CORE_SRC = [
 
 test('focus: one level is the core stop', () => {
   const m = fold(CORE_SRC);
-  assert.equal(m.stops.length, 12);
-  assert.equal(m.stops[11], 'A');
+  assert.equal(m.stops.length, 10);
+  assert.equal(m.stops[9], 'A');
   assert.deepEqual(m.inward.levels.map(L => [L.kind, L.names, L.missing]), [['core', ['A'], []]]);
-  assert.equal(m.counts.shapes[11], 1);
-  assert.equal(m.counts.positions[11], 4);
+  assert.equal(m.counts.shapes[9], 1);
+  assert.equal(m.counts.positions[9], 4);
   assert.deepEqual(m.counts.core, { stated: 13, bent: 2, split: 2, attached: 3, hidden: 0 });
   assert.deepEqual(coreUnits(m), [['entry', 'A', 4, 16, 3]]);
   // A bent note and the parts of a split are core notes on their slot of A.
   const bent = m.notes.filter(n => n.cellBent && !n.split);
-  assert.deepEqual(bent.map(n => [n.owner, n.focus[0].kind, at(n, 11)]), [['B', 'core', '1/2'], ['B', 'core', '1/2']]);
+  assert.deepEqual(bent.map(n => [n.owner, n.focus[0].kind, at(n, 9)]), [['B', 'core', '1/2'], ['B', 'core', '1/2']]);
   const parts = m.notes.filter(n => n.split);
-  assert.deepEqual(parts.map(n => [n.focus[0].kind, at(n, 11)]), [['core', '2/1'], ['core', '2/1']]);
-  assert.ok(!('fold11' in m.notes[0]));
+  assert.deepEqual(parts.map(n => [n.focus[0].kind, at(n, 9)]), [['core', '2/1'], ['core', '2/1']]);
+  assert.ok(!('fold11' in m.notes[0]) && !('fold10' in m.notes[0]));
 });
 
 test('focus core: the host writes a literal of its own, which stacks on the nearest core note', () => {
   const m = fold(CORE_SRC);
   const att = m.notes.filter(n => n.focus[0].kind === 'attached');
   // H's [7] (twice) and S's [9]. Each follows the last note of A, at A's note 3.
-  assert.deepEqual(att.map(n => [n.owner, n.focus[0].host, n.focus[0].entry, at(n, 11)]),
+  assert.deepEqual(att.map(n => [n.owner, n.focus[0].host, n.focus[0].entry, at(n, 9)]),
     [['H', 'H', 'A', '3/3'], ['H', 'H', 'A', '3/3'], ['S', 'S', 'A', '3/3']]);
   // Attached notes add no position.
-  assert.equal(m.counts.positions[11], 4);
+  assert.equal(m.counts.positions[9], 4);
 });
 
 test('focus core: a definition that writes no notes is passed on the way to the host', () => {
@@ -599,67 +518,68 @@ test('focus core: a core note outside every theme is still core', () => {
   assert.deepEqual(s.map(n => n.focus[0].kind), ['core', 'core', 'core', 'core', 'core', 'attached']);
 });
 
-test('focus core: a note in no named shape is hidden and keeps its stop 10 position', () => {
+test('focus core: a note in no named shape is hidden and keeps its stop 8 position', () => {
   const m = fold(CORE_SRC.replace('H, (H * [2]), S', 'H, (H * [2]), S, [5, 6]'));
   const hid = m.notes.filter(n => n.focus[0].kind === 'hidden');
   assert.deepEqual(hid.map(n => n.step), [5, 6]);
   for (const n of hid) {
     assert.deepEqual(n.focus[0], { kind: 'hidden', unit: null, entry: null, host: null });
-    assert.deepEqual(n.pos[11], { ...n.pos[10], hidden: true });
+    assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true });
   }
   assert.equal(m.counts.core.hidden, 2);
   assert.equal(m.inward.levels[0].hidden, 2);
   // Counts do not count hidden notes: there is no residue marker.
-  assert.equal(m.counts.positions[11], 4);
-  assert.equal(m.counts.shapes[11], 1);
+  assert.equal(m.counts.positions[9], 4);
+  assert.equal(m.counts.shapes[9], 1);
 });
 
 test('focus: a missing name is listed; a level of missing names hides every note', () => {
   const m = fold(CORE_SRC.replace('// #core A', '// #core B A Q'));
   assert.deepEqual(m.inward.levels[0].names, ['A']);
   assert.deepEqual(m.inward.levels[0].missing, ['B', 'Q']);
-  assert.equal(m.stops[11], 'B A Q');
-  assert.equal(m.counts.shapes[11], 1);
+  assert.equal(m.stops[9], 'B A Q');
+  assert.equal(m.counts.shapes[9], 1);
   const m2 = fold(CORE_SRC.replace('// #core A', '// #core B'));
   assert.deepEqual([m2.inward.levels[0].names, m2.inward.levels[0].missing], [[], ['B']]);
-  assert.equal(m2.stops.length, 12);
+  assert.equal(m2.stops.length, 10);
   assert.deepEqual(m2.counts.core, { stated: 0, bent: 0, split: 0, attached: 0, hidden: m2.counts.notes });
-  assert.equal(m2.counts.positions[11], 0);
-  m2.notes.forEach(n => assert.deepEqual(n.pos[11], { ...n.pos[10], hidden: true }));
+  assert.equal(m2.counts.positions[9], 0);
+  m2.notes.forEach(n => assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true }));
   // In a shape level, a name that no note passed through is missing.
   const m3 = fold(CORE_SRC.replace('// #core A', '// #core H Q / A'));
   assert.deepEqual([m3.inward.levels[0].names, m3.inward.levels[0].missing], [['H'], ['Q']]);
 });
 
-test('focus: no core gives 11 stops', () => {
+test('focus: no core gives 10 stops, the last the cells stop', () => {
   const m = fold(CORE_SRC.replace('// #core A\n', ''));
-  assert.equal(m.stops.length, 11);
-  assert.equal(m.counts.shapes.length, 11);
-  assert.equal(m.counts.positions.length, 11);
-  assert.deepEqual(m.inward.levels, []);
+  assert.equal(m.stops.length, 10);
+  assert.equal(m.counts.shapes.length, 10);
+  assert.equal(m.counts.positions.length, 10);
+  assert.deepEqual(m.inward.levels.map(L => L.kind), ['cells']);
   assert.equal(m.counts.core, null);
   m.notes.forEach(n => {
-    assert.equal(n.pos.length, 11);
-    assert.deepEqual(n.focus, []);
+    assert.equal(n.pos.length, 10);
+    assert.equal(n.focus.length, 1);
+    assert.ok(['cell', 'residue'].includes(n.focus[0].kind));
   });
 });
 
 test('focus: the core option wins over the directive; arrays of arrays are levels', () => {
   const m = fold(CORE_SRC.replace('// #core A', '// #core Q'), { core: ['A'] });
   assert.deepEqual(m.inward.levels.map(L => L.names), [['A']]);
-  assert.equal(m.counts.positions[11], 4);
+  assert.equal(m.counts.positions[9], 4);
   const m2 = fold(CORE_SRC, { core: [['H', 'S'], ['A']] });
-  assert.deepEqual(m2.stops.slice(11), ['H S', 'A']);
+  assert.deepEqual(m2.stops.slice(9), ['H S', 'A']);
   assert.deepEqual(m2.inward.levels.map(L => L.kind), ['shapes', 'core']);
   const m3 = fold(CORE_SRC, { core: 'H S / A' });
-  assert.deepEqual(m3.stops.slice(11), ['H S', 'A']);
+  assert.deepEqual(m3.stops.slice(9), ['H S', 'A']);
 });
 
-test('focus: the directive changes no stop before 11', () => {
+test('focus: the directive changes no stop before 9', () => {
   const a = fold(CORE_SRC.replace('// #core A', '// #core H S / A')), b = fold(CORE_SRC.replace('// #core A\n', ''));
-  assert.deepEqual(a.counts.positions.slice(0, 11), b.counts.positions);
-  assert.deepEqual(a.counts.shapes.slice(0, 11), b.counts.shapes);
-  a.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 11), b.notes[k].pos));
+  assert.deepEqual(a.counts.positions.slice(0, 9), b.counts.positions.slice(0, 9));
+  assert.deepEqual(a.counts.shapes.slice(0, 9), b.counts.shapes.slice(0, 9));
+  a.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 9), b.notes[k].pos.slice(0, 9)));
 });
 
 // Two levels. B is named in the first level and is inside H, also named
@@ -675,8 +595,8 @@ const LEVELS_SRC = [
 
 test('focus: two levels, shapes then core', () => {
   const m = fold(LEVELS_SRC);
-  assert.equal(m.stops.length, 13);
-  assert.deepEqual(m.stops.slice(11), ['H B', 'A']);
+  assert.equal(m.stops.length, 11);
+  assert.deepEqual(m.stops.slice(9), ['H B', 'A']);
   assert.deepEqual(m.inward.levels.map(L => [L.kind, L.names, L.shown, L.attached, L.hidden]),
     [['shapes', ['H', 'B'], 18, 0, 8], ['core', ['A'], 24, 3, 2]]);
   // The entries are whole definitions, as written: H keeps its transposition
@@ -684,9 +604,9 @@ test('focus: two levels, shapes then core', () => {
   assert.deepEqual(coreUnits(m, 0), [['entry', 'B', 4, 4, 0], ['entry', 'H', 5, 14, 0]]);
   assert.equal(m.inward.levels[0].units[1].count, 3);
   const h = m.notes.filter(n => n.focus[0].unit === 'H' && n.voice === 0).slice(0, 5);
-  assert.deepEqual(h.map(n => at(n, 11)), ['4.5/1', '5.5/8', '6.5/2', '7.5/4', '8.5/7']);
-  assert.deepEqual(m.counts.shapes.slice(11), [2, 1]);
-  assert.deepEqual(m.counts.positions.slice(11), [9, 4]);
+  assert.deepEqual(h.map(n => at(n, 9)), ['4.5/1', '5.5/8', '6.5/2', '7.5/4', '8.5/7']);
+  assert.deepEqual(m.counts.shapes.slice(9), [2, 1]);
+  assert.deepEqual(m.counts.positions.slice(9), [9, 4]);
   assert.deepEqual(m.counts.core, { stated: 21, bent: 4, split: 2, attached: 3, hidden: 2 });
   for (const n of m.notes) assert.ok(n.focus.length === 2 && n.focus.every(f => ['shape', 'core', 'attached', 'hidden'].includes(f.kind)));
 });
@@ -707,8 +627,8 @@ test('focus: a hidden note keeps its last position, at every level', () => {
   assert.deepEqual(lit.map(n => n.step), [5, 6]);
   for (const n of lit) {
     assert.deepEqual(kindsOf(n), ['hidden', 'hidden']);
-    assert.deepEqual(n.pos[11], { ...n.pos[10], hidden: true });
-    assert.deepEqual(n.pos[12], n.pos[11]);
+    assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true });
+    assert.deepEqual(n.pos[10], n.pos[9]);
   }
 });
 const kindsOf = n => n.focus.map(f => f.kind);
@@ -720,8 +640,8 @@ test('focus: a note hidden at one level is attached at the next', () => {
   const s9 = m.notes.find(n => n.owner === 'S' && n.step === 9);
   assert.deepEqual(kindsOf(s9), ['hidden', 'attached']);
   assert.equal(s9.focus[1].host, 'S');
-  assert.ok(s9.pos[11].hidden && !s9.pos[12].hidden);
-  assert.equal(at(s9, 12), '3/3');
+  assert.ok(s9.pos[9].hidden && !s9.pos[10].hidden);
+  assert.equal(at(s9, 10), '3/3');
   const sA = m.notes.filter(n => n.focus[0].kind === 'hidden' && n.focus[1].kind === 'core');
   assert.equal(sA.length, 5);
   // H's [7] is a note of the shape H, then attached to A.
@@ -729,24 +649,25 @@ test('focus: a note hidden at one level is attached at the next', () => {
   assert.deepEqual(kinds(m, 1).filter(k => k === 'hidden').length, 2);
 });
 
-test('focus: BWV 578 with #core a nugb nugc nugd / nug has 13 stops', () => {
+test('focus: BWV 578 with #core a nugb nugc nugd / nug has 11 stops', () => {
   const src = example('bach-bwv578.keylane.crux');
   assert.ok(/^\/\/ #core a nugb nugc nugd \/ nug$/m.test(src));
   const m = fold(src), b = fold(src.replace(/^\/\/ #core .*\n/m, ''));
-  assert.equal(b.stops.length, 11);
-  assert.deepEqual(m.counts.positions.slice(0, 11), b.counts.positions);
-  assert.deepEqual(m.counts.shapes.slice(0, 11), b.counts.shapes);
-  m.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 11), b.notes[k].pos));
-  assert.equal(m.stops.length, 13);
-  assert.deepEqual(m.stops.slice(11), ['a nugb nugc nugd', 'nug']);
-  // Stop 11: the four shapes whole. Partial statements (ar \ 1, nugc \ 2) join them.
+  assert.equal(b.stops.length, 10);
+  assert.deepEqual(m.counts.positions.slice(0, 9), b.counts.positions.slice(0, 9));
+  assert.deepEqual(m.counts.shapes.slice(0, 9), b.counts.shapes.slice(0, 9));
+  m.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 9), b.notes[k].pos.slice(0, 9)));
+  assert.equal(m.stops.length, 11);
+  assert.deepEqual(m.stops.slice(9), ['a nugb nugc nugd', 'nug']);
+  // Stop 9: the four shapes whole. Partial statements (ar \ 1, nugc \ 2) join them.
   assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.positions]), [['a', 11], ['nugb', 4], ['nugc', 11], ['nugd', 4]]);
-  assert.equal(m.counts.shapes[11], 4);
-  assert.equal(m.counts.positions[11], 30);
+  assert.equal(m.counts.shapes[9], 4);
+  assert.equal(m.counts.positions[9], 30);
   assert.equal(m.inward.levels[0].hidden, 1396);
-  // Stop 12: nug, as the one-level core was.
-  assert.equal(m.counts.shapes[12], 1);
-  assert.equal(m.counts.positions[12], 4);
+  assert.equal(m.inward.levels[0].shown, 273);
+  // Stop 10: nug, as the one-level core was.
+  assert.equal(m.counts.shapes[10], 1);
+  assert.equal(m.counts.positions[10], 4);
   assert.deepEqual(m.inward.levels[1].units.map(u => [u.kind, u.id, u.positions]), [['entry', 'nug', 4]]);
   const c = m.counts.core;
   assert.equal(c.stated + c.attached + c.hidden, m.counts.notes);
@@ -754,4 +675,89 @@ test('focus: BWV 578 with #core a nugb nugc nugd / nug has 13 stops', () => {
   // The hosts of nug are a, b and d.
   const hosts = new Set(m.notes.filter(n => n.focus[1].kind === 'attached').map(n => n.focus[1].host));
   assert.deepEqual([...hosts].sort(), ['a', 'b', 'd']);
+});
+
+// Stops after 8: order and place (docs/plans/crux-fold-inward.md, "Fewer
+// stops, stable order").
+
+test('order: no #core gives one cells stop; core [] turns the directive off', () => {
+  const m = fold('A = [0, 4, 2, 1]\nT = A, (A \\ 1)\nT, (T * [2]), (T * [4])');
+  assert.equal(m.stops.length, 10);
+  assert.equal(m.stops[9], 'cells');
+  assert.deepEqual(m.inward.levels.map(L => [L.kind, L.names, L.missing, L.hidden]), [['cells', [], [], 0]]);
+  assert.ok(m.notes.every(n => n.pos.length === 10 && n.focus.length === 1 && n.focus[0].kind === 'cell'));
+  assert.ok(m.notes.every(n => !('fold9' in n) && !('fold10' in n)));
+  assert.ok(!('units' in m.inward));
+  assert.equal(m.counts.core, null);
+  const off = fold(CORE_SRC, { core: [] });
+  assert.equal(off.stops.length, 10);
+  assert.equal(off.inward.levels[0].kind, 'cells');
+});
+
+test('order: a shape that does not change keeps its x at the cells stop', () => {
+  // T opens to c1 and c2, which are smaller than T. M is a theme by itself.
+  const m = fold('// #theme T M\nc1 = [0, 2, 1]\nc2 = [4, 3, 5, 4]\nT = c1, (c1 * [3]), c2\nM = [6, 6, 9, 2, 2, 11] || [2]\nT, M, (T * [2]), (M * [1]), (T * [4]), (M * [2])');
+  assert.deepEqual(m.thematic.units[8].map(u => [u.id, u.x, u.width]), [['T', 0, 10], ['M', 10.5, 6]]);
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x, u.width]), [['c1', 0, 3], ['c2', 6, 4], ['M', 10.5, 6]]);
+  // M's notes and the notes of T that stay in place do not move.
+  const M = m.notes.filter(n => n.fold8.unit === 'M');
+  assert.equal(M.length, 18);
+  M.forEach(n => assert.equal(at(n, 9), at(n, 8)));
+  const moved = m.notes.filter(n => at(n, 9) !== at(n, 8));
+  assert.ok(moved.every(n => n.fold8.unit === 'T' && n.owner === 'c1'));
+  assert.equal(moved.length, 9);
+});
+
+test('order: a shape with edited notes stays between its neighbours', () => {
+  // E's notes are all made by @, so it has no literal position. In source
+  // order it would come last; at stop 8 it lies between c1 and c2.
+  const m = fold('c1 = [0, 2, 1]\nE = [0, 1] @ [@0 [5, 6, 7], @1 [8, 9, 4]]\nc2 = [4, 3, 5, 4]\nT = c1, E, c2\nT, (T * [2]), (T * [4])');
+  assert.equal(m.dictionary.find(e => e.id === 'E').litPos, null);
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x]), [['c1', 0], ['E', 3.5], ['c2', 10]]);
+  // No note goes left of a note that was left of it at stop 8, in another shape.
+  const first = m.notes.slice(0, 13);
+  for (let k = 1; k < first.length; k++) assert.ok(first[k].pos[9].t > first[k - 1].pos[9].t, `note ${k}`);
+});
+
+test('order: a focus level lays its shapes out in the order of the stop before', () => {
+  // A comes first in the source, B first in the theme H at stop 8.
+  const m = fold('// #theme H\n// #core A B\nA = [0, 2, 1, 3]\nB = [5, 4, 3, 2]\nH = B, A\nH, (H * [2])');
+  assert.deepEqual(m.dictionary.map(e => e.id), ['A', 'B']);
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x]), [['B', 0], ['A', 4.5]]);
+  // Packed from 0: B's notes stay where they are, A's close the gap.
+  m.notes.filter(n => n.owner === 'B').forEach(n => assert.equal(at(n, 9), at(n, 8)));
+  // Two levels: the second takes its order from the first.
+  const m2 = fold('// #theme H\n// #core B A / A B\nA = [0, 2, 1, 3]\nB = [5, 4, 3, 2]\nH = B, A\nH, (H * [2])');
+  assert.deepEqual(m2.inward.levels.map(L => L.units.map(u => u.id)), [['B', 'A'], ['B', 'A']]);
+});
+
+test('order: BWV 578 without the core directive, the shapes right of CS keep their order', () => {
+  const m = fold(example('bach-bwv578.keylane.crux'), { core: [] });
+  assert.equal(m.stops.length, 10);
+  assert.equal(m.counts.shapes[9], 18);
+  assert.equal(m.counts.positions[9], 134);
+  // The order of the stop 8 units holds at the cells stop.
+  const from = new Map();
+  for (const n of m.notes) if (n.fold8.kind !== 'residue') from.set(n.focus[0].unit, n.fold8.unit);
+  const units8 = m.thematic.units[8].filter(u => u.kind !== 'residue').map(u => u.id);
+  const order = m.inward.levels[0].units.filter(u => u.kind !== 'residue').map(u => units8.indexOf(from.get(u.id)));
+  assert.deepEqual(order, order.slice().sort((x, y) => x - y));
+  // link is in place, and so are the cells of the subject at their first note.
+  m.notes.filter(n => n.fold8.unit === 'link').forEach(n => assert.equal(at(n, 9), at(n, 8)));
+  const x = id => m.inward.levels[0].units.find(u => u.id === id).x;
+  assert.deepEqual(['nug', 'a', 'b', 'd', 'link', 'tail'].map(x), [0, 20, 32, 60, 70.5, 79]);
+});
+
+test('order: at the cells stop found units and the residue marker keep their stop 8 place', () => {
+  const src = 'M = [0, 3, 1, 2] || [1/4]\nM, (M * [3]), [9, 20, 15, 30, 10, 21, 16, 31, 11, 22, 17, 32], [0 | 1/2, 5 | 1/8, -3 | 1]';
+  const m = fold(src, { showFound: true });
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.kind, u.id, u.x, u.positions, u.notes]),
+    [['entry', 'M', 0, 4, 8], ['found', 'F1', 4.5, 4, 12], ['residue', 'residue', 9, 1, 3]]);
+  assert.deepEqual(m.notes.map(n => n.focus[0].kind), [...Array(8).fill('cell'), ...Array(12).fill('found'), ...Array(3).fill('residue')]);
+  m.notes.forEach(n => assert.equal(at(n, 9), at(n, 8)));
+  assert.equal(m.counts.shapes[9], 2);
+  // Without showFound the found notes are residue at stop 8, and stay there.
+  const r = fold(src);
+  assert.deepEqual(r.inward.levels[0].units.map(u => [u.kind, u.id, u.positions]), [['entry', 'M', 4], ['residue', 'residue', 1]]);
+  assert.ok(r.notes.filter(n => n.fold8.kind === 'residue').every(n => n.focus[0].kind === 'residue' && n.focus[0].entry === null));
 });

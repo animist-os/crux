@@ -7,30 +7,16 @@
 // dictionary (one entry per distinct shape, with its count); the residue
 // (shapes with no definition that occur once); the repeats and near-misses
 // found at stops 6 and 7; the themes left at stop 8 with the notes each
-// explains; the cells the themes are made of (stop 10); the focus levels
-// named by `// #core` (stops 11 and on: shapes, then the core and the notes
-// stacked on it, and the notes hidden at each); a summary of the
-// instance tree; and the numbers from
+// explains; the stops after 8: the focus levels named by `// #core` (stops
+// 9 and on: shapes, then the core and the notes stacked on it, and the notes
+// hidden at each) or, without `#core`, the cells the themes are made of
+// (stop 9); a summary of the instance tree; and the numbers from
 // tools/reduction-score.js. See docs/crux-agent-guide.md.
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 import '../src/index.js';
 import { foldModel } from '../src/fold/model.js';
 import { reductionScore } from './reduction-score.js';
-
-const STOPS = [
-  '0 heard',
-  '1 scale steps',
-  '2 no transposition',
-  '3 no mirror, reverse or stretch',
-  '4 no repetition',
-  '5 no nesting',
-  '6 no unstated repeats',
-  '7 near-misses folded',
-  '8 themes only',
-  '9 themes opened',
-  '10 cells',
-];
 
 export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   const m = foldModel(globalThis.golden.crux_trace(code), { minLength });
@@ -39,7 +25,7 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   lines.push(`notes ${c.notes}, pips written ${c.pipsWritten}, leverage ${c.leverage.toFixed(2)} notes per pip` +
     (c.edited ? `, edited ${c.edited}` : ''));
   lines.push('', 'stop                               shapes  positions');
-  [...STOPS, ...m.stops.slice(STOPS.length).map((name, i) => `${STOPS.length + i} ${name}`)].forEach((name, s) => {
+  m.stops.map((name, s) => `${s} ${name}`).forEach((name, s) => {
     lines.push(`  ${name.padEnd(33)}${String(c.shapes[s]).padStart(6)}  ${String(c.positions[s]).padStart(9)}`);
   });
   lines.push('', 'dictionary (source order)');
@@ -83,19 +69,20 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   lines.push(`  ${'residue'.padEnd(8)} ${''.padEnd(6)} ${String(rz.positions).padStart(3)} positions ${String(rz.notes).padStart(5)} notes` +
     (rz.cells.length ? `  (${rz.unexplained} not explained, cells with no theme: ${rz.cells.map(a => `${a.owner} ${a.notes}`).join(', ')})` : ''));
   const e = c.explained;
-  const bentIn = id => m.notes.filter(n => n.fold10.unit === id && n.cellBent && !n.split).length;
-  const splitIn = id => m.notes.filter(n => n.fold10.unit === id && n.split).length;
-  lines.push('', `stop 10: cells (entries the themes reach${m.inward.themed ? '' : '; no theme at stop 8, so all entries'}; bent: notes an edit moves off the cell; split: notes that \`@\` put in the place of one note)`);
-  for (const u of m.inward.units[10]) {
-    lines.push(`  ${String(u.id).padEnd(12)} ${u.kind === 'entry' ? ('x' + u.count).padEnd(5) : ''.padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(u.notes).padStart(5)} notes` +
-      (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : '') + (splitIn(u.id) ? `, ${splitIn(u.id)} split` : ''));
-  }
-  lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes; split: ${c.cellSplit} notes`);
-  const levels = m.inward.levels;
-  if (!levels.length) lines.push('', 'stops 11 and on: no focus levels (no #core)');
-  levels.forEach((L, i) => {
-    const k = 11 + i, last = L.kind === 'core';
+  m.inward.levels.forEach((L, i) => {
+    const k = 9 + i;
     const inK = (id, f) => m.notes.filter(n => n.focus[i].unit === id && f(n)).length;
+    if (L.kind === 'cells') {
+      lines.push('', `stop ${k}: cells (entries the themes reach${m.inward.themed ? '' : '; no theme at stop 8, so all entries'}; no #core; bent: notes an edit moves off the cell; split: notes that \`@\` put in the place of one note)`);
+      for (const u of L.units) {
+        const bent = inK(u.id, n => n.cellBent && !n.split), split = inK(u.id, n => n.split);
+        lines.push(`  ${String(u.id).padEnd(12)} ${u.kind === 'entry' ? ('x' + u.count).padEnd(5) : ''.padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(u.notes).padStart(5)} notes` +
+          (bent ? `, ${bent} bent` : '') + (split ? `, ${split} split` : ''));
+      }
+      lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes; split: ${c.cellSplit} notes`);
+      return;
+    }
+    const last = L.kind === 'core';
     lines.push('', `stop ${k}: ${last ? 'core' : 'shapes'} ${m.stops[k]}` +
       (L.missing.length ? ` (${last ? 'no cell-level entry' : 'no note'} for ${L.missing.join(' ')})` : '') +
       (last ? '; attached: notes the core\'s hosts write' : '') + '; hidden: notes in no named shape');

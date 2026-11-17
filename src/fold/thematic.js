@@ -590,7 +590,7 @@ export function thematicFolds({ notes, recs, entries, relate, written }, options
     const owner = pl.F.entry.name ?? pl.F.entry.id;
     return { pos, bent: finalOf(S, 7).bent, explainedBy: explainedOf(S),
       // rep: a note of the slot this note sits on at stop 8, the theme's (or
-      // found shape's) own note there. Stops 9 and 10 open the themes from it.
+      // found shape's) own note there. The cells stop opens the themes from it.
       fold8: { unit: p8.unit.id, kind: pl.kind, owner: pl.kind === 'attached' || pl.kind === 'residue' ? owner : null,
         rep: pl.H ? pl.H.first.id : null },
       unit6: layouts[6].at.get(finalOf(S, 6).S).unit, unit7: layouts[7].at.get(finalOf(S, 7).S).unit, unit8: p8.unit };

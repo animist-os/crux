@@ -786,3 +786,134 @@ the shape has no other notes.
 - Tests: crux 634 before, 635 after (5 stop 9 tests out; 6 order tests in,
   one of them for found units and the residue marker at the cells stop,
   which only the old stop 9 tests covered). Golden 49 before and after.
+
+## Shown stops (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 8. Not committed. Browser
+check pending. See "Notes from the build (change set 8)".
+
+### What Andy asked
+
+"Can we just get rid of 8, 9 and 5?" He was looking at the build before
+change set 7 (13 buttons: 5 nesting, 8 themes, 9 opened, 10 cells, 11 a+,
+12 nug). Change set 7 has removed "opened" already, and "cells" for a
+program with `#core`. What is left to remove: "nesting" (5) and, for a
+program with `#core`, "themes" (8).
+
+### Rule
+
+The model keeps its stops and their numbers (`pos[k]`, `stops[k]`, counts):
+they are steps of the analysis, and later steps read earlier ones. What
+changes is which of them the slider shows. The model gets
+
+```
+shown: [0, 1, 2, 3, 4, 6, 7, 9, 10]      BWV 578 with #core
+shown: [0, 1, 2, 3, 4, 6, 7, 8, 9]       a program without #core
+```
+
+- Stop 5 (nesting) is never shown.
+- Stop 8 (themes) is shown only when the program has no `#core` levels.
+- Every stop after 8 is shown.
+
+Option `shown` of `crux_fold` (an array of stop numbers) replaces the rule,
+for tests and for later use. Numbers that the model does not have are left
+out. Stop 0 is always first.
+
+BWV 578 then has 9 buttons: heard, steps, transp., mirror, repeats, found,
+near, a+, nug.
+
+### "The stop before"
+
+Two rules of the levels read the stop before: the order of the shapes (the
+smallest x of a shape's shown notes at the stop before), and the place of a
+hidden note (it keeps the position it had). Both must use the stop before
+in `shown`, not stop k - 1. With `#core`, the first level comes after stop
+7, so a hidden note stays at its stop 7 position and the shapes are ordered
+by their stop 7 x. A note must never pass through the layout of a stop
+that is not shown.
+
+For a program without `#core` nothing changes here: stop 8 is shown, and
+the cells stop reads it.
+
+### Hosts and report
+
+- Golden: the slider and the buttons run over `shown`. The slider value is
+  a place in `shown` (0 to `shown.length - 1`); between two places the view
+  moves each note from `pos[shown[i]]` to `pos[shown[i + 1]]`. A button
+  shows its place and the label (`5 found`), so the numbers on screen have
+  no holes. Everything that reads a stop number (`prepare`, frame, colour,
+  opacity, bent mark, cap mark, hidden, counts text, `goTo`, the "found"
+  button that speaks of stop 8) goes through `shown`. `CruxFold.STOPS` and
+  `STOP_LABELS` stay as the fixed analysis stops.
+- `fold-report.js`: the table keeps every stop of the model, with a mark on
+  the rows that the slider does not show, and one line that lists `shown`.
+- Guide 1.8: the difference between the stops of the model and the stops
+  that are shown.
+
+### Change set 8
+
+- [x] `shown` by the rule; option `shown`
+- [x] levels read the stop before in `shown` (order, hidden place)
+- [x] report
+- [x] tests: `shown` with and without `#core`; the option; a hidden note
+      at the first level keeps its stop 7 position; with `#core`, no
+      `pos[9]` equals a stop 8 position that differs from the note's stop
+      7 position
+- [x] guide
+- [x] rebuild; Golden slider, buttons and helpers over `shown`; tests
+
+### Checks
+
+- BWV 578 report rows 0 to 8 are the same as before this change set. The
+  rows of stops 9 and 10 keep their shapes and positions (4 and 30; 1 and
+  4) and their shown, hidden, core and attached counts.
+- BWV 578: `shown` is `[0, 1, 2, 3, 4, 6, 7, 9, 10]`.
+- crux 635 tests pass before; Golden 49.
+
+### Notes from the build (change set 8)
+
+- `model.shown` is set by the rule, or by the option `shown`: numbers the
+  model does not have are left out, the rest are sorted (the plan does not
+  say; "the stop before" needs an order), and stop 0 is put first. A level
+  of names that are all missing is still a level, so stop 8 is not shown
+  there either.
+- "The stop before" of stop k is the last shown stop under k
+  (`stopBefore`). Stop 0 has no position in the model, so a list with no
+  shown stop between 1 and k - 1 reads stop 1. The rule that a note on the
+  residue marker does not count for the key of its shape now applies when
+  the stop before is 8 (it was: when k is 9). At stop 7 those notes have
+  their own positions.
+- BWV 578: `shown` `[0, 1, 2, 3, 4, 6, 7, 9, 10]`; with `core: []`, `[0, 1,
+  2, 3, 4, 6, 7, 8, 9]`. Report rows 0 to 10 are the same; stops 9 and 10
+  keep their shapes, positions and counts. The order at stop 9 changes:
+  nugc 0-14, a 14.5-25.5, nugb 26-30, nugd 30.5-34.5 (it was a, nugb, nugc,
+  nugd), because at stop 7 a note of nugc lies left of every note of a.
+  The 1396 hidden notes at stop 9 keep their stop 7 position. From stop 7
+  to stop 9, 273 notes move (the shown ones); from stop 4 to stop 6, all
+  1669. Without `#core` nothing after stop 8 changes.
+- The fold report marks the rows of stops that are not shown with
+  `(not shown)` at the end of the row, so the columns do not change, and
+  lists `shown` under the table.
+- Golden: `prepare` keeps `P`, `ext`, `names` and `labels` by stop of the
+  model and adds `view.shown` (and `note.shown`). A slider value is a place.
+  `span` gives the two shown stops around it; `frameAt`, `noteAlpha`,
+  `bentMark`, `capMark` interpolate between them, and `countsAt`,
+  `hiddenAt`, `ownerAt`, `unitBadges`, `stackCounts` read the stop at the
+  nearest place (`stopAt`). `stopsOf` is the number of places. `buttonsOf`
+  gives place, stop, label and name; the buttons show `place label`.
+  `frameAt` also returns `a`, `b`, `k` (the stop at the nearest place) and
+  `grid`; the UI uses `k` and `grid` where it compared the slider value
+  with a stop (pitch colour at stop 0, the dimmer bars from stop 4, the
+  beat grid and playhead to stop 2). `countsAt` returns `stop` (the place,
+  for the "stop N: name" text) and `k`. A note without `shown` (one not made
+  by `prepare`) shows every stop.
+- The residue no longer dims on the way to stop 9 when stop 8 is not shown:
+  the opacity goes from stop 7 to stop 9 directly.
+- The "found" button changes only stop 8 and the cells stop. It is hidden
+  when the slider does not show stop 8, and its title gives the place of
+  stop 8 when it does.
+- Tests: crux 635 before, 638 after (3 new; 4 changed: hidden notes keep
+  their stop 7 position, and the stop 9 order of BWV 578). Golden 49
+  before, 53 after. The older Golden tests fold with every stop shown
+  (option `shown`), so their slider values are still stops of the model;
+  4 new tests use the model's own list.

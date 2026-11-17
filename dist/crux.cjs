@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-17T19:01:23.434Z
+// Generated: 2026-11-17T20:53:55.224Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4430,7 +4430,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T19:01:23.434Z";
+golden.cruxBuiltAt = "2026-11-17T20:53:55.224Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -6618,7 +6618,8 @@ return thematicFolds;
 //   7  near-misses folded onto the program's definitions (thematic.js)
 //   8  themes only, with a residue group for what no theme explains (thematic.js)
 //   9+ one stop for each level after stop 8, laid out in the order (and, at
-//      the cells stop, the place) the shapes had at the stop before:
+//      the cells stop, the place) the shapes had at the stop before on the
+//      slider (see `shown` below):
 //      - with `// #core a b / c` (or options.core), one focus level for each
 //        level named there. A level before the last shows the named
 //        definitions whole; the last shows the cell-level entries of its
@@ -6629,6 +6630,11 @@ return thematicFolds;
 //        of a definition fold onto it (an edited note keeps its offset in
 //        cellBent), and the pips that `@` put in the place of one pip stack
 //        on that pip (note.split)
+//
+// The model keeps every stop. `shown` lists the stops a host's slider shows:
+// all but 5 (nesting), and 8 (themes) only when the program has no `#core`
+// level. options.shown (an array of stop numbers) replaces the rule. "The
+// stop before" of a level is the last shown stop under it.
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -7197,6 +7203,7 @@ function foldModel(trace, options = {}) {
   // program, or options.core, names by hand, one stop for each level; or,
   // without them, the cells stop.
   const themed = th.summary.units[8].some(u => u.kind === 'theme');
+  let shown = null; // set by focusLevels, before the levels are laid out
   const levels = focusLevels(cellLevel);
   notes.forEach((n, k) => { n.focus = levels.map(Lv => Lv.at[k]); });
   const nStops = 9 + levels.length;
@@ -7237,6 +7244,7 @@ function foldModel(trace, options = {}) {
     counts,
     thematic: th.summary,
     inward: { themed, levels: levels.map(Lv => Lv.info) },
+    shown,
     stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
       'no unstated repeats', 'near-misses folded', 'themes only', ...levels.map(Lv => Lv.title)],
   };
@@ -7246,8 +7254,8 @@ function foldModel(trace, options = {}) {
   // one level, an array of arrays is several; [] turns the directive off).
   // Each level is one stop, in order. Only what the program states is used.
   // At a focus level a note that belongs to no named shape is hidden: it
-  // keeps its position of the stop before (pos.hidden is true), and counts do
-  // not count it.
+  // keeps its position of the stop before on the slider (pos.hidden is true),
+  // and counts do not count it.
   // - A level before the last shows whole definitions, as written: a note
   //   belongs to the outermost named definition of the level that it passed
   //   through (analysePip with only `named`). buildLevel gives one copy of
@@ -7276,7 +7284,27 @@ function foldModel(trace, options = {}) {
     const made = lists.length
       ? lists.map((names, i) => Object.assign(i === lists.length - 1 ? coreLevel(L, names) : shapeLevel(names), { title: names.join(' ') }))
       : [cellsLevel(L)];
+    shown = shownStops(9 + made.length, lists.length > 0);
     return made.map((Lv, i) => layOut(Lv, 9 + i));
+  }
+
+  // The stops the slider shows, of the n stops of the model: every stop but
+  // 5 (nesting), and 8 (themes) only when there is no focus level (`core`).
+  // options.shown, an array of stop numbers, replaces the rule: numbers the
+  // model does not have are left out, the rest are sorted, and stop 0 is
+  // always first.
+  function shownStops(n, core) {
+    const given = options.shown;
+    const list = Array.isArray(given)
+      ? [...new Set(given.map(Number))].filter(k => Number.isInteger(k) && k > 0 && k < n).sort((a, b) => a - b)
+      : Array.from({ length: n }, (_, k) => k).filter(k => k > 0 && k !== 5 && !(k === 8 && core));
+    return [0, ...list];
+  }
+
+  // The stop before stop k: the last shown stop under k. Stop 0 has no
+  // position in the model (the host adds pitch to stop 1), so it reads as 1.
+  function stopBefore(k) {
+    return Math.max(1, ...shown.filter(s => s < k));
   }
 
   // Units of a level: one for each entry, in source order (layOut orders and
@@ -7300,9 +7328,11 @@ function foldModel(trace, options = {}) {
   }
 
   // Order and place of the units of level Lv at stop k, then positions,
-  // focus entries and the summary. The key of a unit is the smallest x at
-  // stop k - 1 of its notes that are shown there; a note on the residue
-  // marker of stop 8 does not count, unless the unit has no other notes.
+  // focus entries and the summary. The stop before (b) is the last shown
+  // stop under k (stopBefore), so that no note passes through the layout of
+  // a stop the slider does not show. The key of a unit is the smallest x at
+  // stop b of its notes that are shown there; when b is 8, a note on the
+  // residue marker does not count, unless the unit has no other notes.
   // Ties keep source order. The residue marker comes last. At the cells stop
   // (Lv.keep) a unit starts at its key when there is room, and otherwise
   // right after the unit before it; at a focus level the units are packed
@@ -7311,13 +7341,14 @@ function foldModel(trace, options = {}) {
   // position. A hidden note keeps the position of the stop before.
   function layOut(Lv, k) {
     const { place, units } = Lv;
+    const b = stopBefore(k);
     const key = new Map(), any = new Map();
     const low = (m, U, t) => m.set(U, Math.min(m.has(U) ? m.get(U) : Infinity, t));
     place.forEach((h, j) => {
       if (!h.U) return;
-      const p = notes[j].pos[k - 1];
+      const p = notes[j].pos[b];
       low(any, h.U, p.t);
-      if (!p.hidden && !(k === 9 && notes[j].fold8.kind === 'residue')) low(key, h.U, p.t);
+      if (!p.hidden && !(b === 8 && notes[j].fold8.kind === 'residue')) low(key, h.U, p.t);
     });
     const keyOf = U => (key.has(U) ? key.get(U) : any.has(U) ? any.get(U) : Infinity);
     const order = units.map((U, i) => ({ U, i }))
@@ -7332,7 +7363,7 @@ function foldModel(trace, options = {}) {
     }
     notes.forEach((n, j) => {
       const h = place[j];
-      if (!h.U) { n.pos[k] = { ...n.pos[k - 1], hidden: true }; return; }
+      if (!h.U) { n.pos[k] = { ...n.pos[b], hidden: true }; return; }
       const p = n.pos[k] = { ...h.r, t: h.U.x + h.r.t };
       if (h.kind !== 'attached') h.U.keys.add(r9(p.t) + '|' + r9(p.step));
       h.U.notes++;

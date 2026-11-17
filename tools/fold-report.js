@@ -11,7 +11,9 @@
 // 9 and on: shapes, then the core and the notes stacked on it, and the notes
 // hidden at each) or, without `#core`, the cells the themes are made of
 // (stop 9); a summary of the instance tree; and the numbers from
-// tools/reduction-score.js. See docs/crux-agent-guide.md.
+// tools/reduction-score.js. The stop table has every stop of the model; the
+// stops a host's slider does not show (model.shown) are marked. See
+// docs/crux-agent-guide.md.
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 import '../src/index.js';
@@ -26,8 +28,10 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
     (c.edited ? `, edited ${c.edited}` : ''));
   lines.push('', 'stop                               shapes  positions');
   m.stops.map((name, s) => `${s} ${name}`).forEach((name, s) => {
-    lines.push(`  ${name.padEnd(33)}${String(c.shapes[s]).padStart(6)}  ${String(c.positions[s]).padStart(9)}`);
+    lines.push(`  ${name.padEnd(33)}${String(c.shapes[s]).padStart(6)}  ${String(c.positions[s]).padStart(9)}` +
+      (m.shown.includes(s) ? '' : '  (not shown)'));
   });
+  lines.push(`  shown on the slider: ${m.shown.join(' ')}`);
   lines.push('', 'dictionary (source order)');
   for (const e of m.dictionary) {
     if (e.residue) continue;

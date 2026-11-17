@@ -283,10 +283,31 @@ names is one level, an array of arrays is several, a string is read as the
 directive, and `[]` turns the directive off. The model has `9 + levels`
 stops with `#core`, and 10 without.
 
+The stops of the model and the stops a host shows are not the same list.
+The model keeps every stop: `pos[k]`, `stops[k]` and the counts are steps of
+the analysis, and later steps read earlier ones. `shown` lists the stops
+that a host's slider shows, in order:
+
+- Stop 5 (nesting) is never shown.
+- Stop 8 (themes) is shown only when the program has no `#core` level.
+- Every other stop is shown.
+
+So BWV 578 with `#core` has 11 stops and `shown` `[0, 1, 2, 3, 4, 6, 7, 9,
+10]`; without `#core` (or with `core: []`) it has 10 stops and `shown` `[0,
+1, 2, 3, 4, 6, 7, 8, 9]`. The option `shown` of `crux_fold` (an array of
+stop numbers) replaces the rule. Numbers the model does not have are left
+out, the rest are sorted, and stop 0 is always first. A host numbers its
+buttons by place in `shown`, so the numbers on screen have no holes, and
+moves a note from `pos[shown[i]]` to `pos[shown[i + 1]]`.
+
+"The stop before" a stop k after 8 is the last stop in `shown` under k, not
+k - 1. So no note passes through the layout of a stop that is not shown.
+With `#core` the first level comes after stop 7.
+
 Every stop after 8 lays its shapes out in the order they had at the stop
 before. The key of a shape is the smallest x of its notes that are shown at
-the stop before; a note on the residue marker of stop 8 does not count,
-unless the shape has no other notes. Ties keep source order.
+the stop before; when the stop before is 8, a note on the residue marker
+does not count, unless the shape has no other notes. Ties keep source order.
 
 The cell level. A partial statement (`A \ 1`) joins the full entry of its
 definition, and an edited statement (`A @ [@1 5]`) stays with the definition
@@ -357,12 +378,14 @@ other matches.
     same host use that is nearest in time (the earlier one on a tie), and
     adds no position. `focus[i].host` is the host's name.
 - At every focus level a note that belongs to no named shape is `hidden`.
-  It keeps its position of the stop before, with `pos[k].hidden` true.
+  It keeps its position of the stop before (stop 7 at the first level, by
+  the rule), with `pos[k].hidden` true.
   Hosts fade it out on the way to the stop and draw nothing for it there.
   There is no residue marker. Counts at these stops do not count hidden
   notes.
-- The themes of stop 8 play no part, except in the order of the shapes. A
-  core note that no theme reaches is still a core note.
+- The themes of stop 8 play no part (the stop before the first level is 7,
+  unless the option `shown` has 8). A core note that no theme reaches is
+  still a core note.
 - A name with no note in a shape level, or with no cell-level entry in the
   core level (a definition that writes no note of its own, such as `nugb`),
   is listed in `missing` for that level. A level whose names are all
@@ -382,7 +405,8 @@ core level (`stated` counts all core notes; `bent` and `split` are parts of
 it), or `null` without `#core`.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
-text.
+text. Its stop table has every stop of the model, marks the stops that are
+not shown, and lists `shown`.
 
 ## 2. What a host must decide
 

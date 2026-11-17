@@ -518,13 +518,14 @@ test('focus core: a core note outside every theme is still core', () => {
   assert.deepEqual(s.map(n => n.focus[0].kind), ['core', 'core', 'core', 'core', 'core', 'attached']);
 });
 
-test('focus core: a note in no named shape is hidden and keeps its stop 8 position', () => {
+test('focus core: a note in no named shape is hidden and keeps its stop 7 position', () => {
   const m = fold(CORE_SRC.replace('H, (H * [2]), S', 'H, (H * [2]), S, [5, 6]'));
   const hid = m.notes.filter(n => n.focus[0].kind === 'hidden');
   assert.deepEqual(hid.map(n => n.step), [5, 6]);
   for (const n of hid) {
     assert.deepEqual(n.focus[0], { kind: 'hidden', unit: null, entry: null, host: null });
-    assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true });
+    // Stop 8 is not shown when the program has #core: the stop before is 7.
+    assert.deepEqual(n.pos[9], { ...n.pos[7], hidden: true });
   }
   assert.equal(m.counts.core.hidden, 2);
   assert.equal(m.inward.levels[0].hidden, 2);
@@ -544,7 +545,7 @@ test('focus: a missing name is listed; a level of missing names hides every note
   assert.equal(m2.stops.length, 10);
   assert.deepEqual(m2.counts.core, { stated: 0, bent: 0, split: 0, attached: 0, hidden: m2.counts.notes });
   assert.equal(m2.counts.positions[9], 0);
-  m2.notes.forEach(n => assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true }));
+  m2.notes.forEach(n => assert.deepEqual(n.pos[9], { ...n.pos[7], hidden: true }));
   // In a shape level, a name that no note passed through is missing.
   const m3 = fold(CORE_SRC.replace('// #core A', '// #core H Q / A'));
   assert.deepEqual([m3.inward.levels[0].names, m3.inward.levels[0].missing], [['H'], ['Q']]);
@@ -627,7 +628,7 @@ test('focus: a hidden note keeps its last position, at every level', () => {
   assert.deepEqual(lit.map(n => n.step), [5, 6]);
   for (const n of lit) {
     assert.deepEqual(kindsOf(n), ['hidden', 'hidden']);
-    assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true });
+    assert.deepEqual(n.pos[9], { ...n.pos[7], hidden: true });
     assert.deepEqual(n.pos[10], n.pos[9]);
   }
 });
@@ -659,8 +660,9 @@ test('focus: BWV 578 with #core a nugb nugc nugd / nug has 11 stops', () => {
   m.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 9), b.notes[k].pos.slice(0, 9)));
   assert.equal(m.stops.length, 11);
   assert.deepEqual(m.stops.slice(9), ['a nugb nugc nugd', 'nug']);
-  // Stop 9: the four shapes whole. Partial statements (ar \ 1, nugc \ 2) join them.
-  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.positions]), [['a', 11], ['nugb', 4], ['nugc', 11], ['nugd', 4]]);
+  // Stop 9: the four shapes whole. Partial statements (ar \ 1, nugc \ 2) join
+  // them. Their order is that of stop 7, the stop before on the slider.
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.positions]), [['nugc', 11], ['a', 11], ['nugb', 4], ['nugd', 4]]);
   assert.equal(m.counts.shapes[9], 4);
   assert.equal(m.counts.positions[9], 30);
   assert.equal(m.inward.levels[0].hidden, 1396);
@@ -760,4 +762,50 @@ test('order: at the cells stop found units and the residue marker keep their sto
   const r = fold(src);
   assert.deepEqual(r.inward.levels[0].units.map(u => [u.kind, u.id, u.positions]), [['entry', 'M', 4], ['residue', 'residue', 1]]);
   assert.ok(r.notes.filter(n => n.fold8.kind === 'residue').every(n => n.focus[0].kind === 'residue' && n.focus[0].entry === null));
+});
+
+// Shown stops (docs/plans/crux-fold-inward.md, "Shown stops").
+
+test('shown: stop 5 never, stop 8 only without #core', () => {
+  const m = fold(CORE_SRC);
+  assert.deepEqual(m.shown, [0, 1, 2, 3, 4, 6, 7, 9]);
+  assert.deepEqual(fold(LEVELS_SRC).shown, [0, 1, 2, 3, 4, 6, 7, 9, 10]);
+  assert.deepEqual(fold(CORE_SRC, { core: [] }).shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
+  assert.deepEqual(fold(CORE_SRC.replace('// #core A\n', '')).shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
+  // A level of missing names is still a level: stop 8 is not shown.
+  assert.deepEqual(fold(CORE_SRC.replace('// #core A', '// #core Q')).shown, [0, 1, 2, 3, 4, 6, 7, 9]);
+});
+
+test('shown: the option replaces the rule; unknown numbers go, stop 0 is first', () => {
+  assert.deepEqual(fold(LEVELS_SRC, { shown: [10, 8, 3, 3, 0, 11, -1, 2.5, 'x', 9] }).shown, [0, 3, 8, 9, 10]);
+  assert.deepEqual(fold(LEVELS_SRC, { shown: [] }).shown, [0]);
+  // With stop 8 shown, a hidden note at the first level keeps its stop 8
+  // position; the rule gives stop 7.
+  const m = fold(LEVELS_SRC, { shown: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] });
+  const lit = m.notes.filter(n => n.owner === null);
+  assert.equal(lit.length, 2);
+  for (const n of lit) assert.deepEqual(n.pos[9], { ...n.pos[8], hidden: true });
+  // Without stop 9, the second level reads the stop before it on the slider.
+  const m2 = fold(LEVELS_SRC, { shown: [0, 1, 2, 3, 4, 6, 7, 10] });
+  m2.notes.filter(n => n.focus[1].kind === 'hidden').forEach(n => assert.deepEqual(n.pos[10], { ...n.pos[7], hidden: true }));
+  // Stops 0 to 8 do not depend on the option.
+  const r = fold(LEVELS_SRC);
+  m.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 9), r.notes[k].pos.slice(0, 9)));
+});
+
+test('shown: BWV 578 skips stops 5 and 8; no note passes through stop 8', () => {
+  const src = example('bach-bwv578.keylane.crux');
+  const m = fold(src), b = fold(src, { core: [] });
+  assert.deepEqual(m.shown, [0, 1, 2, 3, 4, 6, 7, 9, 10]);
+  assert.deepEqual(b.shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
+  const same = (p, q) => p.t === q.t && p.step === q.step && p.d === q.d;
+  // A hidden note at the first level keeps its stop 7 position.
+  const hid = m.notes.filter(n => n.focus[0].kind === 'hidden');
+  assert.equal(hid.length, 1396);
+  hid.forEach(n => assert.deepEqual(n.pos[9], { ...n.pos[7], hidden: true }));
+  // No pos[9] is a stop 8 position that differs from the note's stop 7 position.
+  assert.ok(!m.notes.some(n => same(n.pos[9], n.pos[8]) && !same(n.pos[8], n.pos[7])));
+  // The shapes are ordered by their stop 7 x, and packed from 0.
+  assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x, u.width]),
+    [['nugc', 0, 14], ['a', 14.5, 11], ['nugb', 26, 4], ['nugd', 30.5, 4]]);
 });

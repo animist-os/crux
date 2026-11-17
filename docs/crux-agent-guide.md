@@ -136,10 +136,11 @@ means.
 - `// #target SECTION SAMPLER` routes a section to a sampler.
 - The last directive of a name wins.
 - The fold view reads two global directives: `// #theme A B` (the themes of
-  stops 6 to 8) and `// #core A B` (the core of stop 11). Both are lists of
-  definition names. By the rule above, a list whose last token is a positive
-  integer is scoped to a sampler, and the fold does not see it. Definition
-  names start with a letter, so this does not happen with names only.
+  stops 6 to 8) and `// #core A B / C` (the focus levels, stops 11 and on).
+  Both are lists of definition names; `/` separates the levels of `#core`.
+  By the rule above, a list whose last token is a positive integer is scoped
+  to a sampler, and the fold does not see it. Definition names start with a
+  letter, so this does not happen with names and `/` only.
 
 ### 1.7 Calling the interpreter
 
@@ -317,16 +318,23 @@ Stops 9 and 10 open each theme to what it is made of.
   `counts.cellSplit` the parts of a split. `inward.units[9]` and
   `inward.units[10]` are the layout units.
 
-Stop 11, core only, shows the cells that the analysis is about. The program
-names them: `// #core nug`, or the option `core: ['nug']`, which wins over
-the directive. Stop 11 uses only what the program states. It does not search
-for other matches of the core.
+Stops 11 and on are focus levels: structure that the analysis is about,
+named by hand. `// #core a nugb nugc nugd / nug` names two levels, one stop
+each, in order. The option `core` wins over the directive: an array of
+names is one level, an array of arrays is several, and a string is read as
+the directive. The model has `11 + levels` stops; without `#core` the last
+stop is 10. The levels use only what the program states. They do not search
+for other matches.
 
-- A core is a cell-level entry (stop 10) of a named definition. A name with
-  no entry at the cell level (a definition that writes no note of its own,
-  such as `nugb`) is listed in `inward.core.missing` and is not a core.
-  `inward.core.names` lists the cores.
-- Each note has `fold11.kind`:
+- A level before the last shows whole definitions, as written. A note
+  belongs to the outermost named definition of the level that it passed
+  through, so a named definition inside another named one of the level
+  belongs to the outer one there. The entries come from the same rules as
+  stop 5 (transposition, mirror, reverse and stretch removed, widths by the
+  stop 5 rule), with the partial rule of the cell level: a partial
+  statement (`ar \ 1`) joins its full entry. Kind: `shape`.
+- The last level is the core. A core is a cell-level entry (stop 10) of a
+  named definition. Kinds:
   - `core`: its `cell` is a core entry. It sits on its own slot of that
     entry, as at stop 10. Bent notes and parts of a split are core notes.
   - `attached`: a note that is not a core note, written by the host of a
@@ -335,19 +343,27 @@ for other matches of the core.
     cell-level owner of some note) is the host. A definition between them
     that writes no notes is passed. The note stacks on the core note of the
     same host use that is nearest in time (the earlier one on a tie), and
-    adds no position. `fold11.host` is the host's name.
-  - `residue`: every other note, on one marker after the last core.
+    adds no position. `focus[i].host` is the host's name.
+- At every level a note that belongs to no named shape is `hidden`. It keeps
+  its position of the stop before, with `pos[k].hidden` true. Hosts fade it
+  out on the way to the stop and draw nothing for it there. There is no
+  residue marker. Counts at these stops do not count hidden notes.
 - The themes of stop 8 play no part. A core note that no theme reaches is
   still a core note.
-- Layout: the core entries in source order, each with its stop 10 layout,
-  side by side with the stop 5 gap. Then the residue marker.
-- Each note gets `pos[11]` and `fold11` (`kind`, `unit`, `entry`, and `host`
-  when attached). `inward.units[11]` gives the units with their `positions`,
-  `notes` and `attached` notes. `counts.core` is `{ stated, bent, split,
-  attached, residue }`: `stated` counts all core notes, and `bent` and
-  `split` are parts of it.
-- Without a core (no directive, no option, or only missing names), stop 11
-  is stop 10, and `counts.core` is `null`.
+- A name with no note in a shape level, or with no cell-level entry in the
+  core level (a definition that writes no note of its own, such as `nugb`),
+  is listed in `missing` for that level. A level whose names are all
+  missing hides every note.
+- Layout: the entries of a level in source order, side by side with the
+  stop 5 gap.
+- Each note gets `pos[11 + i]` and `focus[i] = { kind, unit, entry, host }`
+  for level i (`unit`, `entry` and `host` are null when they do not
+  apply). `inward.levels[i]` is `{ names, missing, kind: 'shapes' | 'core',
+  units, shown, attached, hidden }`; each unit has `positions`, `notes` and
+  (core) `attached`. `stops[11 + i]` is the names of the level joined by a
+  space. `counts.core` is `{ stated, bent, split, attached, hidden }` for the
+  last level (`stated` counts all core notes; `bent` and `split` are parts
+  of it), or `null` without `#core`.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text.

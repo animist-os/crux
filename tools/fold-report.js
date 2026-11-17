@@ -7,8 +7,9 @@
 // dictionary (one entry per distinct shape, with its count); the residue
 // (shapes with no definition that occur once); the repeats and near-misses
 // found at stops 6 and 7; the themes left at stop 8 with the notes each
-// explains; the cells the themes are made of (stop 10); the core named by
-// `// #core` and the notes stacked on it (stop 11); a summary of the
+// explains; the cells the themes are made of (stop 10); the focus levels
+// named by `// #core` (stops 11 and on: shapes, then the core and the notes
+// stacked on it, and the notes hidden at each); a summary of the
 // instance tree; and the numbers from
 // tools/reduction-score.js. See docs/crux-agent-guide.md.
 import fs from 'node:fs';
@@ -29,7 +30,6 @@ const STOPS = [
   '8 themes only',
   '9 themes opened',
   '10 cells',
-  '11 core only',
 ];
 
 export function foldReport(code, { treeDepth = 3, minLength } = {}) {
@@ -39,7 +39,7 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
   lines.push(`notes ${c.notes}, pips written ${c.pipsWritten}, leverage ${c.leverage.toFixed(2)} notes per pip` +
     (c.edited ? `, edited ${c.edited}` : ''));
   lines.push('', 'stop                               shapes  positions');
-  STOPS.forEach((name, s) => {
+  [...STOPS, ...m.stops.slice(STOPS.length).map((name, i) => `${STOPS.length + i} ${name}`)].forEach((name, s) => {
     lines.push(`  ${name.padEnd(33)}${String(c.shapes[s]).padStart(6)}  ${String(c.positions[s]).padStart(9)}`);
   });
   lines.push('', 'dictionary (source order)');
@@ -91,22 +91,28 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
       (bentIn(u.id) ? `, ${bentIn(u.id)} bent` : '') + (splitIn(u.id) ? `, ${splitIn(u.id)} split` : ''));
   }
   lines.push(`  edited at the cell level: ${c.cellEdited} notes; bent: ${c.cellBent} notes; split: ${c.cellSplit} notes`);
-  const core = m.inward.core;
-  lines.push('', `stop 11: core only (${core.names.length ? '#core ' + core.names.join(' ') : 'no core named, so as stop 10'}` +
-    `${core.missing.length ? '; no cell-level entry for ' + core.missing.join(' ') : ''}; attached: notes the core's hosts write)`);
-  if (c.core) {
-    const in11 = (id, f) => m.notes.filter(n => n.fold11.unit === id && f(n)).length;
-    for (const u of m.inward.units[11]) {
-      if (u.kind !== 'entry') continue;
-      const hosts = new Map();
-      for (const n of m.notes) if (n.fold11.unit === u.id && n.fold11.kind === 'attached') hosts.set(n.fold11.host, (hosts.get(n.fold11.host) || 0) + 1);
-      const own = in11(u.id, n => n.fold11.kind === 'core');
-      lines.push(`  ${String(u.id).padEnd(12)} ${('x' + u.count).padEnd(5)} ${String(u.positions).padStart(3)} positions ${String(own).padStart(5)} notes` +
-        `, ${in11(u.id, n => n.fold11.kind === 'core' && n.cellBent && !n.split)} bent, ${in11(u.id, n => n.fold11.kind === 'core' && n.split)} split` +
-        `, +${u.attached || 0} attached${hosts.size ? ' (' + [...hosts].map(([h, k]) => `${h} ${k}`).join(', ') + ')' : ''}`);
+  const levels = m.inward.levels;
+  if (!levels.length) lines.push('', 'stops 11 and on: no focus levels (no #core)');
+  levels.forEach((L, i) => {
+    const k = 11 + i, last = L.kind === 'core';
+    const inK = (id, f) => m.notes.filter(n => n.focus[i].unit === id && f(n)).length;
+    lines.push('', `stop ${k}: ${last ? 'core' : 'shapes'} ${m.stops[k]}` +
+      (L.missing.length ? ` (${last ? 'no cell-level entry' : 'no note'} for ${L.missing.join(' ')})` : '') +
+      (last ? '; attached: notes the core\'s hosts write' : '') + '; hidden: notes in no named shape');
+    for (const u of L.units) {
+      let text = `  ${String(u.id).padEnd(12)} ${('x' + u.count).padEnd(5)} ${String(u.positions).padStart(3)} positions`;
+      if (!last) text += ` ${String(u.notes).padStart(5)} notes`;
+      else {
+        const hosts = new Map();
+        for (const n of m.notes) if (n.focus[i].unit === u.id && n.focus[i].kind === 'attached') hosts.set(n.focus[i].host, (hosts.get(n.focus[i].host) || 0) + 1);
+        text += ` ${String(inK(u.id, n => n.focus[i].kind === 'core')).padStart(5)} notes` +
+          `, ${inK(u.id, n => n.focus[i].kind === 'core' && n.cellBent && !n.split)} bent, ${inK(u.id, n => n.focus[i].kind === 'core' && n.split)} split` +
+          `, +${u.attached || 0} attached${hosts.size ? ' (' + [...hosts].map(([h, j]) => `${h} ${j}`).join(', ') + ')' : ''}`;
+      }
+      lines.push(text);
     }
-    lines.push(`  ${'residue'.padEnd(12)} ${''.padEnd(5)} ${String(c.core.residue ? 1 : 0).padStart(3)} positions ${String(c.core.residue).padStart(5)} notes`);
-  }
+    lines.push(`  ${'hidden'.padEnd(12)} ${''.padEnd(5)} ${''.padStart(3)}           ${String(L.hidden).padStart(5)} notes`);
+  });
   lines.push('', `explained: program ${e.program}, found repeats ${e.repeat}, near-misses ${e.near}, not explained ${e.none} (of ${c.notes} notes); ${c.attached} stacked as attachments`);
   lines.push('', `instance tree (to depth ${treeDepth})`);
   const walk = (node, depth) => {

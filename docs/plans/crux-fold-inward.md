@@ -482,3 +482,159 @@ the same as stop 10 and `inward.core.names` is empty.
   lines of the example. The new directive and comment move the lines, so
   they now take the lines before `subject =`.
 
+
+## Focus levels (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 6. Not committed. Browser
+check pending. See "Notes from the build (change set 6)".
+
+### Purpose
+
+The step from stop 10 (18 shapes) to stop 11 (nug and a residue marker) is
+too large. Andy wants intermediate structure that he picks by hand, and no
+unrelated notes on screen while it shows:
+
+- fold 11: `a`, `nugb`, `nugc`, `nugd`
+- fold 12: `nug`
+
+Decisions (Andy, 2026-11-17): the levels are named by hand. At these stops
+the notes that belong to no named shape are hidden, not gathered on a
+residue marker.
+
+### Directive
+
+`// #core` takes one or more levels, separated by `/`, in the order of the
+stops:
+
+```
+// #core a nugb nugc nugd / nug
+```
+
+The option `core` of `crux_fold` takes the same as an array of arrays (an
+array of names is one level, as today). One level is what change set 5
+built, except for the hidden notes (below).
+
+The stops are no longer a fixed number. A model has stops 0 to 10 and then
+one stop for each level: `stops.length` is 11 plus the number of levels.
+Without `#core` the last stop is 10. (Today stop 11 without a core is a
+copy of stop 10. Remove that copy.)
+
+### The last level: core
+
+As change set 5: cell-level entries, bent notes and parts of a split are
+`core`, host notes are `attached`. One change: a note that is neither is
+`hidden`. There is no residue marker.
+
+### The levels before the last: shapes
+
+A level before the last shows whole definitions, as they are written.
+
+- A note belongs to the outermost named definition of the level that it
+  passed through. This is `analysePip` with a level that has only `named`
+  (as `#theme` does), so `nugc` holds the `nugb` inside it, and the entry
+  `nugb` holds only the statements of `nugb` that are in no other named
+  definition.
+- `buildLevel` (no partial rule) gives the entries and the slot layout, as
+  for the theme level: one copy of each shape, transposition, mirror,
+  reverse and stretch removed, widths by the stop 5 rule.
+- A note that passed through no named definition of the level is `hidden`.
+- A name that no note passed through goes to `missing` for that level.
+
+Kinds at a level: `shape` (levels before the last), `core`, `attached`
+(last level), `hidden` (all levels).
+
+### Positions
+
+- `pos[11 + i]` for level i. A shown note sits on its slot. The entries of
+  the level are packed side by side in source order.
+- A hidden note keeps the position it had at the stop before, and
+  `pos[k].hidden` is true. The host fades it out on the way to the stop and
+  draws nothing for it at the stop. A note hidden at one level and shown at
+  the next fades in while it moves.
+- Counts use shown notes only: `counts.positions[k]` and `counts.shapes[k]`
+  do not count hidden notes.
+
+### Data
+
+- `note.focus[i] = { kind, unit, entry, host }` for level i. This replaces
+  `fold11`.
+- `inward.levels[i] = { names, missing, kind: 'shapes' | 'core', units,
+  shown, attached, hidden }`. This replaces `inward.core` and
+  `inward.units[11]`. `counts.core` stays and describes the last level,
+  with `hidden` in place of `residue`.
+- `stops[11 + i]`: the names of the level joined by a space.
+
+### Report and hosts
+
+- `fold-report.js`: one row for each level, and for each level its list of
+  shapes (positions, notes, and for the last level bent, split, attached),
+  then the number of hidden notes.
+- Golden: the number of stops comes from the model, not from a constant.
+  The stop buttons are made again when the program changes. The label of a
+  level stop is its first name, with `+` when it has more names (`a+`,
+  `nug`). `CruxFold.STOPS` can stay as the number of fixed stops (11). Check
+  every use of it, of `STOP_LABELS`, and of the stop 11 helpers (colour,
+  opacity, bent mark, badges). Hidden notes fade with the slider and are
+  not hit by hover.
+- Example and library copy: `// #core a nugb nugc nugd / nug`, and the
+  comment block says what the levels are.
+- Guide 1.6 and 1.8.
+
+### Change set 6
+
+- [x] directive with levels; option; `stops` length from the levels
+- [x] shape levels: named level, entries, layout, hidden notes
+- [x] last level: hidden in place of the residue marker
+- [x] `focus`, `inward.levels`, counts
+- [x] report
+- [x] tests: two levels; a named definition inside another named one of the
+      same level; a hidden note keeps its last position; a note hidden at
+      one level and attached at the next; a missing name in a level; no
+      core gives 11 stops; one level is the core stop
+- [x] example, library copy, guide
+- [x] rebuild; Golden stops from the model, labels, fading, tests
+
+### Checks
+
+- BWV 578 report rows 0 to 10 are the same as before this change set.
+- BWV 578: 13 stops. Stop 11 has four shapes (`a`, `nugb`, `nugc`, `nugd`).
+  Stop 12 has one shape, `nug`, 4 positions, 210 core and 120 attached
+  notes as before, and 1339 hidden.
+- crux 629 tests pass before; Golden 48.
+
+### Notes from the build (change set 6)
+
+- Departure: the shape levels use the partial rule of the cell level
+  (`buildLevel(..., true)`), not "no partial rule". Without it BWV 578 at
+  stop 11 has 7 entries: `a`, `a#2` (`subject > [-4]` in s6), `a#3`
+  (`ar \ 1` in a4), `nugb`, `nugc`, `nugc#2` (`nugc \ 2` in nugp),
+  `nugd`. Each extra entry is a partial statement that the program writes,
+  so joining it keeps "one copy of each shape" and uses only what the
+  program states. With it: four shapes.
+- The directive is read as written: `/` is a token of its own or part of
+  one, and the value stays global (its last token is a name, not a sampler
+  index). The option `core` takes an array of names (one level), an array
+  of arrays (levels) or a string (read as the directive).
+- A level whose names are all missing is still a stop, and every note is
+  hidden there. Change set 5 made stop 11 a copy of stop 10 in that case;
+  that copy is gone, so the number of stops follows the directive.
+- `focus[i]` always has `unit`, `entry` and `host` (null when they do
+  not apply). `inward.levels[i].shown` counts every note that is not hidden
+  (attached notes included).
+- A hidden note's position is a copy of the stop before with `hidden: true`.
+  Counts and the Golden extents (`ext`) skip hidden notes.
+- BWV 578: stop 11 has a x9 (11 positions, 96 notes), nugb x9 (4, 36), nugc
+  x9 (11, 93), nugd x12 (4, 48): 4 shapes, 30 positions, 1396 hidden.
+  Stop 12: nug x57, 4 positions, 210 core (33 bent, 12 split), 120 attached,
+  1339 hidden. 57 notes are hidden at stop 11 and attached at stop 12: b's
+  27 own `-3` pips, 18 parts of br's split of a `-3` (br outside nugc),
+  and d's 12 notes (`[4]`, `[1]`). No note is shown at stop 11 and hidden
+  at stop 12. Rows 0 to 10 of the report are unchanged.
+- Golden: `CruxFold.STOPS` is 11 (fixed stops). `prepare` gives
+  `nStops`, `names` and `labels`; `stopsOf(view)` is used by
+  `frameAt`, `countsAt`, `stackCounts` and `goTo`. The stop buttons
+  and the slider range are set again on each sync. At a shape level a note
+  takes its shape's colour and has no bent mark (the shape is as written).
+  A hidden note keeps the colour of the stop before. The panel has no hover
+  handler today; `hitTest` skips a rect with `hidden`, and the panel does
+  not draw or light (playhead) a note whose alpha is 0.

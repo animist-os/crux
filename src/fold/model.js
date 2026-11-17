@@ -24,9 +24,11 @@
 //      a definition fold onto it (an edited note keeps its offset in cellBent),
 //      and the pips that `@` put in the place of one pip stack on that pip
 //      (note.split)
-//  11  core only: the cell-level entries of the definitions named in
-//      `// #core` (or options.core); the notes their hosts write stack on
-//      them, and every other note is on one residue marker
+//  11+ focus levels, one stop for each level named in `// #core a b / c`
+//      (or options.core). A level before the last shows the named
+//      definitions whole; the last shows the cell-level entries of its
+//      names, with the notes their hosts write stacked on them. At these
+//      stops a note that belongs to no named shape is hidden.
 //
 // A note's owner is the innermost definition it passed through. Frames inside
 // the owner are the definition's own body and always apply. Frames outside it
@@ -605,13 +607,11 @@ export function foldModel(trace, options = {}) {
     if (rec.cl.split) n.split = { ...rec.cl.split };
   }
 
-  // Stop 11: core only. `// #core A B` in the program, or options.core,
-  // names the core definitions by hand.
-  const o11 = coreOnly(cellLevel);
-  notes.forEach((n, k) => {
-    n.pos[11] = o11.pos[k];
-    n.fold11 = o11.at[k];
-  });
+  // Stops 11 and on: focus levels. `// #core a b / c` in the program, or
+  // options.core, names the levels by hand, one stop for each level.
+  const levels = focusLevels(cellLevel);
+  notes.forEach((n, k) => { n.focus = levels.map(Lv => Lv.at[k]); });
+  const nStops = 11 + levels.length;
 
   // Counts.
   const distinct = (fn) => new Set(notes.map(fn)).size;
@@ -623,16 +623,17 @@ export function foldModel(trace, options = {}) {
     cellEdited: all.filter(rec => rec.sounding && rec.cl.edited).length,
     cellBent: notes.filter(n => n.cellBent && !n.split).length,
     cellSplit: notes.filter(n => n.split).length,
-    positions: [null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(s => (s === null ? null : distinct(n => pk(n, s)))),
+    // Hidden notes (stops 11 and on) are not counted.
+    positions: Array.from({ length: nStops }, (_, s) => (s === 0 ? null : new Set(notes.filter(n => !n.pos[s].hidden).map(n => pk(n, s))).size)),
     shapes: [instanceCount, instanceCount, instanceCount, instanceCount, distinct(n => n.voice + '|' + n.entry), entryList.length,
       th.summary.units[6].length, th.summary.units[7].length, th.summary.units[8].filter(u => u.kind !== 'residue').length,
       o9.units.filter(u => u.kind !== 'residue').length, o10.units.filter(u => u.kind !== 'residue').length,
-      o11.units.filter(u => u.kind !== 'residue').length],
+      ...levels.map(Lv => Lv.units.length)],
     pipsWritten: distinct(n => pk(n, 5)),
     entries: entryList.length,
     explained: th.summary.explained,
     attached: th.summary.attachedNotes,
-    core: o11.counts,
+    core: levels.length ? levels[levels.length - 1].counts : null,
   };
   counts.positions[0] = counts.positions[1];
   counts.leverage = counts.pipsWritten ? counts.notes / counts.pipsWritten : 0;
@@ -647,34 +648,107 @@ export function foldModel(trace, options = {}) {
     })),
     counts,
     thematic: th.summary,
-    inward: { themed: o9.themed, units: { 9: o9.units, 10: o10.units, 11: o11.units }, core: o11.core },
+    inward: { themed: o9.themed, units: { 9: o9.units, 10: o10.units }, levels: levels.map(Lv => Lv.info) },
     stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
-      'no unstated repeats', 'near-misses folded', 'themes only', 'themes opened', 'cells', 'core only'],
+      'no unstated repeats', 'near-misses folded', 'themes only', 'themes opened', 'cells', ...levels.map(Lv => Lv.given.join(' '))],
   };
 
-  // Stop 11 shows the core only: the cell-level entries (stop 10) of the
-  // definitions named in `// #core` or options.core. A name with no entry at
-  // the cell level is listed in core.missing. Each note is one of three kinds:
-  // - core: its cell is a core entry. It sits on its own slot of that entry.
-  // - attached: not a core note, and its cell-level owner use is the host
-  //   use of a core statement. Going outward from the core definition, the
-  //   host is the first definition use whose definition writes notes of its
-  //   own (is the cell-level owner of some note). The note stacks on the core
-  //   note of that host use that is nearest in time (the earlier on a tie).
-  // - residue: every other note, on one marker after the last core.
-  // The themes of stop 8 play no part: the core is picked by hand.
-  // Without a core, stop 11 is stop 10.
-  function coreOnly(L) {
-    const named = options.core ?? String((trace.directives && trace.directives.core) || '').split(/[\s,]+/).filter(Boolean);
+  // Stops 11 and on show levels that the program names by hand:
+  // `// #core a nugb / nug` or options.core (an array of names is one level,
+  // an array of arrays is several). Each level is one stop, in order. Only
+  // what the program states is used. At every level a note that belongs to
+  // no named shape is hidden: it keeps its position of the stop before
+  // (pos.hidden is true), and counts do not count it.
+  // - A level before the last shows whole definitions, as written: a note
+  //   belongs to the outermost named definition of the level that it passed
+  //   through (analysePip with only `named`). buildLevel gives one copy of
+  //   each shape. Kind: shape.
+  // - The last level is the core: cell-level entries (stop 10) of the named
+  //   definitions. Each note is one of three kinds:
+  //   - core: its cell is a core entry. It sits on its own slot of that entry.
+  //   - attached: not a core note, and its cell-level owner use is the host
+  //     use of a core statement. Going outward from the core definition, the
+  //     host is the first definition use whose definition writes notes of its
+  //     own (is the cell-level owner of some note). The note stacks on the
+  //     core note of that host use that is nearest in time (the earlier on a
+  //     tie).
+  //   - hidden: every other note.
+  //   The themes of stop 8 play no part: the core is picked by hand.
+  // The entries of a level are packed side by side in source order.
+  function focusLevels(L) {
+    let given = options.core ?? (trace.directives && trace.directives.core) ?? '';
+    if (typeof given === 'string') given = given.split('/').map(x => x.split(/[\s,]+/).filter(Boolean));
+    else if (!Array.isArray(given)) given = [];
+    else if (given.some(Array.isArray)) given = given.map(x => (Array.isArray(x) ? x : [x]));
+    else given = [given];
+    const lists = given.map(l => [...new Set(l.map(String))]).filter(l => l.length);
+    return lists.map((names, i) => {
+      const Lv = i === lists.length - 1 ? coreLevel(L, names) : shapeLevel(names);
+      Lv.given = names;
+      const k = 11 + i;
+      notes.forEach((n, j) => { n.pos[k] = Lv.pos[j] || { ...n.pos[k - 1], hidden: true }; });
+      return Lv;
+    });
+  }
+
+  // Units of a level: entries side by side in source order, with the stop 5
+  // gap. Returns the units and a map from entry to unit.
+  function packUnits(entries) {
+    const units = [], unitOf = new Map();
+    let x = 0;
+    for (const E of entries) {
+      const U = { kind: 'entry', id: E.id, name: E.name, count: E.count, width: E.shownLength, x };
+      units.push(U);
+      unitOf.set(E, U);
+      x += U.width + gap;
+    }
+    return { units, unitOf };
+  }
+
+  // The position of rec on its own slot of unit U of level B.
+  function slotPos(B, rec, U, a) {
+    const R = B.info.get(rec);
+    const p = { t: U.x + R.shownOff, step: z(a.body.s), d: R.shown };
+    if (R.capped) p.capped = true;
+    return p;
+  }
+
+  // Close the units: positions (attached notes add none) and note counts.
+  function closeUnits(units, unitOf, place) {
+    for (const U of units) { U.keys = new Set(); U.notes = 0; }
+    for (const h of place) {
+      if (!h.U) continue;
+      if (h.kind !== 'attached') h.U.keys.add(r9(h.p.t) + '|' + r9(h.p.step));
+      h.U.notes++;
+      if (h.kind === 'attached') h.U.attached = (h.U.attached || 0) + 1;
+    }
+    for (const U of units) { U.positions = U.keys.size; delete U.keys; }
+  }
+
+  function shapeLevel(names) {
+    const named = new Set(names);
+    const level = { named, inside: () => false, part: () => false, fan: () => false, uses: () => 0 };
+    const an = new Map();
+    for (const rec of all) {
+      const a = analysePip(rec.pip, level);
+      if (a.instanceKey === null) a.instanceKey = `p${rec.voice}:${rec.index}`;
+      an.set(rec, a);
+    }
+    const A = rec => an.get(rec);
+    const B = buildLevel(all, A, rec => `${rec.voice}|${A(rec).instanceKey}`, gap, capWidth, true);
+    const { units, unitOf } = packUnits(B.entryList.filter(E => E.name != null && named.has(E.name)));
+    const place = all.filter(rec => rec.sounding).map(rec => {
+      const U = unitOf.get(B.info.get(rec).I.entry);
+      return U ? { kind: 'shape', U, p: slotPos(B, rec, U, A(rec)) } : { kind: 'hidden' };
+    });
+    closeUnits(units, unitOf, place);
+    const found = names.filter(name => units.some(U => U.name === name));
+    return finish('shapes', place, units, found, names.filter(name => !found.includes(name)), null);
+  }
+
+  function coreLevel(L, given) {
     const names = [], missing = [];
-    for (const name of named) {
-      if (names.includes(name) || missing.includes(name)) continue;
-      (L.entryList.some(E => E.name === name) ? names : missing).push(name);
-    }
-    const core = { names, missing };
-    if (!names.length) {
-      return { pos: notes.map(n => ({ ...n.pos[10] })), at: notes.map(n => ({ ...n.fold10 })), units: o10.units, core, counts: null };
-    }
+    for (const name of given) (L.entryList.some(E => E.name === name) ? names : missing).push(name);
     const recs = all.filter(rec => rec.sounding);
     const entryOf = rec => L.info.get(rec).I.entry;
     const isCore = rec => names.includes(entryOf(rec).name);
@@ -683,7 +757,6 @@ export function foldModel(trace, options = {}) {
     // outward (as in usesOf).
     const useKey = (rec, i) => rec.voice + '|' + chainOf(rec).slice(i).map(frameKey).join('/');
     const writes = new Set(recs.filter(rec => rec.cl.owner).map(rec => rec.cl.owner.name));
-    const hostOf = new Map(); // core rec -> { key, name }
     const coreAt = new Map(); // host use key -> core recs in it
     for (const rec of recs) {
       if (!isCore(rec)) continue;
@@ -691,64 +764,45 @@ export function foldModel(trace, options = {}) {
       for (let i = o + 1; o >= 0 && i < fr.length; i++) {
         if (fr[i].kind !== 'ref' || !writes.has(fr[i].name)) continue;
         const key = useKey(rec, i);
-        hostOf.set(rec, { key, name: fr[i].name });
         if (!coreAt.has(key)) coreAt.set(key, []);
         coreAt.get(key).push(rec);
         break;
       }
     }
-    const units = [], unitOf = new Map();
-    let x = 0;
-    const add = (key, U) => { U.x = x; units.push(U); unitOf.set(key, U); x += U.width + gap; };
-    for (const E of L.entryList) if (names.includes(E.name)) add(E, { kind: 'entry', id: E.id, name: E.name, count: E.count, width: E.shownLength });
-    const own = rec => {
-      const R = L.info.get(rec), U = unitOf.get(entryOf(rec));
-      const p = { t: U.x + R.shownOff, step: z(rec.cl.body.s), d: R.shown };
-      if (R.capped) p.capped = true;
-      return { p, U };
-    };
+    const { units, unitOf } = packUnits(L.entryList.filter(E => names.includes(E.name)));
+    const own = rec => { const U = unitOf.get(entryOf(rec)); return { U, p: slotPos(L, rec, U, rec.cl) }; };
+    const counts = { stated: 0, bent: 0, split: 0, attached: 0, hidden: 0 };
     const place = recs.map(rec => {
-      if (isCore(rec)) return { kind: 'core', rec };
+      const n = rec.note;
+      if (isCore(rec)) {
+        counts.stated++;
+        if (n.split) counts.split++;
+        else if (n.cellBent) counts.bent++;
+        return { kind: 'core', ...own(rec) };
+      }
       const o = rec.cl.owner ? chainOf(rec).indexOf(rec.cl.owner) : -1;
       const list = o >= 0 && coreAt.get(useKey(rec, o));
-      if (!list) return { kind: 'residue' };
+      if (!list) { counts.hidden++; return { kind: 'hidden' }; }
       let best = null;
       for (const c of list) {
         const dt = Math.abs(c.t - rec.t), bt = best && Math.abs(best.t - rec.t);
         if (!best || dt < bt - EPS || (Math.abs(dt - bt) <= EPS && c.t < best.t)) best = c;
       }
-      return { kind: 'attached', rec: best, host: rec.cl.owner.name };
+      counts.attached++;
+      return { kind: 'attached', ...own(best), host: rec.cl.owner.name };
     });
-    let res = null;
-    if (place.some(h => h.kind === 'residue')) {
-      const r8 = th.summary.units[8].find(u => u.kind === 'residue');
-      res = { kind: 'residue', id: 'residue', name: null, width: r8 ? r8.width : 0.5 };
-      add('residue', res);
-    }
-    const at = [], counts = { stated: 0, bent: 0, split: 0, attached: 0, residue: 0 };
-    const pos = place.map((h, k) => {
-      let p, U;
-      if (h.rec) ({ p, U } = own(h.rec));
-      else { U = res; p = { t: U.x, step: 0, d: U.width }; }
-      const n = notes[k];
-      if (h.kind === 'core') {
-        counts.stated++;
-        if (n.split) counts.split++;
-        else if (n.cellBent) counts.bent++;
-      } else counts[h.kind]++;
-      const a = { kind: h.kind, unit: U.id, entry: U.kind === 'entry' ? U.id : null };
-      if (h.kind === 'attached') a.host = h.host;
-      at.push(a);
-      if (h.kind !== 'attached') (U.keys ||= new Set()).add(r9(p.t) + '|' + r9(p.step));
-      U.notes = (U.notes || 0) + 1;
-      if (h.kind === 'attached') U.attached = (U.attached || 0) + 1;
-      return p;
-    });
-    for (const U of units) {
-      U.positions = U.kind === 'residue' ? 1 : (U.keys ? U.keys.size : 0);
-      delete U.keys;
-    }
-    return { pos, at, units, core, counts };
+    closeUnits(units, unitOf, place);
+    return finish('core', place, units, names, missing, counts);
+  }
+
+  // One level as the model gives it: positions (null for a hidden note, which
+  // keeps the position of the stop before), focus entries and the summary.
+  function finish(kind, place, units, names, missing, counts) {
+    const at = place.map(h => ({ kind: h.kind, unit: h.U ? h.U.id : null, entry: h.U ? h.U.id : null, host: h.host ?? null }));
+    const hidden = place.filter(h => h.kind === 'hidden').length;
+    const info = { names, missing, kind, units, shown: place.length - hidden,
+      attached: place.filter(h => h.kind === 'attached').length, hidden };
+    return { pos: place.map(h => h.p || null), at, units, info, counts };
   }
 
   // Stops 9 and 10 open the themes of stop 8 again. A note that sits on a

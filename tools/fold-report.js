@@ -7,10 +7,11 @@
 // dictionary (one entry per distinct shape, with its count); the residue
 // (shapes with no definition that occur once); the repeats and near-misses
 // found at stops 6 and 7; the themes left at stop 8 with the notes each
-// explains; the stops after 8: the focus levels named by `// #core` (stops
-// 9 and on: shapes, then the core and the notes stacked on it, and the notes
-// hidden at each) or, without `#core`, the cells the themes are made of
-// (stop 9); a summary of the instance tree; and the numbers from
+// explains; the ladder of `// #core` (as written, or derived from the core
+// with the definitions around it); the stops after 8: the focus levels of
+// the ladder (stops 9 and on: shapes, then the core and the notes stacked on
+// it, and the notes hidden at each) or, without `#core`, the cells the themes
+// are made of (stop 9); a summary of the instance tree; and the numbers from
 // tools/reduction-score.js. The stop table has every stop of the model; the
 // stops a host's slider does not show (model.shown) are marked. See
 // docs/crux-agent-guide.md.
@@ -32,6 +33,17 @@ export function foldReport(code, { treeDepth = 3, minLength } = {}) {
       (m.shown.includes(s) ? '' : '  (not shown)'));
   });
   lines.push(`  shown on the slider: ${m.shown.join(' ')}`);
+  const lad = m.inward.ladder;
+  if (lad) {
+    lines.push(`  ladder: ${lad.line} (${lad.derived ? 'derived from the core; write this line as #core to change it' : 'as written'})`);
+    if (lad.derived) {
+      lines.push('  definitions around the core (share: core and attached notes of the notes through it):');
+      for (const a of lad.ancestors) {
+        lines.push(`    ${String(a.name).padEnd(12)} share ${a.share.toFixed(2)}  ${a.real ? 'real   ' : 'wrapper'}` +
+          (a.height != null ? `  height ${a.height}` : a.real ? '  not a level (share below 1/2)' : '  not a level'));
+      }
+    }
+  }
   lines.push('', 'dictionary (source order)');
   for (const e of m.dictionary) {
     if (e.residue) continue;

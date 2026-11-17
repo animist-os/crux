@@ -917,3 +917,187 @@ the cells stop reads it.
   before, 53 after. The older Golden tests fold with every stop shown
   (option `shown`), so their slider values are still stops of the model;
   4 new tests use the model's own list.
+
+## Derived ladder (added 2026-11-17)
+
+Status: built and tested, 2026-11-17. Change set 9. Not committed. Browser
+check pending. See "Notes from the build (change set 9)".
+
+### Purpose
+
+Today the levels before the core are written by hand
+(`// #core a nugb nugc nugd / nug`). The program already says which
+definitions are made from the core. When the user names only the core, the
+fold makes the levels.
+
+Decision (Andy, 2026-11-17): `#core` with no slash derives the ladder. No
+picker in the panel. Say it in the docs that a user reads.
+
+### Directive and option
+
+- `// #core nug` (names, no `/`): the names are the core, and the fold
+  derives the levels before it.
+- A value with a `/` is taken as written, as today. `// #core / nug` is the
+  core alone, with no other level. Empty levels are dropped.
+- Option `core`: an array of names (or a string with no `/`) derives; an
+  array of arrays (or a string with `/`) is as written. `[]` is still
+  "no core".
+- Option `maxLevels` (default 4): the most levels before the core.
+
+### The rule
+
+Work at the cell level (as the core level does). The core notes are the
+notes whose cell is a core entry, and the notes attached to them (the host
+rule of the core level).
+
+1. Ancestors. A definition is an ancestor when a core or attached note
+   passed through it, outside the core definition.
+2. Share. Of the notes that passed through a definition, the part that is
+   core or attached. An ancestor with a share below 1/2 is not a level (a
+   voice section holds the subject, but most of it is other material).
+3. Wrappers. A definition is real when it writes a note of its own (a note
+   whose cell-level owner is that definition), or when, going inward from
+   it along its notes, the first real definitions (or cores) reached are
+   two or more different ones. A definition that is not real is a wrapper:
+   it shows nothing that the one real definition inside it does not show.
+   Wrappers are not levels. (`ar` is `a` with a rhythm. `nugb`, `nugd`,
+   `br` and `nugc` write no notes of their own at the cell level.)
+4. Height. The height of a real ancestor is 1 plus the greatest height of
+   the real ancestors inside it (0 when there are none; wrappers do not
+   count).
+5. Levels. One level for each height, the greatest height first, then the
+   core. The names in a level are in source order. When there are more than
+   `maxLevels` heights, keep the `maxLevels` nearest the core.
+
+The derived levels are shape levels and a core level, built by the code
+that builds written levels. Nothing else changes.
+
+By hand, for BWV 578 with `// #core nug`, the real ancestors are `a`, `b`,
+`d` (height 1) and `subject`, `nugp` (height 2), so the ladder is
+`subject nugp / a b d / nug`. Check this against the build; report what the
+rule gives.
+
+### Data and report
+
+- `inward.ladder = { derived, line }`. `line` is the directive value that
+  gives the same levels when written out (`subject nugp / a b d / nug`), so
+  a user can copy it into the program and change it. For a written ladder
+  `derived` is false and `line` is the value as read.
+- `fold-report.js` prints the line, and says when it was derived.
+- Golden: no new control. If the panel has a place where it shows text
+  about the program (the counts line), add the derived line there only if
+  it fits without a layout change. If not, leave Golden as it is.
+
+### Docs
+
+Say how `#core` works, in plain words with the BWV 578 example, in each
+place a user reads about directives or about the fold:
+
+- crux: `README.md` and `GRAMMAR.md` where they list directives (if they
+  do), the tutorial if it has a directive section, guide 1.6 and 1.8.
+- The comment block of `examples/bach-bwv578.keylane.crux` and its library
+  copy: keep the written ladder, and say in one or two lines that
+  `// #core nug` alone would derive one. Use button names, not model stop
+  numbers.
+- disrupterbox: there is no user doc for the fold panel. Write
+  `docs/crux-fold.md`, short: what the panel shows, the stops on the
+  slider, `#theme`, `#core` (derived and written, `/ nug` for the core
+  alone), what is hidden, the limits (only what the program states; a flat
+  transcription has no ladder). Add one row for it to the documentation
+  table in the project part of `CLAUDE.md` (below the FABLE-CORE END
+  marker; do not touch anything above it). Mention it in `docs/golden.md`
+  only if that file has a list of panels or of Crux features.
+
+Plain, understated language. If `scripts/ste-lint.py` is there, run it on
+the new doc.
+
+### Change set 9
+
+- [x] parse: no slash derives; `/ nug`; option forms; `maxLevels`
+- [x] the rule: ancestors, share, wrappers, height, levels
+- [x] `inward.ladder`, report
+- [x] tests: a core inside one writer inside a combiner (two levels); a
+      wrapper is skipped; an ancestor with a low share is left out;
+      `maxLevels`; `/ A` gives the core alone; two cores; a written ladder
+      is not changed; the derived `line`, written out, gives the same
+      model
+- [x] docs
+- [x] rebuild; Golden tests
+
+### Checks
+
+- BWV 578 as it is (written ladder): the whole report is the same as
+  before, but for the new ladder line.
+- BWV 578 with `// #core nug` in place of the written line: report the
+  ladder, each level's shapes, positions, shown and hidden notes. The core
+  level keeps 210 core and 120 attached notes.
+- crux 638 tests pass before; Golden 53.
+
+### Notes from the build (change set 9)
+
+- The rule is as written. BWV 578 with `// #core nug` gives
+  `s6 p1 p3 p5 / subject nugp a4 / a b d / nug`, not the hand analysis
+  `subject nugp / a b d / nug`. The hand analysis assumed that a voice
+  section is mostly other material. Five are not: the pedal entries `p1`
+  (share 0.83), `p3` (0.63) and `p5` (0.81) are `(ar, br, nugp)` and a few
+  notes of their own; `s6` (0.62) holds `subject > [-4]`; `a4` (0.83) is
+  `(ar \ 1) * [2]` and two notes. Each writes notes, so each is real. `p1`,
+  `p3`, `p5` and `s6` hold `a`, `b`, `d` and `nugp` or `subject`: height 3.
+  `a4` holds only `a`: height 2. Sections below 1/2: s1 0.38, s12 0.44,
+  a1 0.47, t1 0.36, t5 0.42.
+- Wrappers in BWV 578: `ar`, `nugb`, `br`, `nugc`, `nugd`. Real: `a`, `b`,
+  `d` (height 1), `subject` (reaches `a`, `b`, `d`), `nugp` (writes
+  `[1, -3]`; share 0.82; holds `b` through `nugc`), both height 2.
+- BWV 578 derived: stop 9 `s6 p1 p3 p5`, 4 shapes, 180 positions, 180 shown,
+  1489 hidden. Stop 10 `subject nugp a4`, 3 shapes, 64 positions, 278 shown,
+  1391 hidden. Stop 11 `a b d`, 3 shapes (a x9, b x18, d x6), 28 positions,
+  246 shown, 1423 hidden. Stop 12 `nug`, 4 positions, 210 core (33 bent, 12
+  split), 120 attached (a 9, b 99, d 12), 1339 hidden: the same as the
+  written ladder. The derived line written out gives the same model (source
+  offsets aside).
+- At `a b d`, 84 notes are hidden that the core level shows: the parts of
+  the splits in `br` (36, attached) and `nugc` (36 attached, 12 core). A
+  shape level reads the frames as written (analysePip with `named`), so a
+  part of a split does not belong to `b` there; the rule reads the cell
+  level. Not changed: "the derived levels are built by the
+  code that builds written levels".
+- Departures and readings:
+  - Which frames a note passed through: the ref frames of its cell-level
+    chain from its cell-level owner outward (for a part of a split, the chain
+    through the replaced pip). Frames inside an edit that the cell level
+    does not undo are not counted.
+  - Wrappers: "going inward along its notes" walks all the notes through the
+    definition, not only core and attached ones, and the realness of a
+    definition is decided for any definition reached, not only ancestors.
+  - Height counts only ancestors that are levels (share 1/2 or more, real),
+    so no height is empty.
+  - Source order: the place of the line `name =` in `trace.source`.
+  - `inward.ladder.line` is rebuilt from the levels (names joined by a
+    space, levels by ` / `), not copied from the directive. One level is
+    written `/ nug`, so that writing the line out does not derive again.
+    `inward.ladder` is null without `#core`.
+  - Added: `inward.ladder.ancestors` (`{ name, share, real, height }`) when
+    derived, and the report lists them under the ladder line. Without them
+    the report cannot say why a definition is or is not a level.
+- Other examples (core written at the top of a copy):
+  - Invention 5, `// #core h`: `r3 r7 l6 / h`. `HH` (`h, [r], h * [1]`) is a
+    wrapper. `SJ`, `AN` have share 0.39 (the rest of the subject is not
+    `h`), so the levels are voice sections that are mostly `h`.
+  - Invention 14 (v2), `// #core H`: `S r4 r6 r7 l6 l7 / T Tu Q r2 r5 l2 l5 /
+    T9 X Y E U W V K / H`. Wrappers: `Hi`, `A`, `Y9`, `r1`, `l3`.
+  - Invention 8, `// #core rn`: `l2 / S / b / rn`.
+- Golden: no change but the rebuild and one comment. The bar has no place
+  for the line without a layout change (the counts text is cut with an
+  ellipsis). The stop text already gives the names of each level.
+- Tests: crux 638 before, 647 after (9 new; 9 changed to the written form
+  `// #core / A`, `{ core: [['A']] }`). Golden 53 before and after.
+
+
+### After the build (main session, 2026-11-17)
+
+The rule as planned gave `s6 p1 p3 p5 / subject nugp a4 / a b d / nug` for
+BWV 578: voice passages that are mostly the subject became levels. Added
+one rule: a definition that is used once is a passage and is not a level.
+BWV 578 now gives `subject nugp / a b d / nug`. In a program that states
+each shape once (the subject by itself), only definitions used twice are
+levels.

@@ -136,8 +136,11 @@ means.
 - `// #target SECTION SAMPLER` routes a section to a sampler.
 - The last directive of a name wins.
 - The fold view reads two global directives: `// #theme A B` (the themes of
-  stops 6 to 8) and `// #core A B / C` (the focus levels, stops 9 and on).
-  Both are lists of definition names; `/` separates the levels of `#core`.
+  stops 6 to 8) and `// #core` (the focus levels, stops 9 and on). Both take
+  definition names. `// #core nug` (names, no `/`) names the core, and the
+  fold derives the levels before it (1.8, derived ladder). With a `/` the
+  levels are as written and the last is the core: `// #core a nugb / nug`.
+  `// #core / nug` is the core alone.
   By the rule above, a list whose last token is a positive integer is scoped
   to a sampler, and the fold does not see it. Definition names start with a
   letter, so this does not happen with names and `/` only.
@@ -276,11 +279,13 @@ They work at the theme level, not on the innermost definitions of stop 5:
   repeats, the near-misses, the theme folds, the layout units of stops 6 to 8
   with their note counts, the themes with their attachments, and the residue.
 
-After stop 8 there is one stop for each focus level that the program names
-with `// #core` (stops 9 and on). Without `#core` there is one stop, 9,
-cells. The option `core` of `crux_fold` wins over the directive: an array of
-names is one level, an array of arrays is several, a string is read as the
-directive, and `[]` turns the directive off. The model has `9 + levels`
+After stop 8 there is one stop for each focus level of `// #core` (stops 9
+and on): the levels as written, or the core and the levels derived from it.
+Without `#core` there is one stop, 9, cells. The option `core` of
+`crux_fold` wins over the directive: a string is read as the directive, an
+array of names is the core and derives (as a value with no `/`), an array of
+arrays is as written, and `[]` turns the directive off. The option
+`maxLevels` (default 4) is the most derived levels before the core. The model has `9 + levels`
 stops with `#core`, and 10 without.
 
 The stops of the model and the stops a host shows are not the same list.
@@ -354,9 +359,9 @@ the cell level.
   no residue marker.
 - Kinds: `cell`, `found` or `residue`.
 
-Focus levels are structure that the analysis is about, named by hand.
-`// #core a nugb nugc nugd / nug` names two levels, one stop each, in
-order. The levels use only what the program states. They do not search for
+Focus levels are structure that the analysis is about, named by hand or
+derived from the core. `// #core a nugb nugc nugd / nug` names two levels,
+one stop each, in order. The levels use only what the program states. They do not search for
 other matches.
 
 - A level before the last shows whole definitions, as written. A note
@@ -393,6 +398,44 @@ other matches.
 - Place: the shapes of a level are packed side by side from 0, with the
   stop 5 gap, in the order above.
 
+The derived ladder (`// #core nug`, no `/`). The levels before the core
+come from the definitions around it, at the cell level. The core notes and
+the notes attached to them are those of the core level.
+
+1. An ancestor is a definition that a core or attached note passed through,
+   outside the core definition: the ref frames of the note's chain from its
+   cell-level owner outward.
+2. Share: of the notes that passed through it, the part that is core or
+   attached. An ancestor with a share below 1/2 is not a level.
+3. A definition is real when it writes a note of its own (it is a note's
+   cell-level owner), or when, going inward from it along its notes, the
+   first real definitions or cores reached are two or more different ones.
+   Otherwise it is a wrapper (`ar` is `a` with a rhythm; `nugb`, `br`,
+   `nugc`, `nugd` write no notes of their own at the cell level), and not a
+   level.
+4. A definition that is used once is a passage, not a shape that returns,
+   and is not a level.
+5. The height of a level ancestor is 1 plus the greatest height of the level
+   ancestors inside it, or 1 when there are none.
+6. One level for each height, the greatest first, then the core. Names in
+   source order (the line `name =`). Past `maxLevels` heights, the ones
+   nearest the core are kept.
+
+The derived levels are built as written levels are. BWV 578 with `// #core
+nug` gives `subject nugp / a b d / nug`. The pedal entries `p1`, `p3`,
+`p5`, the soprano passage `s6` and the alto passage `a4` hold the subject or
+part of it, and more than half of their notes are core or attached, but each
+is used once, so rule 4 leaves them out. The core level is the same as with the written
+line. A shape level reads the program as written, not at the cell level, so
+it hides the parts of a split made outside the named definition (BWV 578 at
+`a b d`: 84 notes that the core level shows).
+
+`inward.ladder` is `{ derived, line }`, and `ancestors` when derived: `{
+name, share, real, height }` for each ancestor, in source order (`height` is
+null for one that is not a level). `line` is the directive value that gives
+the same levels written out, `/ nug` for the core alone. Without `#core` it
+is null.
+
 One structure describes every stop after 8. Each note gets `pos[9 + i]` and
 `focus[i] = { kind, unit, entry, host }` for level i (`unit`, `entry` and
 `host` are null when they do not apply). `inward.levels[i]` is `{ names,
@@ -406,7 +449,9 @@ it), or `null` without `#core`.
 
 `node tools/fold-report.js program.crux [--min-length N]` prints the model as
 text. Its stop table has every stop of the model, marks the stops that are
-not shown, and lists `shown`.
+not shown, and lists `shown`. Under it is the `ladder` line, as written or
+derived, and for a derived ladder each ancestor with its share, whether it
+is real or a wrapper, and its height.
 
 ## 2. What a host must decide
 

@@ -466,7 +466,7 @@ const kinds = (m, i) => m.notes.map(n => n.focus[i].kind);
 // host of the A in B is H, which writes [7]. S splits a note of A and writes
 // [9]. Only H is a theme at stop 8.
 const CORE_SRC = [
-  '// #core A',
+  '// #core / A',
   'A = [0, 2, 1, 3]',
   'B = (A * [1]) @[@1 5]',
   'H = B, [7]',
@@ -535,24 +535,24 @@ test('focus core: a note in no named shape is hidden and keeps its stop 7 positi
 });
 
 test('focus: a missing name is listed; a level of missing names hides every note', () => {
-  const m = fold(CORE_SRC.replace('// #core A', '// #core B A Q'));
+  const m = fold(CORE_SRC.replace('// #core / A', '// #core / B A Q'));
   assert.deepEqual(m.inward.levels[0].names, ['A']);
   assert.deepEqual(m.inward.levels[0].missing, ['B', 'Q']);
   assert.equal(m.stops[9], 'B A Q');
   assert.equal(m.counts.shapes[9], 1);
-  const m2 = fold(CORE_SRC.replace('// #core A', '// #core B'));
+  const m2 = fold(CORE_SRC.replace('// #core / A', '// #core / B'));
   assert.deepEqual([m2.inward.levels[0].names, m2.inward.levels[0].missing], [[], ['B']]);
   assert.equal(m2.stops.length, 10);
   assert.deepEqual(m2.counts.core, { stated: 0, bent: 0, split: 0, attached: 0, hidden: m2.counts.notes });
   assert.equal(m2.counts.positions[9], 0);
   m2.notes.forEach(n => assert.deepEqual(n.pos[9], { ...n.pos[7], hidden: true }));
   // In a shape level, a name that no note passed through is missing.
-  const m3 = fold(CORE_SRC.replace('// #core A', '// #core H Q / A'));
+  const m3 = fold(CORE_SRC.replace('// #core / A', '// #core H Q / A'));
   assert.deepEqual([m3.inward.levels[0].names, m3.inward.levels[0].missing], [['H'], ['Q']]);
 });
 
 test('focus: no core gives 10 stops, the last the cells stop', () => {
-  const m = fold(CORE_SRC.replace('// #core A\n', ''));
+  const m = fold(CORE_SRC.replace('// #core / A\n', ''));
   assert.equal(m.stops.length, 10);
   assert.equal(m.counts.shapes.length, 10);
   assert.equal(m.counts.positions.length, 10);
@@ -566,7 +566,7 @@ test('focus: no core gives 10 stops, the last the cells stop', () => {
 });
 
 test('focus: the core option wins over the directive; arrays of arrays are levels', () => {
-  const m = fold(CORE_SRC.replace('// #core A', '// #core Q'), { core: ['A'] });
+  const m = fold(CORE_SRC.replace('// #core / A', '// #core / Q'), { core: [['A']] });
   assert.deepEqual(m.inward.levels.map(L => L.names), [['A']]);
   assert.equal(m.counts.positions[9], 4);
   const m2 = fold(CORE_SRC, { core: [['H', 'S'], ['A']] });
@@ -577,7 +577,7 @@ test('focus: the core option wins over the directive; arrays of arrays are level
 });
 
 test('focus: the directive changes no stop before 9', () => {
-  const a = fold(CORE_SRC.replace('// #core A', '// #core H S / A')), b = fold(CORE_SRC.replace('// #core A\n', ''));
+  const a = fold(CORE_SRC.replace('// #core / A', '// #core H S / A')), b = fold(CORE_SRC.replace('// #core / A\n', ''));
   assert.deepEqual(a.counts.positions.slice(0, 9), b.counts.positions.slice(0, 9));
   assert.deepEqual(a.counts.shapes.slice(0, 9), b.counts.shapes.slice(0, 9));
   a.notes.forEach((n, k) => assert.deepEqual(n.pos.slice(0, 9), b.notes[k].pos.slice(0, 9)));
@@ -723,7 +723,7 @@ test('order: a shape with edited notes stays between its neighbours', () => {
 
 test('order: a focus level lays its shapes out in the order of the stop before', () => {
   // A comes first in the source, B first in the theme H at stop 8.
-  const m = fold('// #theme H\n// #core A B\nA = [0, 2, 1, 3]\nB = [5, 4, 3, 2]\nH = B, A\nH, (H * [2])');
+  const m = fold('// #theme H\n// #core / A B\nA = [0, 2, 1, 3]\nB = [5, 4, 3, 2]\nH = B, A\nH, (H * [2])');
   assert.deepEqual(m.dictionary.map(e => e.id), ['A', 'B']);
   assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x]), [['B', 0], ['A', 4.5]]);
   // Packed from 0: B's notes stay where they are, A's close the gap.
@@ -771,9 +771,9 @@ test('shown: stop 5 never, stop 8 only without #core', () => {
   assert.deepEqual(m.shown, [0, 1, 2, 3, 4, 6, 7, 9]);
   assert.deepEqual(fold(LEVELS_SRC).shown, [0, 1, 2, 3, 4, 6, 7, 9, 10]);
   assert.deepEqual(fold(CORE_SRC, { core: [] }).shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
-  assert.deepEqual(fold(CORE_SRC.replace('// #core A\n', '')).shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
+  assert.deepEqual(fold(CORE_SRC.replace('// #core / A\n', '')).shown, [0, 1, 2, 3, 4, 6, 7, 8, 9]);
   // A level of missing names is still a level: stop 8 is not shown.
-  assert.deepEqual(fold(CORE_SRC.replace('// #core A', '// #core Q')).shown, [0, 1, 2, 3, 4, 6, 7, 9]);
+  assert.deepEqual(fold(CORE_SRC.replace('// #core / A', '// #core / Q')).shown, [0, 1, 2, 3, 4, 6, 7, 9]);
 });
 
 test('shown: the option replaces the rule; unknown numbers go, stop 0 is first', () => {
@@ -808,4 +808,114 @@ test('shown: BWV 578 skips stops 5 and 8; no note passes through stop 8', () => 
   // The shapes are ordered by their stop 7 x, and packed from 0.
   assert.deepEqual(m.inward.levels[0].units.map(u => [u.id, u.x, u.width]),
     [['nugc', 0, 14], ['a', 14.5, 11], ['nugb', 26, 4], ['nugd', 30.5, 4]]);
+});
+
+// Derived ladder (docs/plans/crux-fold-inward.md, "Derived ladder").
+// W writes [7] around the core A. R is W with another rhythm: a wrapper.
+// C holds R and an A of its own: it reaches two, W and the core. L holds W
+// and much other material: its share is low.
+const LADDER_SRC = [
+  '// #core A',
+  'A = [0, 2, 1, 3]',
+  'W = A, [7]',
+  'R = W || [2]',
+  'C = R, (A * [4])',
+  'L = W, [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]',
+  'C, (C * [3]), L',
+].join('\n');
+const ladderOf = m => m.inward.levels.map(L => L.names.join(' '));
+const anc = m => Object.fromEntries(m.inward.ladder.ancestors.map(a => [a.name, [a.share, a.real, a.height]]));
+
+test('ladder: a core in a writer in a combiner gives two levels before the core', () => {
+  const m = fold(LADDER_SRC);
+  assert.deepEqual(m.inward.ladder.line, 'C / W / A');
+  assert.equal(m.inward.ladder.derived, true);
+  assert.deepEqual(ladderOf(m), ['C', 'W', 'A']);
+  assert.deepEqual(m.inward.levels.map(L => L.kind), ['shapes', 'shapes', 'core']);
+  assert.deepEqual(m.stops.slice(9), ['C', 'W', 'A']);
+  assert.deepEqual(anc(m).C, [1, true, 2]);
+  assert.deepEqual(anc(m).W, [1, true, 1]);
+});
+
+test('ladder: a wrapper is not a level', () => {
+  const m = fold(LADDER_SRC);
+  assert.deepEqual(anc(m).R, [1, false, null]);
+  assert.ok(!ladderOf(m).some(l => l.split(' ').includes('R')));
+  // Without the A of its own, C reaches only W through R: C is a wrapper too.
+  const m2 = fold(LADDER_SRC.replace('C = R, (A * [4])', 'C = R, (R * [4])'));
+  assert.deepEqual(anc(m2).C, [1, false, null]);
+  assert.equal(m2.inward.ladder.line, 'W / A');
+});
+
+test('ladder: an ancestor with a share below 1/2 is left out', () => {
+  const m = fold(LADDER_SRC);
+  // L: W's 5 notes of 15.
+  assert.deepEqual(anc(m).L, [round(5 / 15), true, null]);
+  assert.ok(!ladderOf(m).some(l => l.split(' ').includes('L')));
+});
+const round = x => Math.round(x * 1e9) / 1e9;
+
+test('ladder: maxLevels keeps the levels nearest the core', () => {
+  assert.equal(fold(LADDER_SRC, { maxLevels: 1 }).inward.ladder.line, 'W / A');
+  const m = fold(LADDER_SRC, { maxLevels: 0 });
+  assert.equal(m.inward.ladder.line, '/ A');
+  assert.deepEqual(ladderOf(m), ['A']);
+});
+
+test('ladder: / A is the core alone; option forms', () => {
+  const m = fold(LADDER_SRC.replace('// #core A', '// #core / A'));
+  assert.deepEqual(ladderOf(m), ['A']);
+  assert.deepEqual(m.inward.ladder, { derived: false, line: '/ A' });
+  assert.equal(m.stops.length, 10);
+  const plain = LADDER_SRC.replace('// #core A\n', '');
+  assert.equal(fold(plain, { core: ['A'] }).inward.ladder.line, 'C / W / A');
+  assert.equal(fold(plain, { core: 'A' }).inward.ladder.line, 'C / W / A');
+  assert.deepEqual(fold(plain, { core: [['A']] }).inward.ladder, { derived: false, line: '/ A' });
+  assert.deepEqual(fold(plain, { core: '/ A' }).inward.ladder, { derived: false, line: '/ A' });
+  assert.equal(fold(plain).inward.ladder, null);
+  assert.equal(fold(LADDER_SRC, { core: [] }).inward.ladder, null);
+});
+
+test('ladder: two cores', () => {
+  const m = fold('// #core A B\nA = [0, 2, 1, 3]\nB = [5, 4, 3]\nP = A, B\nQ = A, (A * [2])\nP, (P * [2]), Q');
+  // P reaches both cores. Q reaches only A: a wrapper.
+  assert.equal(m.inward.ladder.line, 'P / A B');
+  assert.deepEqual(anc(m).Q, [1, false, null]);
+  assert.deepEqual(m.inward.levels[1].units.map(u => u.id), ['A', 'B']);
+});
+
+test('ladder: a written ladder is not changed', () => {
+  const m = fold(LADDER_SRC.replace('// #core A', '// #core L / A'));
+  assert.deepEqual(m.inward.ladder, { derived: false, line: 'L / A' });
+  assert.deepEqual(ladderOf(m), ['L', 'A']);
+});
+
+// The fields of a model that do not hold source offsets.
+const levelsView = m => ({ stops: m.stops, shown: m.shown, counts: m.counts, levels: m.inward.levels,
+  notes: m.notes.map(n => [n.pos, n.focus]) });
+
+test('ladder: the derived line, written out, gives the same model', () => {
+  const m = fold(LADDER_SRC);
+  const w = fold(LADDER_SRC.replace('// #core A', '// #core ' + m.inward.ladder.line));
+  assert.equal(w.inward.ladder.derived, false);
+  assert.equal(w.inward.ladder.line, m.inward.ladder.line);
+  assert.deepEqual(levelsView(w), levelsView(m));
+});
+
+const a0 = (m, name) => (m.inward.ladder.ancestors.find(x => x.name === name) || {}).height ?? null;
+
+test('ladder: BWV 578 with #core nug', () => {
+  const src = example('bach-bwv578.keylane.crux').replace(/^\/\/ #core .*$/m, '// #core nug');
+  const m = fold(src);
+  assert.equal(m.inward.ladder.line, 'subject nugp / a b d / nug');
+  // s6, p1, p3, p5 and a4 are mostly the core, but each is used once: a
+  // passage is not a level.
+  for (const name of ['s6', 'p1', 'p3', 'p5', 'a4']) assert.equal(a0(m, name), null, name);
+  const a = anc(m);
+  for (const name of ['ar', 'nugb', 'br', 'nugc', 'nugd']) assert.equal(a[name][1], false, name);
+  assert.deepEqual(['a', 'b', 'd', 'subject', 'nugp'].map(name => a[name][2]), [1, 1, 1, 2, 2]);
+  // The core level is the one the written ladder gives.
+  assert.deepEqual(m.counts.core, { stated: 210, bent: 33, split: 12, attached: 120, hidden: 1339 });
+  const w = fold(src.replace('// #core nug', '// #core ' + m.inward.ladder.line));
+  assert.deepEqual(levelsView(w), levelsView(m));
 });

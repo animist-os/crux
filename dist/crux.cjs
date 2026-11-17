@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-17T20:53:55.224Z
+// Generated: 2026-11-17T21:44:39.342Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -4430,7 +4430,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T20:53:55.224Z";
+golden.cruxBuiltAt = "2026-11-17T21:44:39.342Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -7204,6 +7204,7 @@ function foldModel(trace, options = {}) {
   // without them, the cells stop.
   const themed = th.summary.units[8].some(u => u.kind === 'theme');
   let shown = null; // set by focusLevels, before the levels are laid out
+  let ladder = null; // set by focusLevels: { derived, line, ancestors }
   const levels = focusLevels(cellLevel);
   notes.forEach((n, k) => { n.focus = levels.map(Lv => Lv.at[k]); });
   const nStops = 9 + levels.length;
@@ -7243,16 +7244,19 @@ function foldModel(trace, options = {}) {
     })),
     counts,
     thematic: th.summary,
-    inward: { themed, levels: levels.map(Lv => Lv.info) },
+    inward: { themed, ladder, levels: levels.map(Lv => Lv.info) },
     shown,
     stops: ['heard', 'scale steps', 'no transposition', 'no mirror, reverse or stretch', 'no repetition', 'no nesting',
       'no unstated repeats', 'near-misses folded', 'themes only', ...levels.map(Lv => Lv.title)],
   };
 
   // Stops 9 and on, one stop for each level. The program names focus levels
-  // by hand: `// #core a nugb / nug` or options.core (an array of names is
-  // one level, an array of arrays is several; [] turns the directive off).
-  // Each level is one stop, in order. Only what the program states is used.
+  // by hand, `// #core a nugb / nug`, or names only the core, `// #core nug`,
+  // and the fold derives the levels before it (deriveLadder). options.core
+  // does the same: a string is read as the directive, an array of names
+  // derives, an array of arrays is as written, and [] turns the directive
+  // off. `/ nug` is the core alone. Each level is one stop, in order. Only
+  // what the program states is used.
   // At a focus level a note that belongs to no named shape is hidden: it
   // keeps its position of the stop before on the slider (pos.hidden is true),
   // and counts do not count it.
@@ -7275,17 +7279,144 @@ function foldModel(trace, options = {}) {
   // Every level is laid out by layOut: the order of the shapes, and at the
   // cells stop their place, come from the stop before.
   function focusLevels(L) {
-    let given = options.core ?? (trace.directives && trace.directives.core) ?? '';
-    if (typeof given === 'string') given = given.split('/').map(x => x.split(/[\s,]+/).filter(Boolean));
-    else if (!Array.isArray(given)) given = [];
-    else if (given.some(Array.isArray)) given = given.map(x => (Array.isArray(x) ? x : [x]));
-    else given = [given];
-    const lists = given.map(l => [...new Set(l.map(String))]).filter(l => l.length);
+    const { lists: given, derive } = readCore(options.core ?? (trace.directives && trace.directives.core) ?? '');
+    let lists = given, core = null, ancestors = null;
+    if (derive) {
+      core = coreLevel(L, given[0]);
+      ({ lists, ancestors } = deriveLadder(core, given[0]));
+    }
+    if (lists.length) ladder = { derived: derive, line: lineOf(lists), ...(ancestors ? { ancestors } : {}) };
     const made = lists.length
-      ? lists.map((names, i) => Object.assign(i === lists.length - 1 ? coreLevel(L, names) : shapeLevel(names), { title: names.join(' ') }))
+      ? lists.map((names, i) => Object.assign(i === lists.length - 1 ? core || coreLevel(L, names) : shapeLevel(names), { title: names.join(' ') }))
       : [cellsLevel(L)];
     shown = shownStops(9 + made.length, lists.length > 0);
     return made.map((Lv, i) => layOut(Lv, 9 + i));
+  }
+
+  // The levels that `#core` or options.core give, as lists of names, and
+  // whether the levels before the core are to be derived. A value with `/`
+  // (or an array of arrays) is as written; empty levels are dropped, so
+  // `/ nug` is the core alone. A value with names and no `/` (or an array of
+  // names) is the core, and derive is true.
+  function readCore(given) {
+    const names = l => [...new Set(l.map(String).flatMap(x => x.split(/[\s,]+/)).filter(Boolean))];
+    if (typeof given === 'string') {
+      if (given.includes('/')) return { lists: given.split('/').map(x => names([x])).filter(l => l.length), derive: false };
+      const core = names([given]);
+      return { lists: core.length ? [core] : [], derive: core.length > 0 };
+    }
+    if (!Array.isArray(given)) return { lists: [], derive: false };
+    if (given.some(Array.isArray)) return { lists: given.map(x => names(Array.isArray(x) ? x : [x])).filter(l => l.length), derive: false };
+    const core = names(given);
+    return { lists: core.length ? [core] : [], derive: core.length > 0 };
+  }
+
+  // The directive value that gives these levels when written out. One level
+  // (the core alone) is written `/ nug`, so that it is not derived again.
+  function lineOf(lists) {
+    const line = lists.map(l => l.join(' ')).join(' / ');
+    return lists.length === 1 ? '/ ' + line : line;
+  }
+
+  // The derived ladder (`// #core nug`). C is the core level of the given
+  // names. At the cell level:
+  // 1. An ancestor is a definition that a core or attached note of C passed
+  //    through, outside the core definition. The definitions a note passed
+  //    through are the ref frames of its chain from its cell-level owner
+  //    outward.
+  // 2. Its share is the part of the notes that passed through it that are
+  //    core or attached. An ancestor with a share below 1/2 is not a level.
+  // 3. A definition is real when it writes a note of its own (it is the
+  //    cell-level owner of a note), or when, going inward from it along its
+  //    notes, the first real definitions or cores reached are two or more
+  //    different ones. A definition that is not real is a wrapper, and is not
+  //    a level.
+  // 4. A definition that is used once is a passage, not a shape that
+  //    returns, and is not a level (a voice section that is mostly the
+  //    subject).
+  // 5. The height of a level ancestor is 1 plus the greatest height of the
+  //    level ancestors inside it (0 when there are none).
+  // 6. One level for each height, the greatest first, then the core; names
+  //    in source order. Past options.maxLevels (4) heights, the ones nearest
+  //    the core are kept.
+  function deriveLadder(C, given) {
+    const coreNames = new Set(C.names);
+    const recs = all.filter(rec => rec.sounding);
+    const chainOf = rec => rec.cl.chain || rec.cl.frames;
+    const paths = recs.map((rec, j) => {
+      const fr = chainOf(rec), o = rec.cl.owner ? fr.indexOf(rec.cl.owner) : -1;
+      const refs = [];
+      for (let i = Math.max(o, 0); o >= 0 && i < fr.length; i++) if (fr[i].kind === 'ref') refs.push(i);
+      return { fr, o, refs, kind: C.place[j].kind };
+    });
+    const total = new Map(), hit = new Map(), ancestor = new Set(), own = new Set();
+    for (const P of paths) {
+      if (P.o >= 0) own.add(P.fr[P.o].name);
+      const on = P.kind === 'core' || P.kind === 'attached';
+      for (const name of new Set(P.refs.map(i => P.fr[i].name))) {
+        total.set(name, (total.get(name) || 0) + 1);
+        if (!on) continue;
+        hit.set(name, (hit.get(name) || 0) + 1);
+        if (!coreNames.has(name)) ancestor.add(name);
+      }
+    }
+    const share = name => (hit.get(name) || 0) / total.get(name);
+    const realMemo = new Map();
+    const real = name => {
+      if (realMemo.has(name)) return realMemo.get(name);
+      realMemo.set(name, false); // a definition that holds itself is not real by that
+      let r = own.has(name);
+      if (!r) {
+        const reached = new Set();
+        for (const P of paths) {
+          for (const j of P.refs) {
+            if (P.fr[j].name !== name) continue;
+            for (let i = j - 1; i >= P.o; i--) {
+              const f = P.fr[i];
+              if (f.kind === 'ref' && (coreNames.has(f.name) || real(f.name))) { reached.add(f.name); break; }
+            }
+          }
+        }
+        r = reached.size >= 2;
+      }
+      realMemo.set(name, r);
+      return r;
+    };
+    const level = new Set([...ancestor].filter(name => share(name) >= 0.5 && real(name) && (usesOf.get(name) || { size: 0 }).size >= 2));
+    const inner = new Map([...level].map(name => [name, new Set()]));
+    for (const P of paths) {
+      const on = P.refs.filter(i => level.has(P.fr[i].name));
+      for (let a = 0; a < on.length; a++) for (let b = a + 1; b < on.length; b++) {
+        const x = P.fr[on[a]].name, y = P.fr[on[b]].name;
+        if (x !== y) inner.get(y).add(x);
+      }
+    }
+    const heightMemo = new Map();
+    const height = name => {
+      if (heightMemo.has(name)) return heightMemo.get(name);
+      heightMemo.set(name, 1);
+      let h = 0;
+      for (const x of inner.get(name)) h = Math.max(h, height(x));
+      heightMemo.set(name, h + 1);
+      return h + 1;
+    };
+    const src = trace.source || '';
+    const at = name => {
+      const m = new RegExp('^[ \\t]*' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[ \\t]*=(?!=)', 'm').exec(src);
+      return m ? m.index : Infinity;
+    };
+    const byHeight = new Map();
+    for (const name of level) {
+      const h = height(name);
+      if (!byHeight.has(h)) byHeight.set(h, []);
+      byHeight.get(h).push(name);
+    }
+    const max = options.maxLevels ?? 4;
+    const heights = [...byHeight.keys()].sort((x, y) => x - y).slice(0, Math.max(0, max)).reverse();
+    const lists = [...heights.map(h => byHeight.get(h).sort((x, y) => at(x) - at(y) || x.localeCompare(y))), given];
+    const ancestors = [...ancestor].sort((x, y) => at(x) - at(y) || x.localeCompare(y)).map(name => ({
+      name, share: round9(share(name)), real: real(name), height: level.has(name) ? height(name) : null }));
+    return { lists, ancestors };
   }
 
   // The stops the slider shows, of the n stops of the model: every stop but

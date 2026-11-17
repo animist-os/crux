@@ -35,14 +35,15 @@
 // the A-flat. A mark applies to the next note on its degree, once. n7 keeps
 // F-sharp where the ~ rule would lower it. See docs/crux-key-lane.md.
 //
-// The theme directive names the shapes that the fold view shows whole at
-// stop 8. The core directive names two focus levels, one stop each,
-// separated by the slash. The first, stop 9, shows a, nugb, nugc and nugd
-// whole, the shapes the subject is built from. The second, stop 10 and the
-// last, shows nug only, the cell the subject grows from, with the notes that
-// a, b and d add around it stacked on it. At these stops the notes of other
-// shapes are hidden. Without the core directive, stop 9 is the last stop: it
-// shows the cells the themes are made of.
+// The theme directive names the themes of the fold view. The core directive
+// writes two levels, one button each, with the slash between them. The
+// first (a+) shows a, nugb, nugc and nugd whole, the shapes the subject is
+// built from. The last (nug) shows nug only, the cell the subject grows from,
+// with the notes that a, b and d add around it stacked on it. At these stops
+// the notes of other shapes are hidden. With nug alone after the directive
+// name, the fold would find the levels itself from the definitions (see
+// docs/crux-fold.md). Without the core directive, the last stop is cells: the
+// cells the themes are made of.
 //
 // #meter 4/4
 // #keyLane 1 i~, 6 v~, 11 i~, 17:3 v~, 22 v-, 23:-1 III, 24:2 i~, 26:4 b7, 31:2 III, 32:2 #6, 34 bVII, 34:3 III, 38:4 #6, 39:2 b2, 42 bVII, 42:3 III, 47:3 iv-, 48 iv~, 55:2 III, 57:2 i~, 57:2 #6, 59:4 III, 60:2 #3, 60:3 bVII, 60:4 #4, 61 i~, 61:3 b2, 62 III, 63 i~, 65:1:3 n7, 65:1:4 #6, 68 I

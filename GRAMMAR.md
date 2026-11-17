@@ -458,6 +458,13 @@ Values are returned as raw strings; downstream renderers parse them however
 they need. Crux itself only enforces the sampler-scoping rule and the
 `#target` routing semantics.
 
+**Fold view.** The fold view (the fold panel in Golden) reads two global
+directives. `// #theme subject CS` names the themes. `// #core nug` names the
+core, and the fold finds the levels before it from the definitions around
+it. `// #core a nugb nugc nugd / nug` writes the levels, separated by `/`; the
+last is the core. `// #core / nug` is the core alone. See
+`docs/crux-agent-guide.md` (1.6 and 1.8).
+
 ### Mixed examples
 
 ```text

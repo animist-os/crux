@@ -101,6 +101,12 @@ Returns `[[2, 3, 3, 4]]` (same fan-add behavior as `*` — for each r in `[2,3]`
   - **Curly**: `{a, b, c, ...}` picks one option at evaluation time. Example: `[{0, 1, 2}] -> [0]` or `[1]` or `[2]`.
   - **Random Range**: `{a -> b}` picks a random integer between a and b (inclusive). Example: `[{-2 -> 2}] -> [-2]` to `[2]`.
   - **Seeded Random**: `{a -> b}$seed` provides deterministic randomness. Example: `[{1 -> 6}$c0de]`.
+  - **Arithmetic and names inside a mot**: inside `[ ... ]`, `+ - * /` on numbers and on names bound to a single number are arithmetic. No parentheses are needed; use them only to group. Range endpoints take the same arithmetic.
+    - With `P = 3`: `[P - 1 | 2, P * 2] -> [2 | 2, 6]`, `[P -> P - 1] -> [3, 2]`, `[2 * (P + 1)] -> [8]`, `[P | 2] -> [3 | 2]`.
+    - Numbers alone work the same way: `[3 - 1, 2 * 3] -> [2, 6]`.
+    - A name that holds a longer mot keeps its mot meaning: with `T = [0, 1, 2]`, `[T * 2] -> [2, 3, 4]` (fan-add). `[T - 1]` is an error, because `-` has no mot meaning.
+    - A lone name is a mot reference: `[a]` splices `a`.
+    - Outside a mot nothing changes: `T * 2` is fan-add and `T -> 2` is steps, even when the name holds one number (`P * 2 -> [5]`).
 
 Notes:
 - Floats are supported for steps and time scales. Fractions normalize to decimals in string output.
@@ -679,6 +685,7 @@ Crux {
     | NestedMotLiteral
     | NestedMotAbbrev
     | MotLiteral
+    | ~(Pip valueEnd) MotNum
     | Pip
     | Range
     | Curly
@@ -698,6 +705,40 @@ Crux {
 
   Range
     = RandNum "->" RandNum         -- inclusive
+
+  // Arithmetic with names, inside a mot only: [P - 1 | 2, P * 2], [P -> P - 1]
+  MotNum
+    = RefRange hspaces? "|" hspaces? TimeScale             -- rangeWithTimeMulPipeImplicit
+    | RefRange hspaces? "|" hspaces? "/" hspaces? RandNum  -- rangeWithTimeDivPipe
+    | RefRange &valueEnd                                   -- rangeNoTimeScale
+    | &(MulExpr valueEnd) RefStep &valueEnd                -- stepOrExpr
+    | RefStep hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+    | RefStep hspaces? "|" hspaces? "*" hspaces? RandNum   -- withTimeMulPipe
+    | RefStep hspaces? "|" hspaces? "/" hspaces? RandNum   -- withTimeDivPipe
+    | RefStep &valueEnd                                    -- step
+
+  RefStep = ~(ident valueEnd) RefArithExpr
+  RefRange = RefRangeEnd "->" RefRangeEnd
+  RefRangeEnd = RefArithExpr | RandNum
+  NumRef = ident
+
+  RefArithExpr
+    = RefArithExpr hspaces? "+" hspaces? RefArithMulExpr  -- add
+    | RefArithExpr hspaces? "-" hspaces? RefArithMulExpr  -- sub
+    | RefArithMulExpr
+
+  RefArithMulExpr
+    = RefArithMulExpr hspaces? "*" hspaces? RefArithPrimary  -- mul
+    | RefArithMulExpr hspaces? "/" hspaces? RefArithPrimary  -- div
+    | RefArithPrimary
+
+  RefArithPrimary
+    = "(" hspaces? RefArithExpr hspaces? ")"  -- parens
+    | MemberAccess
+    | NumRef
+    | number
+
+  valueEnd = "," | "]" | "&" | ":"
 
   Pip
     = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
@@ -761,7 +802,7 @@ Crux {
   CurlyBody
     = ListOf<CurlyEntry, ",">      -- list
   CurlyEntry
-    = Range              -- range
+    = RefRange           -- range
     | number "/" number  -- frac
     | number             -- num
     | MemberAccess       -- member

@@ -524,6 +524,65 @@ const s = g.createSemantics().addOperation('parse', {
     return new NumRef(name.sourceString);
   },
 
+  // ---- Arithmetic with names, inside a mot only ----
+  RefRange(start, _arrow, end) {
+    return new Range(start.parse(), end.parse(), start.source.startIdx, end.source.startIdx);
+  },
+  RefStep(expr) {
+    return expr.parse();
+  },
+  MotNum_rangeWithTimeMulPipeImplicit(range, _h1, _pipe, _h2, ts) {
+    return new RangePipe(range.parse(), { kind: 'mul', factor: ts.parse() });
+  },
+  MotNum_rangeWithTimeDivPipe(range, _h1, _pipe, _h2, _slash, _h3, d) {
+    return new RangePipe(range.parse(), { kind: 'div', rhs: d.parse() });
+  },
+  MotNum_rangeNoTimeScale(range, _end) {
+    return range.parse();
+  },
+  // P * 2 or (b1 * -2): arithmetic and a mot expression are both possible.
+  // Keep the mot expression as the fallback only when it covers the same
+  // text and the arithmetic actually uses a name.
+  MotNum_stepOrExpr(mulExpr, _end1, step, _end2) {
+    const arith = step.parse();
+    const pos = step.source.startIdx;
+    if (!arithUsesName(arith) || mulExpr.source.endIdx !== step.source.endIdx) {
+      return new Pip(arith, 1, null, pos);
+    }
+    return new ArithOrMotExpr(arith, mulExpr.parse(), pos);
+  },
+  MotNum_withTimeMulPipeImplicit(n, _h1, _pipe, _h2, ts) {
+    return new Pip(n.parse(), ts.parse(), null, n.source.startIdx);
+  },
+  MotNum_withTimeMulPipe(n, _h1, _pipe, _h2, _star, _h3, m) {
+    return new Pip(n.parse(), m.parse(), null, n.source.startIdx);
+  },
+  MotNum_withTimeDivPipe(n, _h1, _pipe, _h2, _slash, _h3, d) {
+    const divisor = d.parse();
+    if (divisor instanceof RandomRange || divisor instanceof RandomChoice) {
+      return new Pip(n.parse(), { _frac: true, num: 1, den: divisor }, null, n.source.startIdx);
+    }
+    return new Pip(n.parse(), 1 / divisor, null, n.source.startIdx);
+  },
+  MotNum_step(n, _end) {
+    return new Pip(n.parse(), 1, null, n.source.startIdx);
+  },
+  RefArithExpr_add(left, _h1, _plus, _h2, right) {
+    return new ArithAdd(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+  RefArithExpr_sub(left, _h1, _minus, _h2, right) {
+    return new ArithSub(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+  RefArithMulExpr_mul(left, _h1, _star, _h2, right) {
+    return new ArithMul(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+  RefArithMulExpr_div(left, _h1, _slash, _h2, right) {
+    return new ArithDiv(wrapArithNode(left.parse()), wrapArithNode(right.parse()));
+  },
+  RefArithPrimary_parens(_op, _h1, expr, _h2, _cp) {
+    return expr.parse();
+  },
+
   MemberAccess_prop(obj, _dot, prop) {
     return new MemberAccess(obj.sourceString, prop.sourceString);
   },
@@ -992,6 +1051,24 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
 
   Range_inclusive(_a, _dots, _b) { return []; },
   Pip_noTimeScale(_n) { return []; },
+  RefRange(_a, _arrow, _b) { return []; },
+  MotNum_rangeWithTimeMulPipeImplicit(_range, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  MotNum_rangeWithTimeDivPipe(_range, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
+  MotNum_rangeNoTimeScale(_range, _end) { return []; },
+  MotNum_stepOrExpr(_mulExpr, _end1, _step, _end2) { return []; },
+  MotNum_withTimeMulPipeImplicit(_n, _h1, _pipe, _h2, ts) { return ts.collectTs(); },
+  MotNum_withTimeMulPipe(_n, _h1, _pipe, _h2, _star, _h3, m) {
+    const xs = m.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [m.source.startIdx];
+  },
+  MotNum_withTimeDivPipe(_n, _h1, _pipe, _h2, _slash, _h3, d) {
+    const xs = d.collectTs();
+    return (Array.isArray(xs) && xs.length > 0) ? xs : [d.source.startIdx];
+  },
+  MotNum_step(_n, _end) { return []; },
   // Default: flatten children
   _iter(...children) {
     const out = [];
@@ -2535,8 +2612,19 @@ class NumRef {
         return pips[0].step;
       }
     }
-    throw new Error(`'${this.name}' must be a single number to be used here`);
+    const err = new Error(`'${this.name}' must be a single number to be used here`);
+    err.notSingleNumber = true;
+    throw err;
   }
+}
+
+// True when an arithmetic node refers to a name (NumRef) anywhere.
+function arithUsesName(node) {
+  if (node instanceof NumRef) return true;
+  if (node && typeof node === 'object' && 'left' in node && 'right' in node) {
+    return arithUsesName(node.left) || arithUsesName(node.right);
+  }
+  return false;
 }
 
 class MemberAccess {
@@ -3394,6 +3482,28 @@ class NestedMotExpr {
 
   toString() {
     return '[[' + this.expr.toString() + ']]';
+  }
+}
+
+// Inside a mot, P * 2 or (b1 * -2) reads two ways. When every name is a
+// single number it is arithmetic and yields one pip. When a name holds a
+// longer mot it is the mot expression, evaluated as NestedMotExpr always did.
+class ArithOrMotExpr extends NestedMotExpr {
+  constructor(arith, expr, sourcePos = null) {
+    super(expr);
+    this.arith = arith;
+    this.sourcePos = sourcePos;
+  }
+
+  eval(env) {
+    let n;
+    try {
+      n = this.arith.eval(env);
+    } catch (e) {
+      if (e && e.notSingleNumber) return super.eval(env);
+      throw e;
+    }
+    return new Mot([new Pip(n, 1, null, this.sourcePos)]);
   }
 }
 

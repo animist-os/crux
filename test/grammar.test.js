@@ -1767,3 +1767,61 @@ test('bare identifier in a mot is still a mot reference', () => {
 test('multi-pip identifier as range endpoint is an error', () => {
   assert.throws(() => evalToString('P = [0, 1]\n[0 -> P]'), /single number/);
 });
+
+test('parenthesised expression in a mot is still an expression', () => {
+  assert.equal(evalToString('b1 = [3, 2]\n[(b1 * -2)]'), '[1, 0]');
+  assert.equal(evalToString('b1 = [3, 2]\n[b1, (b1 * -2)] z'), '[3, 2, 1, 0]');
+});
+
+test('zip of identifier ranges', () => {
+  assert.equal(evalToString('P = 3\nb1 = [P -> (P - 1)]\n(b1, b1 * -2)z'), '[3, 1, 2, 0]');
+});
+
+test('parenthesised identifier expression is a mot expression, not arithmetic', () => {
+  assert.equal(evalToString('T = [0, 1, 2]\n(T * 2)'), '[2, 3, 4]');
+  assert.equal(evalToString('T = [0, 1, 2]\n(T * 2) @ [@1 1/2]'), '[2, 3.5, 4]');
+  assert.equal(evalToString('T = [0, 1, 2]\n((T * -2) \\ 1) * |2'), '[-2 | 2, -1 | 2]');
+});
+
+// Arithmetic with names inside a mot, no parentheses needed
+test('arithmetic with names inside a mot needs no parentheses', () => {
+  assert.equal(evalToString('P = 3\n[P - 1 | 2, P * 2]'), '[2 | 2, 6]');
+  assert.equal(evalToString('P = 3\n[P -> P -1]'), '[3, 2]');
+  assert.equal(evalToString('P = 3\n[P - 1 -> 5]'), '[2, 3, 4, 5]');
+  assert.equal(evalToString('P = 3\n[0 -> P * 2 | /2]'), '[0 | /2, 1 | /2, 2 | /2, 3 | /2, 4 | /2, 5 | /2, 6 | /2]');
+  assert.equal(evalToString('P = 3\n[2 * (P - 1), (P - 1) * 2, P / 2, P | 2]'), '[4, 4, 1.5, 3 | 2]');
+  assert.equal(evalToString('P = 3\n[P-1, P*2, 0->P-1]'), '[2, 6, 0, 1, 2]');
+});
+
+test('number-only arithmetic inside a mot needs no parentheses', () => {
+  assert.equal(evalToString('[3 - 1, 2 * 3, 1/2]'), '[2, 6, 0.5]');
+  assert.equal(evalToString('[0 -> 4 - 1]'), '[0, 1, 2, 3]');
+});
+
+test('arithmetic value behaves like a plain number in operators', () => {
+  assert.equal(evalToString('P = 3\n[0, 4, 2] . [0, P * 2, 0]'), '[0, 10, 2]');
+  assert.equal(evalToString('P = 3\n[0, 1, 2] @ [@1 P - 1]'), '[0, 3, 2]');
+  assert.equal(evalToString('P = 3\n[P + 1 & 5, P * 2 : 2]'), '[4 & 5, 6, 6]');
+  assert.equal(evalToString('P = 3\n[[0, P * 2]]/'), '[0 | /2, 6 | /2]');
+});
+
+test('a name holding a longer mot keeps its mot meaning inside a mot', () => {
+  assert.equal(evalToString('T = [0, 1, 2]\n[T * 2]'), '[2, 3, 4]');
+  assert.equal(evalToString('b1 = [3, 2]\n[b1 * -2, 9]'), '[1, 0, 9]');
+  assert.equal(evalToString('P = 3\nT = [0, 1, 2]\n[P * 2, T * 2, (T * 2)]'), '[6, 2, 3, 4, 2, 3, 4]');
+  assert.throws(() => evalToString('T = [0, 1, 2]\n[T - 1]'), /single number/);
+  assert.throws(() => evalToString('[x - 1]'), /undeclared identifier/);
+});
+
+test('outside a mot, * and -> stay mot operators', () => {
+  assert.equal(evalToString('T = [0, 1, 2]\nT * 2'), '[2, 3, 4]');
+  assert.equal(evalToString('P = 3\nP * 2'), '[5]');
+  assert.equal(evalToString('T = [0, 1, 2]\nT -> 2'), '[0, 1, 2, 1, 2, 3, 2, 3, 4]');
+  assert.equal(evalToString('P = 3\nP -> 5'), '[3, 4, 5, 6, 7, 8]');
+  assert.equal(evalToString('3 -> 5'), '[3, 4, 5]');
+});
+
+test('names and arithmetic in a range inside curly', () => {
+  assert.equal(evalToString('P = 3\n[{P -> P}$aa]'), '[3]');
+  assert.equal(evalToString('P = 3\n[{P - 1 -> P - 1}$aa]'), '[2]');
+});

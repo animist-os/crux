@@ -37,6 +37,7 @@
 Pips:
 
 * Range: `[0->3] === [0, 1, 2, 3]`
+* Arithmetic and names (inside a mot only): with `P = 3`, `[P - 1 | 2, P * 2] === [2 | 2, 6]` and `[P -> P - 1] === [3, 2]`. A name holding a longer mot keeps its mot meaning: `[T * 2]` is fan-add.
 * Random Choice: `[{0, 1, 2}] === one of [0] [1] [2]`
 * Random Range: `[{-2 -> 2}] === random integer from -2 to 2`
 * Fractional steps: `[1/2, -3/4]` emits `[0.5, -0.75]`

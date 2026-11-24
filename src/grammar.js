@@ -159,6 +159,7 @@ export const g = ohm.grammar(String.raw`
       | NestedMotLiteral
       | NestedMotAbbrev
       | MotLiteral
+      | ~(Pip valueEnd) MotNum
       | Pip
       | Range
       | Curly
@@ -177,17 +178,58 @@ export const g = ohm.grammar(String.raw`
       | "(" Expr ")"                            -- exprInDiad
 
     Range
-      = RangeEnd "->" RangeEnd      -- inclusive
+      = RandNum "->" RandNum      -- inclusive
 
-    // A range endpoint: any RandNum, or a bare identifier bound to a single
-    // number (e.g. P = 3; [0 -> P]). Resolved at evaluation time.
-    RangeEnd
-      = RandNum
-      | NumRef
+    // ---- Arithmetic with names, inside a mot only ----
+    // Inside [ ... ] a value may be arithmetic on numbers and on names bound
+    // to a single number, with no parentheses needed:
+    //   [P - 1 | 2, P * 2]   [P -> P - 1]   [2 * (P + 1)]
+    // Outside a mot, * and -> stay mot operators (T * 2 is fan-add, T -> 2
+    // is steps), so none of these rules are reachable from PriExpr.
+    //
+    // P * 2 can also be read as a mot expression. stepOrExpr keeps both
+    // readings: arithmetic when every name is a single number, the mot
+    // expression when a name holds a longer mot, so [(b1 * -2)] still works.
+    MotNum
+      = RefRange hspaces? "|" hspaces? TimeScale             -- rangeWithTimeMulPipeImplicit
+      | RefRange hspaces? "|" hspaces? "/" hspaces? RandNum  -- rangeWithTimeDivPipe
+      | RefRange &valueEnd                                   -- rangeNoTimeScale
+      | &(MulExpr valueEnd) RefStep &valueEnd                -- stepOrExpr
+      | RefStep hspaces? "|" hspaces? TimeScale              -- withTimeMulPipeImplicit
+      | RefStep hspaces? "|" hspaces? "*" hspaces? RandNum   -- withTimeMulPipe
+      | RefStep hspaces? "|" hspaces? "/" hspaces? RandNum   -- withTimeDivPipe
+      | RefStep &valueEnd                                    -- step
+
+    // A lone name is left to refInMot, so [a] still splices the mot a.
+    RefStep
+      = ~(ident valueEnd) RefArithExpr
+
+    RefRange
+      = RefRangeEnd "->" RefRangeEnd
+
+    RefRangeEnd
+      = RefArithExpr
+      | RandNum
 
     // Identifier used where a number is expected. Must evaluate to one pip.
     NumRef
       = ident
+
+    RefArithExpr
+      = RefArithExpr hspaces? "+" hspaces? RefArithMulExpr  -- add
+      | RefArithExpr hspaces? "-" hspaces? RefArithMulExpr  -- sub
+      | RefArithMulExpr
+
+    RefArithMulExpr
+      = RefArithMulExpr hspaces? "*" hspaces? RefArithPrimary  -- mul
+      | RefArithMulExpr hspaces? "/" hspaces? RefArithPrimary  -- div
+      | RefArithPrimary
+
+    RefArithPrimary
+      = "(" hspaces? RefArithExpr hspaces? ")"  -- parens
+      | MemberAccess
+      | NumRef
+      | number
 
   Pip
       = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
@@ -216,9 +258,7 @@ export const g = ohm.grammar(String.raw`
     StepValue
       = number hspaces? "/" hspaces? number  -- frac
       | PlainNumber                          -- plain
-      // A bare leading identifier is left to the ref/mot rules, so [a] and
-      // [a * [0,1]] keep their meaning; identifiers inside parens are fine.
-      | ~(~MemberAccess ident) ArithExpr     -- arith
+      | ArithExpr                            -- arith
 
     RandNum
       = Curly
@@ -244,7 +284,6 @@ export const g = ohm.grammar(String.raw`
     ArithPrimary
       = "(" hspaces? ArithExpr hspaces? ")"  -- parens
       | MemberAccess
-      | NumRef
       | number
 
   // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)
@@ -255,7 +294,7 @@ export const g = ohm.grammar(String.raw`
     CurlyBody
       = ListOf<CurlyEntry, ",">              -- list
     CurlyEntry
-      = Range  -- range
+      = RefRange  -- range
       | number "/" number  -- frac
       | number  -- num
       | MemberAccess  -- member
@@ -302,6 +341,9 @@ export const g = ohm.grammar(String.raw`
 
     // Index for [@index value] notation (lexical rule - no space skipping)
     index = sign? digit+
+
+    // What may follow a value inside a mot
+    valueEnd = "," | "]" | "&" | ":"
 
     hspace = " " | "\t"
     hspaces = hspace+

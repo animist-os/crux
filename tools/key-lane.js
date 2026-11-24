@@ -172,25 +172,29 @@ function spanAt(lane, time) {
 
 // In a "~" key: the form of local degree j (0 = its tonic) for a note on
 // `step`. 1 raised (melodic minor), -1 lowered (natural minor), 0 harmonic
-// minor. The seventh is lowered only in a falling line 7-6-5 (or 7-6 at the
-// end). The sixth is raised only when it steps up to the seventh.
+// minor. The seventh is lowered in a falling line: 7-6-5 (or 7-6 at the
+// end), or 8-7-6 when the line does not turn back up to the seventh. The
+// sixth is raised when it steps up to the seventh, or goes to the seventh
+// over the tonic (6-8-7).
 function lineForm(j, step, ctx) {
-    const a = ctx ? ctx.next : undefined, b = ctx ? ctx.next2 : undefined;
-    if (j === 6 && a === step - 1 && (b == null || b === a - 1)) return -1;
-    if (j === 5 && a === step + 1) return 1;
+    const a = ctx ? ctx.next : undefined, b = ctx ? ctx.next2 : undefined, p = ctx ? ctx.prev : undefined;
+    if (j === 6 && a === step - 1 && (b == null || b === a - 1 || (p === step + 1 && b !== step))) return -1;
+    if (j === 5 && (a === step + 1 || (a === step + 2 && b === step + 1))) return 1;
     return 0;
 }
 
 // Steps of one voice in time order (rests left out) -> for each note
-// { next, next2 }: the step of the next note that differs from it, and the
-// step of the next note after that one that differs again. Repeated notes are
-// skipped. Undefined at the end of the voice.
+// { next, next2, prev }: the step of the next note that differs from it, the
+// step of the next note after that one that differs again, and the step of
+// the last note before it that differs from it. Repeated notes are skipped.
+// Undefined at the ends of the voice.
 function lineContexts(steps) {
-    const n = steps.length, after = new Array(n), out = new Array(n);
+    const n = steps.length, after = new Array(n), before = new Array(n), out = new Array(n);
     for (let i = n - 1; i >= 0; i--) after[i] = (i + 1 < n && steps[i + 1] === steps[i]) ? after[i + 1] : i + 1;
+    for (let i = 0; i < n; i++) before[i] = (i > 0 && steps[i - 1] === steps[i]) ? before[i - 1] : i - 1;
     for (let i = 0; i < n; i++) {
-        const a = after[i], b = a < n ? after[a] : n;
-        out[i] = { next: a < n ? steps[a] : undefined, next2: b < n ? steps[b] : undefined };
+        const a = after[i], b = a < n ? after[a] : n, p = before[i];
+        out[i] = { next: a < n ? steps[a] : undefined, next2: b < n ? steps[b] : undefined, prev: p >= 0 ? steps[p] : undefined };
     }
     return out;
 }
@@ -216,7 +220,7 @@ function bindMarks(lane, onsets) {
 }
 
 // Semitones to add to scale step `step` at `time` (in the lane's unit).
-// ctx = { next, next2 } from lineContexts. Only "~" keys use it. Without it
+// ctx = { next, next2, prev } from lineContexts. Only "~" keys use it. Without it
 // a "~" key is harmonic minor.
 function inflectionAt(lane, time, step, home = MAJOR, ctx) {
     if (!lane || !Number.isInteger(step)) return 0;

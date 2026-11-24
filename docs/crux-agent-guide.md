@@ -543,9 +543,10 @@ and reused. Inflection is applied afterwards, like the tonic.
   lower case harmonic minor, `ii+` melodic minor, `ii-` natural minor, `bVI`
   or `#iv` for a tonic moved a semitone.
 - `ii~` is a minor whose sixth and seventh follow the voice's line. The
-  seventh is raised unless the line falls 7-6-5. The sixth is lowered unless
-  it steps up to the seventh. Repeated notes are skipped. With no following
-  note it is harmonic minor.
+  seventh is raised unless the line falls 7-6-5, or 8-7-6 without a turn back
+  up to the seventh. The sixth is lowered unless it steps up to the seventh,
+  or goes to it over the tonic (6-8-7). Repeated notes are skipped. With no
+  following note it is harmonic minor.
 - A note mark is an accidental and a home-scale degree from 1 to 7: `#6`
   raised, `b2` lowered, `n7` the home form. It applies once, to the next note
   on that degree at or after its address, in any voice (all notes on that
@@ -568,9 +569,9 @@ and reused. Inflection is applied afterwards, like the tonic.
 ### 3.5 Examples to read
 
 In the example library, tag `baroque`: "Bach Invention 14 (key lane)",
-"Bach Invention 5 (key lane)", "Bach Invention 8 (key lane)", and "Bach Fugue
-BWV 578 (key lane)", which uses `~` keys and note marks. The same programs are
-in `crux/examples/`.
+"Bach Invention 5 (key lane)" and "Bach Invention 8 (key lane)". Two more use
+`~` keys and note marks: "Bach Invention 1 (key lane)" and "Bach Fugue
+BWV 578 (key lane)". The same programs are in `crux/examples/`.
 
 ## 4. Wad (macOS app, Swift)
 

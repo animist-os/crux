@@ -1731,3 +1731,39 @@ test('directive: negative-value second token is still treated as the value', () 
   assert.equal(r.directives.octave, '-1');
   assert.deepEqual(r.samplers, {});
 });
+
+// Identifiers in numeric positions (range endpoints, parenthesised arithmetic)
+test('identifier as range endpoint', () => {
+  assert.equal(evalToString('P = 3\n[0 -> P]'), '[0, 1, 2, 3]');
+  assert.equal(evalToString('P = 3\n[P -> 1]'), '[3, 2, 1]');
+});
+
+test('identifier inside parenthesised arithmetic in a range', () => {
+  assert.equal(evalToString('P = 3\n[P -> (P -1)]'), '[3, 2]');
+  assert.equal(evalToString('P := 3\n[(P * 2) -> 4]'), '[6, 5, 4]');
+});
+
+test('identifier range program from issue', () => {
+  const prog = parse('P = 3\nA = [0 -> P]\nb1 = [P -> (P -1)]\nb2 = b1 * -2\nA ! b1 ! b2');
+  const out = prog.interp().sections.map(s => s.toString());
+  assert.deepEqual(out, ['[0, 1, 2, 3]', '[3, 2]', '[1, 0]']);
+});
+
+test('computed step in a mot is evaluated', () => {
+  assert.equal(evalToString('[(3 - 1)]'), '[2]');
+  assert.equal(evalToString('P = 3\n[(P - 1) | 2, (P * 2)]'), '[2 | 2, 6]');
+  assert.equal(evalToString('p = [0, 1, 2]\n[p.length]'), '[3]');
+});
+
+test('identifier in range inside curly resolves', () => {
+  assert.equal(evalToString('P = 0\n[{P -> 0}]'), '[0]');
+});
+
+test('bare identifier in a mot is still a mot reference', () => {
+  assert.equal(evalToString('a = [0, 1, 2]\n[a]'), '[0, 1, 2]');
+  assert.equal(evalToString('a = [0, 1]\n[a * [0, 1]]'), '[0, 1, 1, 2]');
+});
+
+test('multi-pip identifier as range endpoint is an error', () => {
+  assert.throws(() => evalToString('P = [0, 1]\n[0 -> P]'), /single number/);
+});

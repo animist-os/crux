@@ -1,6 +1,6 @@
 // Crux - Musical Motif DSL
 // Bundled Distribution
-// Generated: 2026-11-17T21:44:39.342Z
+// Generated: 2026-11-24T07:34:12.045Z
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
 
@@ -188,7 +188,17 @@ const g = ohm.grammar(String.raw`
       | "(" Expr ")"                            -- exprInDiad
 
     Range
-      = RandNum "->" RandNum      -- inclusive
+      = RangeEnd "->" RangeEnd      -- inclusive
+
+    // A range endpoint: any RandNum, or a bare identifier bound to a single
+    // number (e.g. P = 3; [0 -> P]). Resolved at evaluation time.
+    RangeEnd
+      = RandNum
+      | NumRef
+
+    // Identifier used where a number is expected. Must evaluate to one pip.
+    NumRef
+      = ident
 
   Pip
       = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
@@ -217,7 +227,9 @@ const g = ohm.grammar(String.raw`
     StepValue
       = number hspaces? "/" hspaces? number  -- frac
       | PlainNumber                          -- plain
-      | ArithExpr                            -- arith
+      // A bare leading identifier is left to the ref/mot rules, so [a] and
+      // [a * [0,1]] keep their meaning; identifiers inside parens are fine.
+      | ~(~MemberAccess ident) ArithExpr     -- arith
 
     RandNum
       = Curly
@@ -243,6 +255,7 @@ const g = ohm.grammar(String.raw`
     ArithPrimary
       = "(" hspaces? ArithExpr hspaces? ")"  -- parens
       | MemberAccess
+      | NumRef
       | number
 
   // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)
@@ -836,6 +849,10 @@ const s = g.createSemantics().addOperation('parse', {
 
   CurlyEntry_member(ma) {
     return ma.parse();
+  },
+
+  NumRef(name) {
+    return new NumRef(name.sourceString);
   },
 
   MemberAccess_prop(obj, _dot, prop) {
@@ -2826,6 +2843,33 @@ class Ref {
   }
 }
 
+// Identifier used in a numeric position (range endpoint, arithmetic).
+// The binding must evaluate to exactly one pip; its step is the value.
+class NumRef {
+  constructor(name) {
+    this.name = name;
+  }
+
+  eval(env) {
+    if (!env || !env.has(this.name)) {
+      throw new Error('undeclared identifier: ' + this.name);
+    }
+    let value = env.get(this.name);
+    if (value instanceof MacroBinding) value = value.expr.eval(env);
+    if (typeof value === 'number') return value;
+    if (value && typeof value.eval === 'function' && !(value instanceof Mot)) {
+      value = value.eval(env);
+    }
+    if (value instanceof Mot) {
+      const pips = value.eval(env).values;
+      if (pips.length === 1 && pips[0] instanceof Pip && typeof pips[0].step === 'number') {
+        return pips[0].step;
+      }
+    }
+    throw new Error(`'${this.name}' must be a single number to be used here`);
+  }
+}
+
 class MemberAccess {
   constructor(objName, propName) {
     this.objName = objName;
@@ -3039,6 +3083,10 @@ class RepeatPip {
 
 function resolveRandNumToNumber(value, rng, env = null) {
   if (typeof value === 'number') return value;
+  if (value instanceof NumRef) {
+    if (!env) throw new Error('Environment required to evaluate ' + value.name);
+    return value.eval(env);
+  }
   if (value instanceof MemberAccess) {
     if (!env) throw new Error('Environment required to evaluate member access');
     return value.eval(env);
@@ -3054,8 +3102,10 @@ function resolveRandNumToNumber(value, rng, env = null) {
     if (value.seed != null) {
       warmUpRng(localRng, computeWarmupStepsForRandNum(value));
     }
-    const lo = Math.min(value.start, value.end);
-    const hi = Math.max(value.start, value.end);
+    const start = resolveRandNumToNumber(value.start, localRng, env);
+    const end = resolveRandNumToNumber(value.end, localRng, env);
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
     return Math.floor(localRng() * (hi - lo + 1)) + lo;
   }
   if (value instanceof RandomChoice) {
@@ -3429,7 +3479,18 @@ class Mot {
           const den = denIsRandNum ? resolveRandNumToNumber(ts.den, rng, env) : ts.den;
           ts = num / den;
         }
-        if (ts !== value.timeScale) {
+        // Resolve a computed step, e.g. [(P - 1)] or [p.length]
+        let step = value.step;
+        if (step instanceof NumRef || step instanceof MemberAccess ||
+            step instanceof ArithAdd || step instanceof ArithSub ||
+            step instanceof ArithMul || step instanceof ArithDiv) {
+          step = resolveRandNumToNumber(step, rng, env);
+        }
+        if (step !== value.step) {
+          const np = new Pip(step, ts, value.tag, value.sourcePos);
+          np.diad = value.diad;
+          resolved.push(np);
+        } else if (ts !== value.timeScale) {
           const np = new Pip(value.step, ts, value.tag);
           resolved.push(np);
         } else {
@@ -4430,7 +4491,7 @@ golden.findAllPipsWithPositions = function(source) {
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-17T21:44:39.342Z";
+golden.cruxBuiltAt = "2026-11-24T07:34:12.045Z";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine

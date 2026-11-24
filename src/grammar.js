@@ -177,7 +177,17 @@ export const g = ohm.grammar(String.raw`
       | "(" Expr ")"                            -- exprInDiad
 
     Range
-      = RandNum "->" RandNum      -- inclusive
+      = RangeEnd "->" RangeEnd      -- inclusive
+
+    // A range endpoint: any RandNum, or a bare identifier bound to a single
+    // number (e.g. P = 3; [0 -> P]). Resolved at evaluation time.
+    RangeEnd
+      = RandNum
+      | NumRef
+
+    // Identifier used where a number is expected. Must evaluate to one pip.
+    NumRef
+      = ident
 
   Pip
       = Range hspaces? "|" hspaces? TimeScale               -- rangeWithTimeMulPipeImplicit
@@ -206,7 +216,9 @@ export const g = ohm.grammar(String.raw`
     StepValue
       = number hspaces? "/" hspaces? number  -- frac
       | PlainNumber                          -- plain
-      | ArithExpr                            -- arith
+      // A bare leading identifier is left to the ref/mot rules, so [a] and
+      // [a * [0,1]] keep their meaning; identifiers inside parens are fine.
+      | ~(~MemberAccess ident) ArithExpr     -- arith
 
     RandNum
       = Curly
@@ -232,6 +244,7 @@ export const g = ohm.grammar(String.raw`
     ArithPrimary
       = "(" hspaces? ArithExpr hspaces? ")"  -- parens
       | MemberAccess
+      | NumRef
       | number
 
   // Curly-of-pips: choose one full pip-like value (number/special/pipe forms/etc.)

@@ -520,6 +520,10 @@ const s = g.createSemantics().addOperation('parse', {
     return ma.parse();
   },
 
+  NumRef(name) {
+    return new NumRef(name.sourceString);
+  },
+
   MemberAccess_prop(obj, _dot, prop) {
     return new MemberAccess(obj.sourceString, prop.sourceString);
   },
@@ -2508,6 +2512,33 @@ class Ref {
   }
 }
 
+// Identifier used in a numeric position (range endpoint, arithmetic).
+// The binding must evaluate to exactly one pip; its step is the value.
+class NumRef {
+  constructor(name) {
+    this.name = name;
+  }
+
+  eval(env) {
+    if (!env || !env.has(this.name)) {
+      throw new Error('undeclared identifier: ' + this.name);
+    }
+    let value = env.get(this.name);
+    if (value instanceof MacroBinding) value = value.expr.eval(env);
+    if (typeof value === 'number') return value;
+    if (value && typeof value.eval === 'function' && !(value instanceof Mot)) {
+      value = value.eval(env);
+    }
+    if (value instanceof Mot) {
+      const pips = value.eval(env).values;
+      if (pips.length === 1 && pips[0] instanceof Pip && typeof pips[0].step === 'number') {
+        return pips[0].step;
+      }
+    }
+    throw new Error(`'${this.name}' must be a single number to be used here`);
+  }
+}
+
 class MemberAccess {
   constructor(objName, propName) {
     this.objName = objName;
@@ -2721,6 +2752,10 @@ class RepeatPip {
 
 function resolveRandNumToNumber(value, rng, env = null) {
   if (typeof value === 'number') return value;
+  if (value instanceof NumRef) {
+    if (!env) throw new Error('Environment required to evaluate ' + value.name);
+    return value.eval(env);
+  }
   if (value instanceof MemberAccess) {
     if (!env) throw new Error('Environment required to evaluate member access');
     return value.eval(env);
@@ -2736,8 +2771,10 @@ function resolveRandNumToNumber(value, rng, env = null) {
     if (value.seed != null) {
       warmUpRng(localRng, computeWarmupStepsForRandNum(value));
     }
-    const lo = Math.min(value.start, value.end);
-    const hi = Math.max(value.start, value.end);
+    const start = resolveRandNumToNumber(value.start, localRng, env);
+    const end = resolveRandNumToNumber(value.end, localRng, env);
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
     return Math.floor(localRng() * (hi - lo + 1)) + lo;
   }
   if (value instanceof RandomChoice) {
@@ -3111,7 +3148,18 @@ class Mot {
           const den = denIsRandNum ? resolveRandNumToNumber(ts.den, rng, env) : ts.den;
           ts = num / den;
         }
-        if (ts !== value.timeScale) {
+        // Resolve a computed step, e.g. [(P - 1)] or [p.length]
+        let step = value.step;
+        if (step instanceof NumRef || step instanceof MemberAccess ||
+            step instanceof ArithAdd || step instanceof ArithSub ||
+            step instanceof ArithMul || step instanceof ArithDiv) {
+          step = resolveRandNumToNumber(step, rng, env);
+        }
+        if (step !== value.step) {
+          const np = new Pip(step, ts, value.tag, value.sourcePos);
+          np.diad = value.diad;
+          resolved.push(np);
+        } else if (ts !== value.timeScale) {
           const np = new Pip(value.step, ts, value.tag);
           resolved.push(np);
         } else {

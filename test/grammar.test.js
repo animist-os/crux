@@ -1825,3 +1825,14 @@ test('names and arithmetic in a range inside curly', () => {
   assert.equal(evalToString('P = 3\n[{P -> P}$aa]'), '[3]');
   assert.equal(evalToString('P = 3\n[{P - 1 -> P - 1}$aa]'), '[2]');
 });
+
+test('dot between two names is tile-add, not member access', () => {
+  assert.equal(evalToString('x = [0, 4, 2, 1]\nto2 = [|, |, |, |2]\nx . to2'), evalToString('x = [0, 4, 2, 1]\nto2 = [|, |, |, |2]\nx .* to2'));
+  assert.equal(evalToString('x = [0, 4, 2, 1]\ny = [0, 1, 2, 1]\nx . y'), '[0, 5, 4, 2]');
+  assert.equal(evalToString('x = [0, 4, 2, 1]\ny = [0, 1, 2, 1]\nx.y'), '[0, 5, 4, 2]');
+});
+
+test('member access is still available for length', () => {
+  assert.equal(evalToString('x = [0, 4, 2, 1]\n[0 -> (x.length)]'), '[0, 1, 2, 3, 4]');
+  assert.equal(evalToString('x = [0, 4, 2, 1]\nlengthy = [1]\nx . lengthy'), '[1, 5, 3, 2]');
+});

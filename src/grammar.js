@@ -301,7 +301,10 @@ export const g = ohm.grammar(String.raw`
       | ident   -- ref
 
     MemberAccess
-      = ident "." ident  -- prop
+      = ident "." memberProp  -- prop
+
+    // Only known properties, so x . y stays a tile-add of two mots.
+    memberProp = "length" ~(letter | digit | "_")
 
     Seed = "$" SeedChars
     SeedChars = seedChar+

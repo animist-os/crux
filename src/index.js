@@ -120,6 +120,15 @@ const s = g.createSemantics().addOperation('parse', {
     return new ZipColumns(x);
   },
 
+  // Binary zip: A z B is (A, B)z. A z B z C is one three-way zip.
+  // A parenthesised zip on the left, (A z B) z C, stays a single operand.
+  MulExpr_zip(x, _z, y) {
+    const left = x.parse();
+    const right = y.parse();
+    const leftIsBareZip = left instanceof ZipInfix && x.sourceString.trim()[0] !== '(';
+    return new ZipInfix(leftIsBareZip ? [...left.parts, right] : [left, right]);
+  },
+
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, n) {
     const parsedExpr = expr.parse();
     const count = n.parse();
@@ -879,6 +888,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotTie(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotZip(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_zip(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_mirror(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -989,6 +999,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotTie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotZip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_zip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
 
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -2021,25 +2032,33 @@ class ZipColumns {
 
   eval(env) {
     // Collect all comma-separated parts
-    const parts = this.collectParts(this.x, env);
+    return interleaveColumns(this.collectParts(this.x, env));
+  }
+}
 
-    if (parts.length === 0) return new Mot([]);
-    if (parts.length === 1) return new Mot(parts[0]);
-
-    // Find the maximum length
-    const maxLen = Math.max(...parts.map(p => p.length));
-
-    // Interleave in round-robin fashion
-    const out = [];
-    for (let i = 0; i < maxLen; i++) {
-      for (let j = 0; j < parts.length; j++) {
-        if (i < parts[j].length) {
-          out.push(parts[j][i]);
-        }
-      }
+// Round-robin interleave of value lists; shorter lists drop out when exhausted.
+function interleaveColumns(parts) {
+  if (parts.length === 0) return new Mot([]);
+  if (parts.length === 1) return new Mot(parts[0]);
+  const maxLen = Math.max(...parts.map(p => p.length));
+  const out = [];
+  for (let i = 0; i < maxLen; i++) {
+    for (let j = 0; j < parts.length; j++) {
+      if (i < parts[j].length) out.push(parts[j][i]);
     }
+  }
+  return new Mot(out);
+}
 
-    return new Mot(out);
+// ZipInfix: A z B z C. Each operand is evaluated whole (a comma list in
+// parentheses is one operand), then the results are interleaved like (A, B, C)z.
+class ZipInfix {
+  constructor(parts) {
+    this.parts = parts;
+  }
+
+  eval(env) {
+    return interleaveColumns(this.parts.map(p => requireMot(p.eval(env)).values));
   }
 }
 
@@ -3595,6 +3614,12 @@ golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excl
       return;
     }
 
+    if (node instanceof ZipInfix) {
+      // A z B z C counts as one binary transform over all its operands
+      for (const p of node.parts) visit(p, depth + 1);
+      return;
+    }
+
     if (excludeConcat && node instanceof FollowedBy) {
       visit(node.x, depth);
       visit(node.y, depth);
@@ -3686,6 +3711,12 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
 
     if (isBinaryTransformNode(node)) {
       const h = 1 + Math.max(height(node.x), height(node.y));
+      memo.set(node, h);
+      return h;
+    }
+
+    if (node instanceof ZipInfix) {
+      const h = 1 + Math.max(0, ...node.parts.map(height));
       memo.set(node, h);
       return h;
     }
@@ -4129,7 +4160,7 @@ golden._cruxInternals = {
   preprocessSource, Pip, Mot, NestedMot, NestedMotExpr, Ref, GlobalPlaceholder,
   FollowedBy, Mul, Expand, RepeatByCount, Dot, Mirror, MotTimeScaleOp, AliasCall,
   JamOp, DotJam, DotExpand, RotateOp, DotRotate, Steps, DotSteps, DotMirror,
-  Lens, DotLens, DotZip, ZipColumns, GlassOp, DotGlass, ReichOp, DotReich,
+  Lens, DotLens, DotZip, ZipColumns, ZipInfix, GlassOp, DotGlass, ReichOp, DotReich,
   PaertOp, FoldOp, DisplaceOp, Subdivide, TieOp, DotTie, ConstraintOp,
   DotConstraint, AtIndexOp, DropTransform,
 };

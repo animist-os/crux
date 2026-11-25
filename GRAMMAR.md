@@ -174,6 +174,18 @@ Operators are left-associative unless otherwise noted.
 (A, B, C)z where A=[0,0,0], B=[1,1,1], C=[2,2,2]  -> [0, 1, 2, 0, 1, 2, 0, 1, 2]
 ```
 
+**Binary zip** `A z B`: the same interleave written between operands (since 2.2.0).
+   - `A z B` is `(A, B)z`. A chain `A z B z C` is one three-way zip, the same as `(A, B, C)z`.
+   - A parenthesised zip is one operand: `(A z B) z C` zips the two-way result with `C`.
+   - Each operand is evaluated whole, so `A z (B, C)` zips `A` with the concatenation of `B` and `C`.
+   - It is a binary operator, so it has the same precedence as `*` and the others and groups left to right: `A z B * C` is `(A z B) * C`.
+   - Postfix `z` applies only when no operand follows it. `z` followed by a letter or digit is part of a name, so `zeta` and `z2` stay names.
+```text
+b1 = [0, 1, 2]
+b1 z (b1 * -2)        -> [0, -2, 1, -1, 2, 0]
+A z B z C             -> [0, 1, 2, 0, 1, 2, 0, 1, 2]   (A, B, C as above)
+```
+
 **Postfix tie** `t`: merges adjacent equal-step pips by adding timeScales.
 ```text
 [0, 0, 1]t -> [0 | 2, 1]
@@ -385,7 +397,7 @@ _ .j R
 
 From highest to lowest binding:
 1. Postfix operators: drop (`\`), subdivide (`/`), zip (`z`), tie (`t`), repeat (`:`)
-2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@`, `>`, `||` (all left-associative)
+2. Binary operators: `.*`, `.^`, `.->`, `.j`, `.m`, `.l`, `.t`, `.c`, `.,`, `.g`, `.r`, `.~`, `->`, `z`, `j`, `m`, `l`, `c`, `g`, `r`, `p`, `f`, `*`, `^`, `.`, `~`, `@`, `>`, `||` (all left-associative)
 3. Concatenation: `,` (left-associative)
 4. Assignment: `=`, `:=`
 5. Section/voice separator: `!`, `!N` (top-level only)

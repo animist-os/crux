@@ -73,6 +73,7 @@ export const g = ohm.grammar(String.raw`
       | MulExpr ".g" PostfixExpr  -- dotGlass
       | MulExpr ".r" PostfixExpr  -- dotReich
       | MulExpr "->" PostfixExpr  -- steps
+      | MulExpr zipOp PostfixExpr  -- zip
 
       | MulExpr "j" PostfixExpr   -- jam
       | MulExpr "m" PostfixExpr   -- mirror
@@ -94,10 +95,11 @@ export const g = ohm.grammar(String.raw`
       | PostfixExpr
 
   // Postfix operators (tie, repeat, subdivide, zip, drop) at higher precedence than binary operators
-  // These apply to their immediate left operand
+  // These apply to their immediate left operand.
+  // Postfix z only applies when no operand follows; "A z B" is the binary zip in MulExpr.
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
-      | PostfixExpr "z"                          -- zipColumns
+      | PostfixExpr zipOp ~PriExpr               -- zipColumns
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
@@ -323,6 +325,9 @@ export const g = ohm.grammar(String.raw`
       = "r" ~alnum
 
     globalPlaceholder = "_" ~(alnum | "_")
+
+    // The zip operator letter. Lexical, so "zeta" stays a name.
+    zipOp = "z" ~(alnum | "_")
 
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single

@@ -26,6 +26,7 @@
 //   --check       write nothing; exit 1 if dist/ or the installed copy does
 //                 not match the current source (timestamps are ignored)
 //   --watch       build, then rebuild each time src/ or package.json changes
+//   --version     print the version and source hash this checkout would build
 //
 // A build whose output differs from the file on disk only in its timestamp
 // leaves that file alone, so a no-op build does not dirty the working tree.
@@ -37,6 +38,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { spawn } from 'child_process';
+import { createHash } from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,8 +46,9 @@ const args = process.argv.slice(2);
 const checkOnly = args.includes('--check');
 const watchMode = args.includes('--watch');
 const skipInstall = args.includes('--no-install');
+const versionOnly = args.includes('--version');
 
-console.log(checkOnly ? '🔎 Checking Crux bundles against source...\n' : '🔨 Building Crux bundle...\n');
+if (!versionOnly) console.log(checkOnly ? '🔎 Checking Crux bundles against source...\n' : '🔨 Building Crux bundle...\n');
 
 // Read package.json so we can stamp the version into the bundles.
 // crux/package.json is the single source of truth for the Crux version;
@@ -53,7 +56,31 @@ console.log(checkOnly ? '🔎 Checking Crux bundles against source...\n' : '🔨
 const pkgPath = path.join(__dirname, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const version = pkg.version || '0.0.0';
-console.log(`📦 Crux version: ${version}`);
+
+// Source hash: a short sha256 of every source file that goes into the
+// bundles. Two bundles with the same version but different hashes were built
+// from different source, so a copy that is out of date shows up even when
+// nobody bumped the version.
+const HASHED_SOURCES = [
+  'src/grammar.js', 'src/index.js', 'src/decompose.js',
+  'src/fold/trace.js', 'src/fold/thematic.js', 'src/fold/model.js',
+];
+const sourceHash = (() => {
+  const h = createHash('sha256');
+  for (const rel of HASHED_SOURCES) {
+    h.update(rel + '\0');
+    h.update(fs.readFileSync(path.join(__dirname, rel), 'utf8').replace(/\r\n/g, '\n'));
+    h.update('\0');
+  }
+  return h.digest('hex').slice(0, 12);
+})();
+
+if (versionOnly) {
+  // Print what this checkout would build, for comparison with a deployed copy.
+  console.log(`crux ${version} (source ${sourceHash})`);
+  process.exit(0);
+}
+console.log(`📦 Crux version: ${version} (source ${sourceHash})`);
 
 // Read the modular source files
 console.log('📝 Reading src/grammar.js...');
@@ -98,6 +125,7 @@ const generatedAt = new Date().toISOString();
 
 const bundle = `// Crux - Musical Motif DSL
 // Bundled Distribution
+// Version:   ${version} (source ${sourceHash})
 // Generated: ${generatedAt}
 //
 // NOTE: This bundle requires ohm-js as a peer dependency
@@ -117,6 +145,7 @@ ${indexContent}
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = ${JSON.stringify(version)};
 golden.cruxBuiltAt = ${JSON.stringify(generatedAt)};
+golden.cruxSourceHash = ${JSON.stringify(sourceHash)};
 
 // === Decomposition Engine ===
 ${decomposeContent}
@@ -157,6 +186,7 @@ const dohBundle = `// ==========================================================
 // the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
+// Version:   ${version} (source ${sourceHash})
 // Generated: ${generatedAt}
 // =============================================================================
 Doh.Module('crux', [
@@ -174,6 +204,7 @@ ${indexContentForDoh}
 // === Version (stamped by crux/build.js from crux/package.json) ===
 golden.cruxVersion = ${JSON.stringify(version)};
 golden.cruxBuiltAt = ${JSON.stringify(generatedAt)};
+golden.cruxSourceHash = ${JSON.stringify(sourceHash)};
 
 // === Decomposition Engine ===
 ${decomposeContent}

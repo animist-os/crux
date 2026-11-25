@@ -1836,3 +1836,40 @@ test('member access is still available for length', () => {
   assert.equal(evalToString('x = [0, 4, 2, 1]\n[0 -> (x.length)]'), '[0, 1, 2, 3, 4]');
   assert.equal(evalToString('x = [0, 4, 2, 1]\nlengthy = [1]\nx . lengthy'), '[1, 5, 3, 2]');
 });
+
+// ---- Binary zip: A z B ----
+
+test('binary zip: A z B equals (A, B)z', () => {
+  assert.equal(evalToString('b1 = [0, 1, 2]\nb1 z (b1 * -2)'), evalToString('b1 = [0, 1, 2]\n(b1, b1 * -2)z'));
+  assert.equal(evalToString('b1 = [0, 1, 2]\nb1 z (b1 * -2)'), '[0, -2, 1, -1, 2, 0]');
+});
+
+test('binary zip: A z B z C is one three-way zip', () => {
+  assert.equal(evalToString('A = [0, 0]\nB = [1, 1]\nC = [2, 2]\nA z B z C'), '[0, 1, 2, 0, 1, 2]');
+});
+
+test('binary zip: a parenthesised zip stays one operand', () => {
+  assert.equal(evalToString('A = [0, 0]\nB = [1, 1]\nC = [2, 2]\n(A z B) z C'), '[0, 2, 1, 2, 0, 1]');
+});
+
+test('binary zip: unequal lengths drop out when exhausted', () => {
+  assert.equal(evalToString('A = [0, 1, 2]\nB = [9]\nA z B'), '[0, 9, 1, 2]');
+});
+
+test('binary zip: same precedence as other binary operators (left to right)', () => {
+  assert.equal(evalToString('A = [0, 1]\nB = [7, 8]\nA z B * [0, 12]'), '[0, 7, 1, 8, 12, 19, 13, 20]');
+});
+
+test('binary zip: postfix z still works at end of line', () => {
+  assert.equal(evalToString('A = [0, 1]\nB = [5]\n(A, B)z'), '[0, 5, 1]');
+});
+
+test('binary zip: names starting with z are not the operator', () => {
+  assert.equal(evalToString('zeta = *\nA = [0, 1]\nA zeta [0, 12]'), '[0, 1, 12, 13]');
+  assert.equal(evalToString('z = [3, 4]\nz * [0, 12]'), '[3, 4, 15, 16]');
+});
+
+test('binary zip: depth analysis counts it as one transform', () => {
+  const leaves = golden.computeMotDepthsFromRoot('A z B z [5]');
+  assert.deepEqual(leaves.map(l => l.depth), [1]);
+});

@@ -16,7 +16,8 @@
 // the result back here. See docs/crux-rebuild.md in the disrupterbox repo.
 //
 // Source:    crux/src/{grammar,index,decompose}.js, crux/src/fold/{trace,thematic,model}.js
-// Generated: 2026-11-24T14:47:49.848Z
+// Version:   2.2.0 (source 3e6ad134bc70)
+// Generated: 2026-11-25T02:55:59.321Z
 // =============================================================================
 Doh.Module('crux', [
   'ohm',
@@ -97,6 +98,7 @@ const g = ohm.grammar(String.raw`
       | MulExpr ".g" PostfixExpr  -- dotGlass
       | MulExpr ".r" PostfixExpr  -- dotReich
       | MulExpr "->" PostfixExpr  -- steps
+      | MulExpr zipOp PostfixExpr  -- zip
 
       | MulExpr "j" PostfixExpr   -- jam
       | MulExpr "m" PostfixExpr   -- mirror
@@ -118,10 +120,11 @@ const g = ohm.grammar(String.raw`
       | PostfixExpr
 
   // Postfix operators (tie, repeat, subdivide, zip, drop) at higher precedence than binary operators
-  // These apply to their immediate left operand
+  // These apply to their immediate left operand.
+  // Postfix z only applies when no operand follows; "A z B" is the binary zip in MulExpr.
   PostfixExpr
       = PostfixExpr "/"                          -- subdivide
-      | PostfixExpr "z"                          -- zipColumns
+      | PostfixExpr zipOp ~PriExpr               -- zipColumns
       | PostfixExpr "t"                          -- tiePostfix
       | PostfixExpr hspaces? ":" hspaces? RandNum  -- repeatPostRand
       | PostfixExpr hspaces? ":" hspaces? number   -- repeatPost
@@ -325,7 +328,10 @@ const g = ohm.grammar(String.raw`
       | ident   -- ref
 
     MemberAccess
-      = ident "." ident  -- prop
+      = ident "." memberProp  -- prop
+
+    // Only known properties, so x . y stays a tile-add of two mots.
+    memberProp = "length" ~(letter | digit | "_")
 
     Seed = "$" SeedChars
     SeedChars = seedChar+
@@ -344,6 +350,9 @@ const g = ohm.grammar(String.raw`
       = "r" ~alnum
 
     globalPlaceholder = "_" ~(alnum | "_")
+
+    // The zip operator letter. Lexical, so "zeta" stays a name.
+    zipOp = "z" ~(alnum | "_")
 
     ident = (letter | "_") (alnum | "_")+  -- withChars
           | letter                             -- single
@@ -501,6 +510,15 @@ const s = g.createSemantics().addOperation('parse', {
   PostfixExpr_zipColumns(expr, _z) {
     const x = expr.parse();
     return new ZipColumns(x);
+  },
+
+  // Binary zip: A z B is (A, B)z. A z B z C is one three-way zip.
+  // A parenthesised zip on the left, (A z B) z C, stays a single operand.
+  MulExpr_zip(x, _z, y) {
+    const left = x.parse();
+    const right = y.parse();
+    const leftIsBareZip = left instanceof ZipInfix && x.sourceString.trim()[0] !== '(';
+    return new ZipInfix(leftIsBareZip ? [...left.parts, right] : [left, right]);
   },
 
   PostfixExpr_repeatPost(expr, _h1, _colon, _h2, n) {
@@ -1262,6 +1280,7 @@ const repeatRewriteSem = g.createSemantics().addOperation('collectRepeatSuffixRe
   MulExpr_dotTie(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_dotZip(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
+  MulExpr_zip(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_mirror(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
   MulExpr_jam(x, _op, y) { return [...x.collectRepeatSuffixRewrites(), ...y.collectRepeatSuffixRewrites()]; },
@@ -1372,6 +1391,7 @@ const tsSemantics = g.createSemantics().addOperation('collectTs', {
   MulExpr_dotTie(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotConstraint(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_dotZip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
+  MulExpr_zip(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
   MulExpr_steps(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
 
   MulExpr_mirror(x, _op, y) { return [...x.collectTs(), ...y.collectTs()]; },
@@ -2404,25 +2424,33 @@ class ZipColumns {
 
   eval(env) {
     // Collect all comma-separated parts
-    const parts = this.collectParts(this.x, env);
+    return interleaveColumns(this.collectParts(this.x, env));
+  }
+}
 
-    if (parts.length === 0) return new Mot([]);
-    if (parts.length === 1) return new Mot(parts[0]);
-
-    // Find the maximum length
-    const maxLen = Math.max(...parts.map(p => p.length));
-
-    // Interleave in round-robin fashion
-    const out = [];
-    for (let i = 0; i < maxLen; i++) {
-      for (let j = 0; j < parts.length; j++) {
-        if (i < parts[j].length) {
-          out.push(parts[j][i]);
-        }
-      }
+// Round-robin interleave of value lists; shorter lists drop out when exhausted.
+function interleaveColumns(parts) {
+  if (parts.length === 0) return new Mot([]);
+  if (parts.length === 1) return new Mot(parts[0]);
+  const maxLen = Math.max(...parts.map(p => p.length));
+  const out = [];
+  for (let i = 0; i < maxLen; i++) {
+    for (let j = 0; j < parts.length; j++) {
+      if (i < parts[j].length) out.push(parts[j][i]);
     }
+  }
+  return new Mot(out);
+}
 
-    return new Mot(out);
+// ZipInfix: A z B z C. Each operand is evaluated whole (a comma list in
+// parentheses is one operand), then the results are interleaved like (A, B, C)z.
+class ZipInfix {
+  constructor(parts) {
+    this.parts = parts;
+  }
+
+  eval(env) {
+    return interleaveColumns(this.parts.map(p => requireMot(p.eval(env)).values));
   }
 }
 
@@ -3978,6 +4006,12 @@ golden.collectMotLeavesWithDepth = function(root, env, { followRefs = true, excl
       return;
     }
 
+    if (node instanceof ZipInfix) {
+      // A z B z C counts as one binary transform over all its operands
+      for (const p of node.parts) visit(p, depth + 1);
+      return;
+    }
+
     if (excludeConcat && node instanceof FollowedBy) {
       visit(node.x, depth);
       visit(node.y, depth);
@@ -4069,6 +4103,12 @@ golden.computeExprHeight = function(root, env, { followRefs = true, excludeConca
 
     if (isBinaryTransformNode(node)) {
       const h = 1 + Math.max(height(node.x), height(node.y));
+      memo.set(node, h);
+      return h;
+    }
+
+    if (node instanceof ZipInfix) {
+      const h = 1 + Math.max(0, ...node.parts.map(height));
       memo.set(node, h);
       return h;
     }
@@ -4512,7 +4552,7 @@ golden._cruxInternals = {
   preprocessSource, Pip, Mot, NestedMot, NestedMotExpr, Ref, GlobalPlaceholder,
   FollowedBy, Mul, Expand, RepeatByCount, Dot, Mirror, MotTimeScaleOp, AliasCall,
   JamOp, DotJam, DotExpand, RotateOp, DotRotate, Steps, DotSteps, DotMirror,
-  Lens, DotLens, DotZip, ZipColumns, GlassOp, DotGlass, ReichOp, DotReich,
+  Lens, DotLens, DotZip, ZipColumns, ZipInfix, GlassOp, DotGlass, ReichOp, DotReich,
   PaertOp, FoldOp, DisplaceOp, Subdivide, TieOp, DotTie, ConstraintOp,
   DotConstraint, AtIndexOp, DropTransform,
 };
@@ -4652,8 +4692,9 @@ golden.findAllPipsWithPositions = function(source) {
 
 
 // === Version (stamped by crux/build.js from crux/package.json) ===
-golden.cruxVersion = "2.1.0";
-golden.cruxBuiltAt = "2026-11-24T14:47:49.848Z";
+golden.cruxVersion = "2.2.0";
+golden.cruxBuiltAt = "2026-11-25T02:55:59.321Z";
+golden.cruxSourceHash = "3e6ad134bc70";
 
 // === Decomposition Engine ===
 // Crux Decomposition Engine
@@ -5904,7 +5945,7 @@ golden.decompose = function (input, options = {}) {
 const EXACT = { FollowedBy: ',', Mul: '*', Expand: '^', RepeatByCount: ':', Dot: '.', Mirror: 'm', MotTimeScaleOp: '||' };
 const GENERIC = {
   JamOp: 'j', DotJam: '.j', DotExpand: '.^', RotateOp: '~', DotRotate: '.~', Steps: '->', DotSteps: '.->',
-  DotMirror: '.m', Lens: 'l', DotLens: '.l', DotZip: '.,', ZipColumns: 'zip', GlassOp: 'g', DotGlass: '.g',
+  DotMirror: '.m', Lens: 'l', DotLens: '.l', DotZip: '.,', ZipColumns: 'zip', ZipInfix: 'z', GlassOp: 'g', DotGlass: '.g',
   ReichOp: 'r', DotReich: '.r', PaertOp: 'p', FoldOp: 'f', DisplaceOp: '>>', Subdivide: '/', TieOp: 't',
   DotTie: '.t', ConstraintOp: 'c', DotConstraint: '.c', AtIndexOp: '@', DropTransform: '\\',
 };

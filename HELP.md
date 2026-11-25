@@ -10,7 +10,7 @@
 - Repeat: `Expr : N` — repeat a mot N times, unpacks to a fan add followed by an identity mot of length N
 - Subdivide: `/` (postfix) — scale the mot to one unit of time: divide each pip's timeScale by the mot's total duration.
 - Drop: `Expr \ N` (postfix) — drop N pips from the end; a negative N drops from the start.
-- Zip: `z` (postfix) — round-robin interleave comma-separated expressions.
+- Zip: `z` — round-robin interleave. Postfix `(A, B)z` or binary `A z B`; `A z B z C` is one three-way zip.
 - Spread add: `*` — outer/cartesian combine; steps add, timeScales multiply (RHS ts < 0 reverses LHS for that r).
 - Spread mul (expand): `^` — outer/cartesian with step multiply.
 - Tile add: `.` or `.*` — elementwise add with RHS cycled.
@@ -54,6 +54,7 @@ Pips:
 | Drop `\` | `[0,1,2,3,4] \ 1` | `[0, 1, 2, 3]` |
 | Drop `\` (from start) | `[0,1,2,3,4] \ -2` | `[2, 3, 4]` |
 | Zip `z` | `([0,0,0], [1,1,1])z` | `[0,1,0,1,0,1]` |
+| Binary zip `z` | `[0,0,0] z [1,1,1]` | `[0,1,0,1,0,1]` |
 | Spread add `*` | `[1,2,3] * [0\|-1]` | `[3, 2, 1]` |
 | Spread mul `^` | `[1, 2] ^ [2]` | `[2, 4]` |
 | Tile add `.` | `[0,1,2] . [10,20]` | `[10, 21, 12]` |

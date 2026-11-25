@@ -28,7 +28,7 @@ import '../index.js';
 const EXACT = { FollowedBy: ',', Mul: '*', Expand: '^', RepeatByCount: ':', Dot: '.', Mirror: 'm', MotTimeScaleOp: '||' };
 const GENERIC = {
   JamOp: 'j', DotJam: '.j', DotExpand: '.^', RotateOp: '~', DotRotate: '.~', Steps: '->', DotSteps: '.->',
-  DotMirror: '.m', Lens: 'l', DotLens: '.l', DotZip: '.,', ZipColumns: 'zip', GlassOp: 'g', DotGlass: '.g',
+  DotMirror: '.m', Lens: 'l', DotLens: '.l', DotZip: '.,', ZipColumns: 'zip', ZipInfix: 'z', GlassOp: 'g', DotGlass: '.g',
   ReichOp: 'r', DotReich: '.r', PaertOp: 'p', FoldOp: 'f', DisplaceOp: '>>', Subdivide: '/', TieOp: 't',
   DotTie: '.t', ConstraintOp: 'c', DotConstraint: '.c', AtIndexOp: '@', DropTransform: '\\',
 };

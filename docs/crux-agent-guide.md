@@ -113,7 +113,7 @@ then `,`, then assignment. When in doubt, add parentheses.
 | `/` subdivide | `[[0, 1, 2]]/` | three pips of 1/3 |
 
 Also available, see `GRAMMAR.md`: `.^`, `.,`, `.m`, `.l`, `.t`, `.c`, `.->`,
-`.~`, `l` (lens), `g` and `r` (Glass and Reich patterns), `p` (Pärt), `z` (zip).
+`.~`, `l` (lens), `g` and `r` (Glass and Reich patterns), `p` (Pärt), `z` (zip: postfix `(A, B)z` or binary `A z B`).
 
 Facts worth remembering:
 

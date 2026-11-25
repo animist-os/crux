@@ -1,187 +1,138 @@
-// Bach, Fugue in G minor, BWV 578 ("Little")
-// #pitchRegime HarmonicMinor
-// #tonic 7
-// #bpm 72
-// #quanta 8n
-// #loop 68m
-// #preset PipeOrgan3
-// #volume 3
-// #reverb 0.65
-// #theme subject CS
-// #core a nugb nugc nugd / nug
-//
-// The whole fugue, grown from the reading of its first five bars in the Crux
-// tutorial (nug, ar, br, nugc, nugd). Hand analysis. Transcribed from Frank
-// Nordberg's MIDI edition (Werner Icking Music Archive, IMSLP #212994) and
-// checked against it note for note. Pierre Gouin's MIDI edition (IMSLP
-// #491939) has the same notes except five. This program follows Gouin in
-// four of them: tenor m30 beat 2 (A, not G), soprano m42 beat 3 (E-flat),
-// alto m51 beat 3 (the last note is G), alto m61 beat 3 (F-sharp). It follows
-// Nordberg in soprano m48 beat 1 (B natural).
-//
-// Four voices: soprano, alto, tenor, pedal. The voices hold integer scale
-// steps only, 0 = G below middle C. Durations are in eighth notes, eight to a
-// bar. The short trill of the countersubject is written as its main note and
-// its two-note ending (TR). A long trill is one long note.
-//
-// The 287 chromatic notes come from the key lane, read against G harmonic
-// minor. Most entries are a bar address and a key. i~ is G minor, v~ D minor,
-// iv~ C minor. In a ~ key the sixth and seventh follow the line: raised going
-// up, lowered in a falling 7-6-5. v- and iv- are natural minor, III is B-flat
-// major, bVII F major (the trill on E natural in bars 34 and 42, and bar
-// 60), I G major for the last chord. 23:-1 is one beat before bar 23. Ten
-// entries are note marks for single notes: an accidental and a degree of the
-// home scale. For example 32:2 #6 is the E natural in that beat and 39:2 b2
-// the A-flat. A mark applies to the next note on its degree, once. n7 keeps
-// F-sharp where the ~ rule would lower it. See docs/crux-key-lane.md.
-//
-// The theme directive names the themes of the fold view. The core directive
-// writes two levels, one button each, with the slash between them. The
-// first (a+) shows a, nugb, nugc and nugd whole, the shapes the subject is
-// built from. The last (nug) shows nug only, the cell the subject grows from,
-// with the notes that a, b and d add around it stacked on it. At these stops
-// the notes of other shapes are hidden. With nug alone after the directive
-// name, the fold would find the levels itself from the definitions (see
-// docs/crux-fold.md). Without the core directive, the last stop is cells: the
-// cells the themes are made of.
-//
-// #meter 4/4
-// #keyLane 1 i~, 6 v~, 11 i~, 17:3 v~, 22 v-, 23:-1 III, 24:2 i~, 26:4 b7, 31:2 III, 32:2 #6, 34 bVII, 34:3 III, 38:4 #6, 39:2 b2, 42 bVII, 42:3 III, 47:3 iv-, 48 iv~, 55:2 III, 57:2 i~, 57:2 #6, 59:4 III, 60:2 #3, 60:3 bVII, 60:4 #4, 61 i~, 61:3 b2, 62 III, 63 i~, 65:1:3 n7, 65:1:4 #6, 68 I
+// Bach, Fugue in G minor BWV 578 ("Little"), complete: 68 bars, four voices
+// #pitchRegime Minor
+// #tonic 55
+// #keyLane 1 i~, 6 v~, 11 i~, 17:3 v~, 22 v-, 23:-1 III, 24:2 i~, 26:4 n7, 31:2 III, 32:2 #6, 34 VII, 34:3 III, 38:4 #6, 39:2 b2, 42 VII, 42:4 III, 47:3 iv-, 48 iv~, 55:2 III, 57:2 i~, 57:2 #6, 59:4 III, 60:2 #3, 60:3 VII, 60:4 #4, 61 i~, 61:3 b2, 61:3:4 n7, 62 III, 63 i~, 65:1:3 #7, 65:1:4 #6, 68 I
 
-// The subject, as in the tutorial. Three changes: the second group of bar 2
-// is written without a half step, the D that ends bar 2 is a quarter note,
-// and d follows the source in bar 5.
-nug = [0, 4, 2, 1]
-a = nug, ((nug \ 1) ^ [1/2]), [0], ((nug \ 1) * [-3 | -1])
-ar = a . [|2, |2, |3, |, |, |, |, |, |, |, |2]
+// ---- the subject ----
+nug = [0,4,2,1]
+nug_squashed = nug ^ 1/2 @[@3 -1/2]
+nug_turned = (nug \1) * -3 | -1
+a = nug, nug_squashed, nug_turned
+ar = a . [|2,|2,|3,|,|,|,|,|,|,|,|2] // apply the rhythm
+
 nugb = (nug * |-1) ~ -1 @[@3 -3]
 b = nugb ., [-3]
 br = b @[@5 [4,3]/]
+
 nugc = (br @[@1 [0,3]/,@3 [0,4]/, @7[0,-4]/]) \1
+
 nugd = nugb * 1 ~ 2 @[@3 -2]
-d = ([4], nugd, (nugd * [-1]), [1]) || [1/2]
+nuge = (nug_squashed * | -1) ^ -1 * 2
+nugf = nugb ~ -1
+nugg = nuge m 1
+nugh = nug @[@1 -1]             // nug with its fifth narrowed to a fourth: [0,3,2,1]
+nugs = nugh @[@0 -2] * 2        // nug with the pickup dropped a third:  [0,5,4,3]
+climb = nugd * |-1 * 1 @[@0 -1] // rising nugd, pickup a third below:       [0,2,3,4]
+plunge = nugd @[@0 2]           // falling nugd, pickup a third above:      [5,2,1,0]
+trill = [0,1] : 2
+
+d = (4, nugd, nugd * -1, 1) * |/2
 subject = ar, br, nugc, d
-// The link carries a voice from the end of the subject up to the countersubject.
-link = ([0, -3], [0 -> 5]) || [1/2]
-// The pedal plays bar 4 of the subject with eighth notes at the end.
-nugp = (nugc \ 2), [1, -3]
 
-// The countersubject: the last eight notes of d, then four bars.
-tail = ([2, 1, 0, 2] * [0, -1]) || [1/2]
-Z = [0, -3, 0, 1]
-TR = ([2, 3, 2, 3] || [1/2]), [3 | 3/2, 2 | 1/4, 3 | 1/4], ([4, 3, 4, 5, 4, 3, 2, 1] || [1/2])
-P1 = (([2, -1, 0, -1], ([4] : 4), ([3] : 4), ([4] : 4)) z) || [1/2]
-P2 = (([2, 3, 4, 3], ([0] : 4), ([-1] : 4), ([0] : 4)) z) || [1/2]
-P3 = (([2, 3, 4, 3], ([7] : 4), ([6] : 4), ([7] : 4)) z) || [1/2]
-CS = tail, Z, TR, P1, P2
+turn = nugf * -1 @[@1 -2]       // nugf with its neighbour dropped to the dominant
+link = (turn, nugd * |-1 * 2) * |/2
+nugp = nugc \2, [1,-3]
 
-// Episode figures.
-K = [0, 3, 2, 1 | 5]                                // upbeat, up a fourth, down by step
-K2 = [0, 5, 4, 3 | 5]
-M = [0, -1, 0, 1, 0, -1, -2, 0] || [1/2]
-N8 = [0, -1, 0, 1, 0, -1, -2, -3] || [1/2]
-U = [0, 2, 1, 0, 4, 1, -3, 3] || [1/2]
-U2 = [0, 2, 1, 0, 3, 0, -4, 2] || [1/2]
-G8 = [0, 2, 3, 4, 5, 2, 1, 0] || [1/2]
-Qr = [9, 7, 9, 5, 7, 2, 4, 3, 5, 3, 5, 1, 3, -2, 0]
-V = [r, 0, -1, 0] || [1/2]
-D4 = [0, -2, -4, -1 | 5]
-D2 = [0, -2, -4, -1 | 2, r | 3]
-R4 = [0 | 5/2, 2 | 1/2, 1 | 1/2, 0 | 1/2]
-A8 = [0, -3, -4, -5, 0, -2, -4, -2] || [1/2]
+// ---- the countersubject ----
+tail = nuge * [0,-1] * |/2
+crest = trill * 2 * |/2, [3 | 2], (nugf * 3, nugd * 1) * |/2
+hold = [0 : 4]
+ped1 = (nugb * -2 @[@0 4], hold * 4, hold * 3, hold * 4)z * |/2
+ped2 = (nugb * 2, hold, hold * -1, hold)z * |/2
+ped3 = (nugb * 2, hold * 7, hold * 6, hold * 7)z * |/2
+cs = tail, turn, crest, ped1, ped2
 
-// Soprano, by passage
-// m1-9: subject and link, then the countersubject over the answer
-s1 = ((subject, link) * [7]), (CS * [11])
-// m10-12
-s2 = [8, 13, 7, 12, 6, 8, 11, 13], ([0, 3, r, 0] * [12, 11]), ([10, 9, 10, 11] || [1/2]), (([0, 5, 4, 5] * [10, 9, 8]) || [1/2])
-// m13-16: the second half of the countersubject is shared with the alto
-s3 = [14 | 4, r | 8], (P1 * [7]), [9 | 2, 10 | 2, 11 | 2, 10 | 2, r, 9, r, 8]
-// m17-21: the long A
-s4 = [r, 4], ([7, 8, 9, 7] || [1/2]), [8, 11, 10, 12], ([15, 16, 15, 14, 13, 12, 11, 10] || [1/2]), [11, r, 16, r, 12, r | 2, 15, 15 | 33/2], ([14, 15, 16, 15, 14, 13, 12] || [1/2])
-// m22-24: episode, K in imitation with the alto
-s5 = [13 | 4, r], (K * [11]), [10, 13, 12, 11 | 5/2], ([14, 13, 14] || [1/2]), [10 | 5/2], ([9, 8, 10] || [1/2])
-// m25-30: the tenor starts the subject, the soprano takes it over at its third note
-s6 = (tail * [7]), ([7, 4, 5, 6, 7, 4, 7, 8, 9, 7, 9, 10, 11, 8, 11, 10] || [1/2]), ((subject > [-4]) * [7])
-// m30-33
-s7 = (G8 * [7, 6, 5]), ([4, 6, 7, 8, 9, 11, 10, 9, 8, 10, 11, 12, 13, 14, 13, 12] || [1/2]), ([11, 13, 12, 11, 10, 9, 8, 10, 9, 6, 7, 8, 9, 10, 9, 10] || [1/2])
-// m34-38: countersubject over the subject in B-flat
-s8 = ((TR, P1, P2) * [9]), ([9, 10, 11, 9, 12, 11, 10, 12] || [1/2]), (M * [11, 10, 9])
-// m39-41
-s9 = ([0, 5, r, 0] * [8, 7, 6]), ([5, 7, 10, 9, 8, 7, 6, 5, 4, 5, 6, 7, 8, 9, 10, 8, 9, 6, 7, 8, 9, 10, 9, 10] || [1/2])
-// m42-45: the trill bar, then the long F
-s10 = (([2, 3, 2, 3] || [1/2]) * [9]), [12 | 3/2, 11 | 1/4, 12 | 1/4], ([13, 12, 13, 14] || [1/2]), [13, 13, 13 | 33/2], ([12, 13, 14] || [1/2]), [10 | 3/2], ([15, 16, 15, 16, 17, 16, 15, 14, 13] || [1/2])
-// m46-50
-s11 = (N8 * [12, 15, 11, 14]), ([10, 9, 10, 11, 10, 11, 12, 10] || [1/2]), [13 | 5/2], ([15, 14, 13] || [1/2]), [12 | 9/2], ([10, 11, 12, 13, 14, 15, 13, 9, 10, 11, 9] || [1/2]), [7, r]
-// m50-58: subject in C minor, then a sequence that falls by step
-s12 = (subject * [10]), (([10], (Qr * [5]), [4], (Qr * [4]), [3], (Qr * [3])) || [1/2]), [2, 7, 1, 6, 7 | 2, r | 2]
-// m59-63
-s13 = (U * [7, 9]), (U2 * [11, 12]), [13 | 2, 14, 15, 16 | 6, 15 | 4, 14 | 4, 13 | 2, 14 | 2, r | 3]
-// m64-68: the end of the countersubject over the last entry
-s14 = [11, 14, 15], ([16, 15, 14, 15, 13, 14, 13, 14, 15, 14, 13, 12, 11, 10, 9, 8] || [1/2]), ((P1, P2) * [7]), [9, 14, 8, 13, 14 | 8]
+// ---- rhythms ----
+// one cell of three even pips - most rhythms below are that cell running into a longer pip
+even = [|,|,|]
+to2 = even, [|2]
+to4 = even, [|4]
+long = even, [|5]               // three eighths into a held note
+mid2 = to2 ~ 1                  // to2 with the long pip moved to third place
+run = to4 * |/2                 // three sixteenths into a quarter
+susp = long * |-1/2             // long backwards at half speed: a tied note resolving in sixteenths
 
-// Alto, by passage
-// m6-14: the answer and link, then the trill bar of the countersubject
-a1 = [r | 40], ((subject, link) * [4]), (M * [10, 9]), [8, 7, 6, 4, 7 | 2, r | 3, 4, 7, 8], (TR * [7])
-// m14-21
-a2 = [4, r, 3, r, 4, r, 3, r], ((V * [7]) : 4), [4 | 2, 3 | 2, 2 | 2, r | 39]
-// m22-32
-a3 = (K * [8]), [7, 10, 9, 8 | 6, 7 | 4, 6 | 2, 7, r | 63]
-// m33-44: the subject in B-flat for two bars. The tenor has the rest of it.
-a4 = ((ar \ 1) * [2]), [r, 6, 6 | 20, r | 65]
-// m45-50
-a5 = (K * [6]), (K2 * [3]), [2, 7, 6, 5 | 9/2], ([5, 4, 3] || [1/2]), [2 | 2, 3 | 2, r | 3, 3, 8, 6 | 7/2], ([6, 5, 4, 5, 4, 3, 5, 4, 3, 2, 4] || [1/2])
-// m51-55
-a6 = ([3, 0, 3, 4, 5, 6, 5, 6, 7, 5, 3, 7, 8, 6, 7, 8, 4, 5, 4, 3] || [1/2]), [2, 4, 0 | 17, 7], ([6, 5, 4, 6] || [1/2]), [5 | 2, r | 3]
-// m55-60: D4 follows the tenor's D2 at the third
-a7 = (D4 * [3, 2]), [1, -1, -3, 0 | 2, r | 2], U, [2, 4, 1, 4 | 2, 7, 3, 6 | 2, 6, 4, 7 | 2, 7, 5, 8 | 3/2]
-// m61-64
-a8 = ([12, 11, 10, 9, 11, 8, 11, 7, 15, 14, 13, 14, 13, 12, 11] || [1/2]), [12 | 4, 11 | 4, 10 | 4], ([9, 11, 10, 9, 8, 9, 7, 8, 9, 10, 9, 10, 11, 12, 11, 10] || [1/2])
-// m64-68
-a9 = [9, 11, 10, 9, 8 | 2, r, 4, 4 | 17, 5, 5, 4, 4 | 8]
+// ---- episode figures ----
+wave = (nugf * -1, nuge * -2) * |/2
+dive = (nugf * -1, nugd * -3) * |/2
+echo = ((nugf \1) * -1 > 1) * |/2
+fourth = nugh .* long
+sixth = nugs .* long
+leap = [4,1,-3,3]
+vault = (nugg * |-1, leap) * |/2
+vault2 = (nugg * |-1, leap * -1) * |/2
+arch = (climb, plunge) * |/2
+third = [0,2]
+sixup = [0,5]
+zig = [0,9], third * [7,5,2,3,3,1,-2]
+tri = nugb ^ -2 @[@3 1]          // nugb stretched into falling thirds, last pip bent up
+thirds = tri .* long
+thirds2 = tri .* to2, [r | 3]
+sigh = nugg * |-1 .* susp
+drop8 = (plunge * -5, nugb ^ -2) * |/2
+lead = ([2,-1,0], nugb * 1, [3]) * |/2
+held = [0, 0 | 33/2], (nugb \1) * -1 * |/2
 
-// Tenor, by passage
-// m12-21: subject and link, then the countersubject over the pedal's answer
-t1 = [r | 92], subject, link, (CS * [4]), [6, 5 | 1/2, 4 | 1/2, 3 | 3/2, 4 | 1/2]
-// m22-24
-t2 = (N8 * [4, 0, 3, -1]), ([-5, 2, 3, 4] || [1/2]), [5 | 2, r | 1/2], ([1, 2, 3] || [1/2]), [4 | 2]
-// m25-29: four notes of the subject, then the countersubject
-t3 = [0 | 2, 4 | 2, 2 | 3, 1], ([0, 2, 1, 0, -1, 0, -2, -1, 0, -3, -2, -1, 0, -3, 0, 1] || [1/2]), TR, P1, P2
-// m30-34
-t4 = [0, 2], ([3, 2, 1, 3] || [1/2]), (R4 * [2, 1, 0]), [-1 | 3, -2, -1, -2, -3, -4, -5 | 2, r | 3, 3, 2, 1, 0 | 4, -1 | 2, -1 | 2]
-// m35-40: the subject in B-flat from its third bar
-t5 = ((subject > [-16]) * [2]), [2, 7, r, 0, 1, 6, r, -1, 0, 6, 3, 5], (M * [6, 5, 4, 3])
-// m41-45: countersubject over the pedal's entry
-t6 = ([2, 3, 4, 2, 3, 4, 5, 3, 4, 3, 2, 3, 4, 5, 4, 5] || [1/2]), (TR * [4]), ((P1, P3) * [2]), ([9, 11, 10, 9, 8, 7, 6, 5] || [1/2]), [4 | 5]
-// m46-54: K follows the alto
-t7 = (K * [0, -1]), [-2, 1, 0, -1 | 2, 0 | 5/2], ([0, 1, 2, 3, 4, 5, 3] || [1/2]), [1 | 4, 0, 1, 2 | 2, 3, r | 36]
-// m55-58
-t8 = (D2 * [0, -1]), [-2, -4, -6, -3 | 2, r | 2], (U * [-7]), [-5, -3, -8, -3]
-// m59-63: a line that rises by semitones in bar 60. The lane gives the semitones.
-t9 = [0 | 2, -1 | 2, 0 | 2, 1 | 2, 2 | 2, 2 | 2, 3 | 2, 3 | 2, 4 | 2, 5, 6, 7 | 2, 8, 9], (A8 * [10, 9, 8]), ([0, 2, 4, 7, 6, 7, 5, 6] || [1/2])
-// m64-68
-t10 = [7 | 3, 6, 7 | 2, 8, 4, 4 | 2, r, -1, 0, r, 3, r, 2, r, 3, r, 2, r, 1, r, 0, r, 1, r, 0, 2, 3, 1, 2 | 8]
+// soprano
+s1 = subject, link, cs * 4
+s2 = sixup * [1,0], third * [-1,4], [0, 3, r, 0] * [5,4], nugf * 2 * |/2, (([0], (nugf \1) * 4) * [3,2,1]) * |/2
+s3 = [7 | 4, r | 8], ped1, nugb * 2 * |2, [r, 2, r, 1]
+s4 = [r, -3], nugg * |/2, [1, 4, 3, 5], (nugb * |-1 * 7, nugd * 3) * |/2, [4, r, 9, r, 5, r | 2], held * 8, nugd * 5 * |/2
+s5 = [6 | 4, r], fourth * 4, nugh * 3 .* (even, [|5/2]), (nugf \1) * 6 * |/2, nuge * 1 .* susp
+s6 = tail, (nugh m 0, turn, turn * 2 @[@1 1], turn * 4 @[@3 -2]) * |/2, (subject > -4)
+s7 = arch * [0,-1,-2], (climb * -3, nugg * |-1 * 2, climb * 1, nugb * |-1 * 5, nugg * |-1 * 4, nuge * 1) * |/2, lead
+s8 = (crest, ped1, ped2) * 2, (nugg * 2, nuge * 3) * |/2, wave * [4,3,2]
+s9 = (sixup, [r, 0]) * [1,0,-1], ([-2,0,3,2], nugd * -2, nugd * |-1 * -3, nugg * 1) * |/2, lead
+s10 = (crest \4) * 2, [6], held * 6, [3 | 3/2], ([8], nugf * 8, nugd * 6) * |/2
+s11 = dive * [5,8,4,7], (nugf * 2, nugg * 3) * |/2, sigh * 6, [5 | 9/2], ([3,4,5], nugg * 6, nugg * 2) * |/2, [0, r]
+s12 = subject * 3, (zig * -2 @[@0 5], zig * [-3,-4]) * |/2, sixup * [-5,-6], [0 | 2, r | 2]
+s13 = vault * [0,2], vault2 * [4,5], nugd * |-1 * 6 . [|2,|,|,|6], nugf * |-1 * 6 . [|4,|4,|2,|2], [r | 3]
+s14 = [4, 7, 8], (nugf * |-1 * 7, trill * 6, nugd * 5, nugd * 1) * |/2, ped1, ped2, sixup * [2,1], [7 | 8]
 
-// Pedal, by passage
-// m17-25: the answer
-p1 = [r | 132], ((ar, br, nugp) * [-3]), [-3, -7, -6 | 2, -10 | 2, r | 35]
-// m26-40
-p2 = [-7, 0, -1, -2, r, -9, r, -10, -3, -3 | 24, -4 | 4, -5 | 4, -6 | 2, -5, -6, -7 | 2, -8 | 2, r | 66]
-// m41-50: the subject in B-flat
-p3 = ((ar, br, nugp) * [-5]), [-3, -2, -1, -8, -5 | 2, r | 2, -4 | 2, r | 2, -8 | 2, r | 2, -5 | 2, r | 2, -9 | 2, r | 2, -6 | 2, r | 2, -10 | 2, -7 | 2, -11 | 2, r | 2, -8 | 2, r | 2, -7 | 8]
-// m51-62: the pedal has the second half of the countersubject
-p4 = [-11, -7, -4, -3, -2 | 2, -1 | 2, 0 | 5/2], ([0, -1, 0] || [1/2]), (P1 * [-4]), ((P3 * [-4]) \ 4), ([0, 2, 1, 2] || [1/2]), [-4, -2, -1, 0, -4 | 2, r | 66]
-// m63-68: the last entry
-p5 = ar, br, nugp, [0, -2, -4, -3, -7 | 8]
+// alto
+a1 = [r | 40], (subject, link) * -3, wave * [3,2], [1, 0, -1, -3, 0 | 2, r | 3], turn \-1, crest
+a2 = [-3, r, -4, r] : 2, echo : 4, [-3 | 2, -4 | 2, -5 | 2, r | 39]
+a3 = fourth * 1, nugh .* (even, [|6]), [0 | 4, -1 | 2, 0, r | 63]
+a4 = (ar \1) * -5, [r, -1, -1 | 20, r | 65]
+a5 = fourth * -1, sixth * -4, nugs * -5 .* (even, [|9/2]), nugd * -5 .* run, [-4 | 2, r | 3, -4, 1, -1 | 7/2], ([-1,-2,-3], nuge * -4, nuge * -5) * |/2
+a6 = (turn * -4, trill * -2, nugg ^ -2, nuge * |-1 * -1, nugb * |-1 * -4) * |/2, [-5, -3, -7 | 17, 0], nuge * -3 * |/2, [-2 | 2, r | 3]
+a7 = thirds * [-4,-5], tri * -6 .* to2, [r | 2], vault * -7, [-5, -3, -6, -3 | 2, 0, -4, -1 | 2, -1, -3, 0 | 2, 0, -2, 1 | 3/2]
+a8 = ([5], nuge * 2, [1,4,0], nugf * |-1 * 6) * |/2, nugb ~ 2 * 4 .* ((even, [|8]) * |/2), [4 | 4, 3 | 4], ([2,4], nugf * |-1 * 1, [0], nugb * 1, [3], nugb * |-1 * 3) * |/2
+a9 = nugg * |-1 * 2, [1 | 2, r, -3, -3 | 17, -2, -2, -3, -3 | 8]
 
-// Soprano
-(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14)
+// tenor
+t1 = [r | 92], (subject, link) * -7, cs * -3, nugd * -4 . [|,|/2,|/2,|3/2], [-3 | /2]
+t2 = dive * [-3,-7,-4,-8], [-12 | /2], nugd * |-1 * -5 .* run, [r | /2], nugd * |-1 * -6 .* run
+t3 = (ar \7) * -7, (nugg * |-1 * -7, [-8,-7,-9,-8], nugh m 0 * -7, turn * -7) * |/2, (crest, ped1, ped2) * -7
+t4 = [-7, -5], nuge * -6 * |/2, sigh * [-5,-6,-7], [-8 | 3], [-9], nugd * -11, [-12 | 2, r | 3], nugd * -7 .* to4, [-8 | 2, -8 | 2]
+t5 = (subject > -16) * -5, (sixup, [r, -2]) * [-5,-6], [-7, -1, -4, -2], wave * [-1,-2,-3,-4]
+t6 = (nugg * [-5,-4], nugb m 0 * -3, trill * -3) * |/2, crest * -3, (ped1, ped3) * -5, (nugg * |-1 * 2, nugd * -2) * |/2, [-3 | 5]
+t7 = fourth * [-7,-8], nugh * -9 .* to2, nugg ~ 3 * -7 .* susp, nugg * -4 * |/2, [-6 | 4], nugd * |-1 * -7 .* mid2, [r | 36]
+t8 = thirds2 * [-7,-8], tri * -9 .* to2, [r | 2], vault * -14, [-12, -10, -15, -10]
+t9 = ([-7], nugd * |-1 * -8, [-5,-4,-4,-3]) * |2, nugd * |-1 * -2 .* mid2, [2], drop8 * [3,2,1], [-7, -5, -3, 0, -1, 0, -2, -1] * |/2
+t10 = [0 | 3, -1, 0 | 2, 1, -3, -3 | 2, r, -8, -7, r, -4, r, -5, r, -4, r, -5, r, -6, r, -7, r, -6, r, -7, -5, -4, -6, -5 | 8]
+
+// pedal
+p1 = [r | 132], (ar, br, nugp) * -10, [-10, -14, -13 | 2, -17 | 2, r | 35]
+p2 = [-14, -7, -8, -9, r, -16, r, -17, -10], nugd * -13 . [|24,|4,|4,|2], nugd * -15 . [|,|,|2,|2], [r | 66]
+p3 = (ar, br, nugp) * -12, [-10, -9, -8, -15, -12 | 2, r | 2, -11 | 2, r | 2, -15 | 2, r | 2, -12 | 2, r | 2, -16 | 2, r | 2, -13 | 2, r | 2, -17 | 2, -14 | 2, -18 | 2, r | 2, -15 | 2, r | 2, -14 | 8]
+p4 = [-18, -14, -11, -10, -9 | 2, -8 | 2, -7 | 5/2], [-7, -8, -7] * |/2, ped1 * -11, (ped3 * [-11]) \4, [-7, -5, -6, -5] * |/2, climb * -11, [-11 | 2, r | 66]
+p5 = (ar, br, nugp) * -7, [-7, -9, -11, -10, -14 | 8]
+
+
+// at last, the four voices
+s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14
 !
-// Alto
-(a1, a2, a3, a4, a5, a6, a7, a8, a9)
+a1, a2, a3, a4, a5, a6, a7, a8, a9
 !
-// Tenor
-(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)
+t1, t2, t3, t4, t5, t6, t7, t8, t9, t10
 !
-// Pedal
-(p1, p2, p3, p4, p5)
+p1, p2, p3, p4, p5
+
+
+// #quanta 8n
+// #bpm 72
+// #octave -1
+// #volume 3
+// #loopDur 128m
+// #eval New('AnnotationImage', {uploadedURL: '/media/scores/BachFugue_BWV578_p1.png'})

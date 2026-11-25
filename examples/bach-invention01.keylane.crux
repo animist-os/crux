@@ -1,111 +1,76 @@
 // Bach, Invention No. 1 in C major, BWV 772
 // #pitchRegime Major
-// #tonic 0
-// #bpm 66
-// #quanta 16n
-// #loop 22m
-// #minVel 80
-// #maxVel 93
-// #preset Seaward Piano
-//
-// Hand analysis, from a start by Andy (A, B, T and the first two entries).
-// Transcribed from the Humdrum edition (humdrum-tools/inventions,
-// kern/inven01.krn) and checked against it note for note.
-//
-// The voices hold integer scale steps only, 0 = C below middle C. Durations
-// are in sixteenths, sixteen to a bar. Each hand is written an octave low and
-// lifted by the final * [7].
-//
-// The 34 chromatic notes come from the key lane. V = G major (F-sharp),
-// ii~ = D minor and vi~ = A minor, with a sixth and seventh that follow each
-// voice's line, IV = F major (B-flat). #1 and b7 are note marks: one C-sharp
-// in bar 15, two B-flats in bar 21. See docs/crux-key-lane.md.
-//
-// #meter 4/4
-// #keyLane 1 I, 4 V, 9 I, 10:4 ii~, 12 vi~, 15 I, 15:4:3 #1, 18 IV, 20 I, 21 b7, 21:2 b7
+// One unit is a sixteenth. 0 is middle C. A half step is an accidental (7/2 is F sharp).
 
-// The theme: a head in sixteenths, a tail in eighths. T ends on the next downbeat.
-A = [0, 1, 2, 3, 1, 2, 0]
-B = [4, 7, 6, 7, 8 | /2]
-T = A, B * [0 | 2]
-Ai = A m [0]
+// ---- your material ----
+P = 3
+A = [0 -> P]
+b1 = [P -> 2]
+B = (b1, b1 * -2)z
+T = A, B \ -1
+C = [4, 7, 6, 7, 8 | /2]
 
-// Slices of the head
-U = A \ 3                        // its first four notes, the rising scale
-V = (A ~ [3]) \ 3                // its last four notes, the falling thirds
-Q = A, [1]                       // the head and the step that leads to the next one
-Qh = A, [1 | 9]                  // the same, with that step held
+// ---- built from it ----
+// I   subject upside down
+// Ai  falling tetrachord
+// S   subject and its tail, one bar
+// E   subject, then the answer a fifth up (bars 1-2)
+// U   the subject's tail with its landing a step up
+// G   subject landing a step up (A, then U). F is G upside down
+// Ge  G landing on an eighth. M is G with the landing held. N is Ge as a lone entry after a rest
+// H   subject landing on P, the top of its tetrachord (LH bars 2 and 5, RH bar 20)
+// A6  A overlapped with itself a third up: a six-note rise
+// K   cadence: falling third and an anticipation (RH bars 6, 14, 20)
+// dot dotted step up (RH bar 5, LH bars 6 and 13)
+// D   tail for the inverted subject, from b1 and B. J is the inverted bar
+// Z   rising thirds
+// Y   tetrachords in falling thirds. W is Y in eighths with its last tetrachord run on to A6, the walking line
+// O   octave drop
+// Q   the long sequence and cadence (RH bars 3-6, LH bars 11-14)
 
-// The sequences. Each is a slice of the theme, repeated and transposed.
-S1 = (Q m [0]) * [3, 1, -1, -3]          // m3-4, m11-12: inverted head, down by thirds
-S2 = (V m [0]) * [2, 4]                  // m6, m14: inverted thirds, up by thirds
-S3 = U * [-1 | 2, -3 | 2]                // m3, m11: rising scale in eighths, down a third
-S4 = (Qh m [0]), (Qh * [-3])             // m15-18, right hand: inverted head, then the head
-S5 = (Qh m [0]), (Qh * [-4])             // m15-18, left hand
-S6 = (Q * [7, 9]), (A * [11])            // m19-20: head, up by thirds
+I = T m 0
+Ai = A m 0
+S = T, C * |2
+E = S, (S \ 1) * 4
+U = B \ -1, [1]
+G = A, U
+F = G m 0
+Ge = G @ [@-1 | 2]
+M = G @ [@-1 | 9]
+N = [r | 7], Ge
+H = (T, [P]) @ [@-1 | 2]
+A6 = A, (A \ -2) * 2
+K = (Ai \ 1) @ [@0 | 2], [-2]
+dot = [0 | 3, 1]
+D = (b1, B \ 2) * |2, [2]
+J = I * 4, D
+Z = (A * 1, A)z
+Y = A * [-1, -3, -5]
+W = ((Y \ 4, A6 * -5) * |2) @ [@9 1/2, @-1 | 5]
+O = [0 | 2, -7 | 2]
+Q = (F * [12, 10, 8, 6]) @ [@27 1/2, @31 | 2], [1 | 2], dot * 7, [6], F * 5 @ [@5 1/2], Z * 5
 
-// The exposition pair: theme, and theme a fifth higher
-E = r, T, (T * 4) \ 1
-// The line in eighths that goes with S1. It returns upside down in m19.
-Aug = [0 | 2], S3, [-5 | 2], (U * [-4 | 2]), [0 | 5]
-// m3-6 in the right hand, m11-14 in the left: S1, a turn to the cadence, S2
-K = [0 | 2, -4 | 2, 2 | 3, 3, 1], Ai, S2
-Z = [0], (S1 \ 1), (K * [-4])
-// m9-10, left hand: the inverted head with a tail in eighths, twice
-N = Ai, ([-1, -2, -1, -3] * [0 | 2]), [-2]
-// m7-10, right hand: a held note, a rest, the head
-X = [-2 | 2, r | 7], A
-Xi = [-2 | 2, r | 7], Ai
+// ---- right hand ----
+R1 = [r], E, [9]
+R2 = Q @ [@38 1/2], [6 | /2, 7 | /2, 8, 11], K * 6 @ [@-1 | 2]
+R3 = (N * [4, 5]) @ [@8 -3/2], (N m 0) * 8, ((N m 0) * 9) @ [@6 1/2]
+R4 = W * 8 @ [@0 1/2, @6 1/2, @8 1/2], T * 2 @ [@1 1/2, @2 1/2, @4 1/2, @5 1/2]
+R5 = [9], ((U m 0) * [9, 8, 13]) @ [@9 1/2], (B \ -1) * 8, [9/2], (Ai \ 1) * 10, K * 7
+R6 = ((M m 0) * 12, M * 9) * [0, -1]
+R7 = G * [7, 9], H * 11, [11 | 2], K * 9
+R8 = F * 6 @ [@0 -1/2, @6 -1/2], [6, 7, 2, 1, 7, 3, 6], [2 | 16 & 4 & 7]
+RH = R1, R2, R3, R4, R5, R6, R7, R8
 
-// Right hand, by passage
-// m1-2
-r1 = E
-// m3-6: the sequence block
-r2 = Z * [9]
-// m6-7: cadence in G
-r3 = [8, 6 | /2, 7 | /2, 8, 11, 6 | 2, 5, 4, 4 | 2]
-// m7-10: the head answers the left hand, on G and A, then inverted on D and E
-r4 = [r | 7], (A * [4]), (X * [5]), (Xi * [8, 9])
-// m11-13: the left hand's line of m3-5, an octave and a step higher
-r5 = (Aug * [8]), (A * [2])
-// m13-15: cadence in A minor
-r6 = ([2, 1, 0, 2] * [7, 6]), [7, 12, 11, 13, 12, 9, 10, 8, 4, 10, 9, 8, 7 | 2, 6, 5, 5]
-// m15-18
-r7 = S4 * [12, 11]
-// m19-22
-r8 = S6, [14 | 2, 11 | 2, 9 | 2, 8, 7, 7], ((Q m [0]) * [6]), [6, 7, 2, 1, 7, 3, 6, 2 | 16]
+// ---- left hand ----
+L1 = [r | 9], T * -7, O * -3, [r | 5], H * -3, W
+L2 = H * -6 @ [@2 1/2, @5 1/2], A6 * -8 * |2 @ [@4 1/2], [-5 | 2], dot * -8, O * -6
+L3 = [r], E * -10 @ [@9 1/2, @14 1/2, @17 1/2], [-3], J * [0, 1]
+L4 = Q * -6 @ [@0 -1/2, @6 -1/2, @39 1/2, @-1 | 2], [-2 | 2], O * [2, -2], [r | 5]
+L5 = (((M m 0) * 2, M * -2) * [0, -1]) @ [@5 1/2, @26 -1/2, @29 -1/2, @-1 | 2]
+L6 = (((Y m -1) \ 1) * |2) @ [@0 -1/2, @6 -1/2], [2], Ge * -6
+L7 = A * -7 . [|2, |2, |2, |], (A \ -1) * -7, O * -3, [-14 | 16 & -7]
+LH = L1, L2, L3, L4, L5, L6, L7
 
-// Left hand, by passage. It enters at the third beat.
-// m1-2: the head an octave lower, then the head on G
-l1 = ((r, T) * -7) \ 4, [-10 | 2, r | 5], (A * [-3])
-// m3-5
-l2 = Aug, (A * [-6])
-// m5-6: cadence in G
-l3 = [-3 | 2], (U * [-8 | 2]), [-4 | 2, -3 | 2, -5 | 2, -8 | 3, -7, -6 | 2, -13 | 2]
-// m7-8: the exposition pair in G
-l4 = E * [-10]
-// m9-10
-l5 = [-3], (N * [4, 5]) \ 1
-// m11-14: the right hand's block of m3-6, a seventh lower
-l6 = Z * [3]
-// m14-15: cadence in A minor
-l7 = [2 | 2, -2 | 2, 2 | 2, -5 | 2, -2 | 2, -9 | 2, r | 5]
-// m15-18
-l8 = (S5 * [2, 1]) \ 1
-// m19-20: the line in eighths, inverted, then the head on D
-l9 = ((Aug m [0]) * [-2]) \ 3, [2], (A * [-6])
-// m21-22
-l10 = [-5 | 2, -7 | 2, -6 | 2, -5 | 2, -4, -6, -5, -4, -3 | 2, -10 | 2, -14 | 16]
-
-// Right hand
-(r1, r2, r3, r4, r5, r6, r7, r8) * [7]
-!8
-// Left hand
-(l1, l2, l3, l4, l5, l6, l7, l8, l9, l10) * [7]
+RH
 !
-// Last chord, three more notes
-[r | 336, 0 | 16]
-!
-[r | 336, 11 | 16]
-!
-[r | 336, 14 | 16]
+LH

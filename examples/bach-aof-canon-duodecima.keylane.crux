@@ -1,0 +1,48 @@
+// Bach, The Art of Fugue BWV 1080, Canon alla Duodecima in Contrapunto alla Quinta
+// #pitchRegime Minor
+// #tonic 2
+// #quanta 8n
+// #meter 2/2
+// #keyLane 1 i~, 6 V, 7 i~, 7:2:7 #4, 9 v~, 14 V, 15 v, 15:2:7 #1, 17 III, 18:2 i+, 19:2 III, 24:2 V, 25 VII, 27 v~, 28 III, 28:2 i~, 31:1:5 n7, 31:2:7 #3, 33:2:3 #6, 39 I, 40 i~, 40:2:7 #4, 42 i+, 42:2:5 #4, 45 III, 46 i~, 47 i+, 47:2:3 n6, 48 i~, 48:2:7 #4, 53 III, 53:2:5 #3, 54:2:3 #7, 56:2:7 #6, 58 VII, 60 V, 60:2 III, 64:2 iv~, 66 i~, 68 i+, 68:2:5 #4, 71 III, 72 i~, 73 i+, 73:2:3 n6, 74 i~, 74:2:7 #4, 76:2:7 #4
+//
+// Hand analysis. Notes from the Humdrum edition (craigsapp/art-of-the-fugue,
+// kern/artfugue-013.krn). Steps are scale degrees of D minor, 0 = D. One unit is an eighth.
+//
+// The piece is one 34-bar line D, the dux, used four times. The bass plays D from bar 1.
+// The treble follows 8 bars later a twelfth higher, for 25 bars. At bar 34 the treble
+// starts D again two octaves up, and the bass follows 8 bars later at its first pitch.
+// F is the free bass of bars 35 to 41. It comes back a twelfth higher in the treble at
+// bar 69, over the bass's last statement of the subject.
+
+// Cells
+T = [0, 1, 0, -1, 0, 1] || [2/3]
+H = T * [0, 2]
+fall = [0 | 5, -1, -2, -3]
+dn = [0, -1, -2, -3]
+sk = [0, -2, -3, -4]
+arp = [0, 2, 5 | 2]
+dot = [0 | 3, -1 | 1/2, -2 | 1/2]
+Q = [-1 | 2, 2 | 2, 0 | 2, 1 | 2]
+K = (dn * [1]), [-3 | 3, -2], (dn * [-1]), [-5, -4, -3, -5]
+C = [-4, -3, -2, -6, 1, -1, 0, 1], (arp * [-5, -4]), ((sk m [0]) * [-3]), (sk * [2]), Q
+
+// The dux, bars 1 to 34
+S1 = H, (fall * [4, 2]), [0 | 2, 1, 2, 3, 4, 5 | 2], [5 | 2, -1 | 2, r, -3, -2, -1], dn, (sk * [1])
+S2 = [2, 1, 0 | 2, r, 5, 4, 3], (sk * [4]), (dn * [2])
+S = S1, S2
+E0 = [0 | 2, r | 2], (T * [-3]), [-1, -3, -2, -1], (dn m [0]), (K * [3]), C, (T * [2]), (dot * [4]), [1, -1, 0, 1], (dot * [2]), [-1 | 2, -3 | 2, r, 0, -1, -2], [-3 | 2], (arp * [-5]), [-5 | 2], [-4 | 2, -7 | 2, r, -6, -5, -4], ([0, -1, -2, 0] * [-3, -2]), (dn * [-1]), [-3, 2, 1, 0], [1, -1, -3, -1, -5, -3, -4, -2]
+E = E0, [-3 | 2, r | 2], (T * [1])
+G = ((fall || [1/2]) * [3]), (T * [-1]), K, [-2, -4, -5, -6, -7 | 2, r | 4], [-3 | 2], (arp * [-7]), [-6, -4, -1 | 2, r, -3, -4, -5], [-4 | 2, -3 | 4, -2 | 2], ((dn m [0]) * [-8]), (T * [-4]), [-2 | 2, -4 | 2], T
+D = S, E, G
+
+// The free bass, bars 35 to 41
+F = (T * [2]), [4, 0, 7 | 3, 6, 5, 4, 5 | 5, 4, 3, 2, 1, 2, 3, 1], (C * [3])
+
+// Coda pieces
+B76 = (((sk m [0]) * [-7]) @ [@0 7]), (sk * [-2])
+
+// Bass: D, F, the answer from bar 42, the subject again from bar 68, cadence
+(D, F, S, E0, [-3 | 4], (T * [1, 3]), [5 | 2, 3 | 2], S, B76, (Q * [-4]), [-7 | 8]) * [-7]
+!
+// Treble: the answer at the twelfth from bar 9, D two octaves up from bar 34, F at the twelfth from bar 68
+[r | 64], ((S, E) * [4]), (D * [7]), [9 | 2, 7 | 2], ((T, F) * [4]), (S2 * [7]), [7 | 8]

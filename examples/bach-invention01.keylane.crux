@@ -1,14 +1,14 @@
 // Bach, Invention No. 1 in C major, BWV 772
 // #pitchRegime Major
-// #meter 4/4
 // #quanta 16n
 // #keyLane 1 I, 4:2 V, 9 I, 10:4 ii~, 12 vi~, 15 I, 15:4:3 #1, 18:3 IV, 20 I, 21 IV, 21:3 I
 
-// ---- your material ----
-P = 3
-A = [0 -> P]
+// ---- Andy Nubbins ----
+PA = 0
+PB = 3
+A = [PA -> PB]
 Ai = A m 0
-b1 = [P -> 2]
+b1 = [PB -> PA + 2]
 B = b1 z (b1 * -2)
 T = A, B \ -1
 C = [4, 7, 6, 7, 8 | /2]
@@ -19,7 +19,7 @@ S = T, C * |2
 // U   the subject's tail with its landing a step up
 // G   subject landing a step up (A, then U). F is G upside down
 // Ge  G landing on an eighth. M is G with the landing held. N is Ge as a lone entry after a rest
-// H   subject landing on P, the top of its tetrachord (LH bars 2 and 5, RH bar 20)
+// H   subject landing on PB, the top of its tetrachord (LH bars 2 and 5, RH bar 20)
 // A6  A overlapped with itself a third up: a six-note rise
 // K   cadence: falling third and an anticipation (RH bars 6, 14, 20)
 // dot dotted step up (RH bar 5, LH bars 6 and 13)
@@ -36,7 +36,7 @@ F = G m 0
 Ge = G @ [@-1 | 2]
 M = G @ [@-1 | 9]
 N = [r | 7], Ge
-H = (T, [P]) @ [@-1 | 2]
+H = (T, [PB]) @ [@-1 | 2]
 A6 = A, (A \ -2) * 2
 K = (Ai \ 1) @ [@0 | 2], [-2]
 dot = [0 | 3, 1]
@@ -47,6 +47,7 @@ Y = A * [-1, -3, -5]
 W = ((Y \ 4, A6 * -5) * |2) @ [@-1 | 5]
 O = [0 | 2, -7 | 2]
 Q = (F * [12, 10, 8, 6]) @ [@31 | 2], [1 | 2], dot * 7, [6], F * 5, Z * 5
+
 
 // ---- right hand ----
 R1 = [r], E, [9]

@@ -1,0 +1,57 @@
+// Bach, Invention No. 5 in E-flat major, BWV 776
+// #pitchRegime Major
+// #tonic 3
+// #quanta 16n
+// #meter 4/4
+// #keyLane 4:3 V, 7:3 I, 9 IV, 10 I, 11:1:4 #4, 12:1:4 #5, 13 vi~, 14 I, 14:3 #1, 15 ii~, 16:2 IV, 17 ii~, 18 IV, 18:2 v+, 20:2 IV, 21 ii~, 23 IV, 25:1:4 n7, 26 I, 30 IV, 31:3 I
+//
+// Hand analysis. Notes from the Humdrum edition (humdrum-tools/inventions,
+// kern/inven05.krn). Steps are scale degrees of E-flat major, 0 = the E-flat below
+// middle C. One unit is a sixteenth. The bass is written an octave high and lowered
+// by its final * [-7]. The treble's middle bars and its last bar are written an
+// octave low and lifted by * [7].
+//
+// The subject is four bars, first in the treble. s is its head, P the head twice a
+// step apart, then S3t and the last bar S4. An is the answer: its last bar (A4t) is a
+// step lower. The bass answers on B-flat at bar 5 and on C at bar 12, and the treble
+// answers on F at bar 16.
+// The countersubject runs in sixteenths, a free note and a seven-note cell each half
+// bar. The seven-note cells all end in t. u, m and q differ in their first three
+// notes, and h is the head that m and q share. CS is bars 2 to 4 of the
+// countersubject. LC is the link figure ([0], m) followed by the whole
+// countersubject: the treble plays it at bar 5 and a step higher at bar 12, and the
+// bass at bar 16. Its first bar gives the rising bass of bars 9 and 10, and all but
+// its last half bar opens the bass at bar 27.
+// Bars 20 to 22 fall by step in both hands. In bars 23 to 26 the subject head comes
+// twice in the treble on A-flat and in the bass on E-flat, over sequences on u and m.
+// In bar 30 the treble plays bar 29 again a fourth higher, and the bass carries the
+// q sequence on down to the cadence.
+
+// The subject
+s = [0, -1, 0 | 2, 1 | 2, 2 | 4, 3 | 4]
+R = [r | 2], s
+P = s, R * [1]
+S3t = [5 | 2, 4 | 2, 3 | 2, 2, 3, 4, 3, 2 | 2, 1 | 2]
+S4h = [0 | 2, 2 | 2, 4 | 2]
+A4t = [6 | 3, 4, 5, 6, 7 | 2, 6 | 2]
+An = P, [2 | 2], S3t, S4h, A4t
+S4 = S4h, A4t * [1]
+
+// The countersubject
+t = [0, 1, -1, 0]
+u = [2, 1, 2], t
+h = [1, 0, -1]
+m = h, t
+q = h * [2], t
+mb = [-5], m
+CS = ([0], u) * [3], (mb, [-6], m) * [6], ([0], q) * [4, 2]
+LC = [0], m, [-2], u * [3], CS * [-2], mb
+
+// Bass: two notes and the countersubject, the answer on B-flat, LC's first bar rising,
+// the answer on C, LC, the head falling, sequences and the head on E-flat, LC from
+// bar 27 with the q sequence, cadence
+([0 | 4, -7 | 4, r], u * [5], CS, mb * [3], [4 | 2], An * [-3], LC \ 48 * [2, 3], ([0], m) * [4], (t, t * [-2]) * [2], [-2 | 2], An * [-2], LC * [3], [4 | 2], s * [-3], R * [-4, -5], [-6], u * [3], ([0], u) * [1, -1], mb * [2], [3 | 2], P, LC \ 8 * [2], ([0], q) * [0, -2], mb * [-1], [0 | 2, -5 | 2, -4 | 2, -3 | 2, -7 | 8]) * [-7]
+!
+// Treble: the subject, LC, the head rising, LC a step up, the answer on F, falling
+// sequence, the head on A-flat and sequences, the subject from bar 27, cadence
+[r | 2], P, [2 | 2], S3t, S4, (LC * [-1], [0 | 2], s * [-3], R * [-2, -1], LC, [1 | 2], An * [-6], ([0], m) * [-1], mb * [2], ([3], m * [-2], mb * [1]) * [0, -1], [1 | 2], P * [-4], [-2], u * [1], [-1, 4, 3, 4], t * [-2], ([0], u) * [-4], mb * [-1]) * [7], [7 | 2], P, [2 | 2], S3t, [0 | 2], S3t * [3], S4 * [3], ([3 | 2], [2, 1, 0, 1] || [1/2], [1 | 4, 0 | 8]) * [7]

@@ -1,0 +1,66 @@
+// Bach, The Art of Fugue BWV 1080, Canon alla Decima in Contrapunto alla Terza
+// #pitchRegime Minor
+// #tonic 2
+// #quanta 12n
+// #meter 4/4
+// #keyLane 5:4:3 #7, 7:4 i~, 9 III, 12 VII, 14 III, 16:3:3 #6, 19:3 iv, 20 vi+, 20:3 i~, 22 i+, 23:2 #4, 23:3:3 n7, 23:4 #3, 24:1:3 n6, 24:2 v, 25 i~, 27 III, 27:2:3 #1, 27:3:3 b2, 27:4:3 #7, 28:1:3 b1, 28:2 v, 29:2 i~, 31 III, 32 i~, 33 i+, 33:4 i~, 34:4 v, 35:2 i~, 35:3:2 #3, 36 III, 38 iv+, 38:4 III, 39:4 i~, 41 III, 42:2 i~, 45:2 n7, 48 III, 48:4:3 #7, 50:4 i~, 52 VII, 53 III, 55 VII, 57 III, 58:3 VI, 59 iii~, 59:2 VII, 60:2 III, 62 i~, 62:2 v, 62:3 vii~, 62:4 i~, 63 vi~, 63:2 v, 64:2 i~, 66 i+, 66:3:3 n7, 67 i~, 67 #6, 67:2:3 #4, 67:4:3 #4, 70:3:2 #1, 72 i, 72:3:4 #6, 74:4:3 #6, 75:3 i+, 77:2 i~, 78:2:4 n7, 78:3 n6
+//
+// Hand analysis. Notes from the Humdrum edition (craigsapp/art-of-the-fugue,
+// kern/artfugue-014.krn). Steps are scale degrees of D minor, 0 = D.
+// One unit is a triplet eighth, so a quarter is 3 and a sextuplet sixteenth is 1/2.
+//
+// The piece is one 35-bar line D used four times. The bass plays D from bar 1
+// (it rests on the first beat, and bar 31 has two notes changed). The treble
+// follows 4 bars later a tenth higher. At bar 40 the treble starts D again an
+// octave higher, and the bass follows 4 bars later at its first pitch.
+// X1 is the free bass of bars 36 to 39. It comes back an octave higher in the
+// treble at bar 75, over the end of the bass statement. X2 is the free bass under
+// the treble entry at bar 40. Its runs end like bars 5 and 6 of D (E5, E6).
+// Two seeds own most of the cells: n, the lower neighbour, and d5, the falling scale.
+// S is the subject in inversion, with a changed rhythm. It opens D and comes again
+// a third higher at bar 9, and in halved values in the bass of the coda.
+
+// Cells
+n = [0, -1, 0]
+N = n m [0]
+nl = n @ [@2 0 | 2]
+h = nl, [5, 0]
+z = (n * [0, -2]), [-4]
+d5 = [0, -1, -2, -3, -4]
+dn = d5 \ 1
+up = d5 m [0]
+r4 = dn || [1/2]
+r5 = d5 || [1/2]
+gm = [0, -1, -2, -1] || [1/2]
+g0 = [0 | 2, -1, -2]
+g = gm, g0
+th = [0, 2, 4]
+q = ([2], (dn * [3])) || [1/2]
+// The subject
+S6 = [-7, -5, -3, -2, -3, -4] || [6]
+Sb = S6, [-5 | 5, -6, -5 | 2, -4]
+S = [-3 | 3], Sb
+// D, bars 1 to 35
+E5 = [-2, -3], (z * [-4])
+E6 = [-1, 0], (z * [-2])
+R = (n * [-3]), E5, [-7, -3, 0], E6, [-5, -7, -6, -5], (n * [-3]), ((up \ 1) * [-2]), [-1, 0, -7, 0 | 2, -1], (n * [1, 2]), [0]
+M = (nl * [-1]), (N * [0, 1, 2, 3, 4]), [3, 4 | 2, 2, 0], (h * [-2, -3, -4]), (nl * [-5]), [-6, -7]
+P = [-4 | 2, -6, -8 | 3, r | 3, -1 | 4], (r4 * [-2]), [1 | 5, -1, 2 | 6, 1 | 3, 1 | 3, 0 | 3, 0 | 3, -1 | 5, 2, -2, -1, 0 | 2]
+U = [-1 | 1/2, -2 | 1/2, -1, r], (r5 * [5]), q, (th * [-1, -3]), [r], ((up \ 1) * [-1]), [3 | 3/2], ([2, 1, 2, 3, 1] || [1/2]), (r4 * [2]), g0, (g * [-1, -2]), [-3 | 3, r | 2, 3]
+V = [4 | 2, -3, 0 | 4, -1, 0, 3 | 4], (r4 * [2]), [5 | 5, 0, -1, 0, 1 | 2, 4, 0, 3 | 5, -3, 2 | 5, -4, 1 | 4, 0, -1, 0, 1, 2]
+W = [1, -3, r | 3/2], (r5 * [5]), [0 | 7/2], q, [-1, 0, 1], (gm * [2]), [2, 3, 4], (g0 * [5])
+c31 = (r4 * [4]), [2 | 2, 3, 2, 1, 0, 1 | 2], r4
+DB = nl, [1, 0, -1, 0, 1, -3, -1, -2], ((up || [1/2]) * [-1]), ([1, 2, 3] || [1/2]), [4, -1, 0 | 1/2], (r5 * [2]), (th * [-3]), [4 | 7, 3, 2, 1 | 5, 4, 0 | 5, 5, -1, 1, 4]
+D1 = R, (S * [2]), M, P, U, V, W
+D = S, D1, c31, DB
+// The free bass, bars 36 to 43
+X1 = [-3 | 2, 0, -2 | 4, -3, -4, -3 | 4, 1, -1, r, 4, 3, 2 | 7/2], (r5 * [4]), ([-1, -2, -3, -2, -1, 0, 1, 0, 1, 2, 3, 1, 2, 0, 1, 2, 3, 4, 5, 4], (dn * [3]), [-1, 1, 3, 5, 4, 3, 4, 3], (dn * [2]), [-2, -1, -2, -3, -4, -5, -4, -2], (dn * [-3])) || [1/2]
+X2 = (([-5], (up * [-7])) || [1/2]), E5, (([-7], (up * [-6])) || [1/2]), E6, (([-5], (up * [-3])) || [1/2]), [2, 3, 1, 0, -1, 0, 1, 2, 0, -1, -2, -1, 0, 1, -1, -2 | 6]
+// Coda, bars 79 to 82
+Kb = (([-3 | 3], S6) || [1/2]), [-5 | 9/4, -6 | 3/4, -5 | 3/4, -4 | 3/4, -3 | 6, -10 | 6, -14 | 12]
+Kt = (([2, 3, 2, 1], ([0, 3, 2, 1] * [2, 4, 6])) || [3/4]), [8 | 3/4], ([9, 10, 9, 8, 7, 6, 7, 9, 10, 11] || [3/8]), ([12, 7, 6, 4, 7, 6] || [3/4]), [7 | 15/2, 0 | 3/4, 1 | 3/4, 1 | 6, 0 | 12]
+// Bass: D from bar 1, X1, X2, D from bar 44, coda
+[r | 3], Sb, D1, (c31 @ [@5 -2, @6 -2]), DB, X1, X2, D, Kb
+!
+// Treble: D a tenth up from bar 5, an octave up from bar 40, X1 an octave up, coda
+[r | 48], (D * [9, 7]), (X1 * [7]), Kt

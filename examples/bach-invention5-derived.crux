@@ -1,0 +1,111 @@
+// Bach, Invention No. 5 in E-flat major, BWV 776
+// #pitchRegime Major
+// #tonic 3
+// #bpm 66
+// #quanta 4n
+// #loop 32m
+// #minVel 80
+// #maxVel 93
+// #preset Seaward Piano
+//
+// Hand analysis. Transcribed from the Humdrum edition (humdrum-tools/inventions,
+// kern/inven05.krn) and checked against it note for note.
+//
+// The voices hold integer scale steps only, 0 = E-flat below middle C.
+// Durations are in quarter notes. Each hand is written an octave low and
+// lifted by the final * [7].
+//
+// The 81 chromatic notes come from the key lane. Each entry is a bar address
+// and a key: upper case major, lower case harmonic minor, "+" melodic minor.
+// V = B-flat major, IV = A-flat major, ii = F minor, vi = C minor, v = B-flat
+// minor. 12:1:4 is bar 12, beat 1, fourth sixteenth. 15:-1 is one beat before
+// bar 15. See docs/crux-key-lane.md.
+//
+// #meter 4/4
+// #keyLane 1 I, 4:3 V, 7:3 I, 9 IV, 10 I, 11 II, 11:2 I, 12:1:4 III, 12:2 I, 13:3 vi+, 14:1:3 ii, 15:-1 I, 15 ii+, 16:3 IV, 17:3 ii+, 18:1:3 v+, 20:3:2 I, 21 ii, 22:3 II, 23 IV, 25 I, 25:3 IV, 26 I, 30 IV, 31:3 I
+
+// The subject: the head twice, a step apart, then two closing bars.
+h   = [0 | 1/4, -1 | 1/4, 0 | 1/2, 1 | 1/2, 2 | 1, 3 | 1]
+HH  = h, [r | 1/2], (h * [1])
+// Bars 3 and 4 come from the subject's two halves. tet is its rising
+// tetrachord and fig its head cell inverted. Each bar is the tetrachord at
+// some contour scale (^ -1 in bar 3, ^ 2 in bar 4), then a form of fig.
+// The rhythm is laid over the flattened line afterwards.
+tet = h \ -2                      // rising tetrachord [0,1,2,3]
+fig = (h \ 1) ^ -1                // head cell inverted [0,1,0,-1,-2]
+q   = ([0 | 1/4], h \ 2) ^ 0      // tail rhythm: the head with its contour scaled to zero
+fr  = (q || [2]) \ 2              // three eighths: q augmented
+s3t = (tet ^ -1 * 5, fig * 3) .j [|1] . (fr, [|1/4], q)
+s3  = [2 | 1/2], s3t
+q4  = fr, [|3/4], q                                     // rhythm of bar 4
+A4  = (tet ^ 2, fig * |-1 * 6) .j [|1] . q4             // answer: tetrachord in thirds, then RI
+S4  = (tet ^ 2 @ [@-1 1], fig * |-1 * 7) .j [|1] . q4   // subject: the same, top raised to the octave
+SJ  = HH, s3, S4                 // subject, four bars less the first eighth
+AN  = HH, s3, A4                 // answer: the last bar is a step lower
+
+// Neighbor figures, cut from the subject's head.
+nb  = h \ 3                       // [0,-1,0] the head's lower neighbor
+la  = nb \ -1                     // [-1,0] approach from the lower neighbor
+un  = (nb ^ -1) \ 1               // [0,1] step to the upper neighbor
+dn  = un, la                      // [0,1,-1,0] double neighbor (changing note)
+D   = tet ^ -1                    // [0,-1,-2,-3] the tetrachord falling
+
+// The countersubject, in sixteenths. Three seven-note cells, each after one
+// free note. Collapse the neighbors and each cell is the falling tetrachord
+// cut short: w reduces to D, v to D \ 1, u to D \ 2.
+v   = ([0], la * (D \ 1)) .j [|1/4]      // each step of the third approached from below
+u   = (D \ 1, dn * -1) .j [|1/4]         // the third, then a double neighbor back on -1
+w   = (D \ 1, dn * -3) .j [|1/4]         // the third, then a double neighbor on -3
+CSb = [-4 | 1/4], (v * [-2]), [-6 | 1/4], u, [-7 | 1/4], u, [-3 | 1/4], w, [-5 | 1/4], (w * [-2])
+CS  = v, CSb                     // three bars less the first sixteenth
+T4  = [-9 | 1/4], (u * [-3])     // its last half bar in the left hand
+
+// Other cells.
+x   = (un, nb, dn \ -1) .j [|1/4]         // reduces to [0]: 0 with every kind of neighbor
+y   = (un, la * (D \ 1)) .j [|1/4]        // v with an upper-neighbor start. Reduces to D \ 1
+lk  = x * [6]                                                     // link into the countersubject
+CR  = lk, [4 | 1/4], (CS * [11]), [1 | 1/4], (u * [7])            // countersubject in the right hand, m5-8
+E1  = (x * [-5]), [-7 | 1/4], v
+B2  = [10 | 1/4], (u * [6]), [3 | 1/4], (u * [9])
+
+// Right hand, by passage
+// m1-4: subject
+r1 = [r | 1/2], SJ
+// m5-8: countersubject over the answer
+r2 = CR
+// m9-11: the head rises by step
+r3 = [7 | 1/2], (HH * [4]), [r | 1/2], (h * [6])
+// m12-15: m5-8 a step higher
+r4 = CR * [1]
+// m16-19: answer form on F
+r5 = [8 | 1/2], (AN * [1])
+// m20-22: falling sequence on the cell u
+r6 = lk, [4 | 1/4], (u * [10]), (B2 * [0, -1])
+// m23-26: the head twice, then cells
+r7 = [8 | 1/2], (HH * [3]), [5 | 1/4], (v * [10]), ([6, 11, 10, 11, 5, 6, 4, 5] || [1/4]), [3 | 1/4], (v * [5]), [1 | 1/4], (u * [7])
+// m27-32: subject in the home key, its third bar repeated a fourth higher, cadence
+r8 = [7 | 1/2], HH, s3, [0 | 1/2], (s3t * [3]), (S4 * [3]), [10 | 1/2], ([9, 8, 7, 8] || [1/8]), [8 | 1, 7 | 2]
+
+// Left hand, by passage
+// m1-4: two bass notes, then the countersubject
+l1 = [-7 | 1, -14 | 1, r | 1/4], CS, T4
+// m5-8: answer on B-flat
+l2 = [-3 | 1/2], (AN * [-10])
+// m9-11: rising bars
+l3 = (E1 * [0, 1]), (x * [-3]), (y * [-5])
+// m12-15: answer form a step higher
+l4 = [-9 | 1/2], (AN * [-9])
+// m16-19: countersubject a step higher, same last half bar
+l5 = (x * [-4]), [-6 | 1/4], (CS * [1]), T4
+// m20-22: the head falls by step
+l6 = [-3 | 1/2], (h * [-10]), [r | 1/2], (h * [-11]), [r | 1/2], (h * [-12])
+// m23-26: cells, then the head twice
+l7 = [-13 | 1/4], (v * [-2]), [-6 | 1/4], (v * [-4]), [-8 | 1/4], (v * [-6]), [-10 | 1/4], (u * [-4]), [-4 | 1/2], (HH * [-7])
+// m27-32: countersubject in the home key, extended, cadence
+l8 = E1, CSb, [-7 | 1/4], (w * [-4]), [-9 | 1/4], (w * [-6]), [-13 | 1/4], (u * [-7]), ([-7, -12, -11, -10] || [1/2]), [-14 | 2]
+
+// Right hand
+(r1, r2, r3, r4, r5, r6, r7, r8) * [7]
+!
+// Left hand
+(l1, l2, l3, l4, l5, l6, l7, l8) * [7]

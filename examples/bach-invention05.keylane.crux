@@ -27,26 +27,43 @@
 // The subject: the head twice, a step apart, then two closing bars.
 h   = [0 | 1/4, -1 | 1/4, 0 | 1/2, 1 | 1/2, 2 | 1, 3 | 1]
 HH  = h, [r | 1/2], (h * [1])
-s3t = ([5, 4, 3] || [1/2]), ([2, 3, 4, 3] || [1/4]), ([2, 1] || [1/2])
+// Bars 3 and 4 come from the subject's two halves. tet is its rising
+// tetrachord and fig its head cell inverted. Each bar is the tetrachord at
+// some contour scale (^ -1 in bar 3, ^ 2 in bar 4), then a form of fig.
+// The rhythm is laid over the flattened line afterwards.
+tet = h \ -2                      // rising tetrachord [0,1,2,3]
+fig = (h \ 1) ^ -1                // head cell inverted [0,1,0,-1,-2]
+q   = ([0 | 1/4], h \ 2) ^ 0      // tail rhythm: the head with its contour scaled to zero
+fr  = (q || [2]) \ 2              // three eighths: q augmented
+s3t = (tet ^ -1 * 5, fig * 3) .j [|1] . (fr, [|1/4], q)
 s3  = [2 | 1/2], s3t
-S4  = ([0, 2, 4] || [1/2]), [7 | 3/4], ([5, 6, 7] || [1/4]), ([8, 7] || [1/2])
-A4  = ([0, 2, 4] || [1/2]), [6 | 3/4], ([4, 5, 6] || [1/4]), ([7, 6] || [1/2])
+q4  = fr, [|3/4], q                                     // rhythm of bar 4
+A4  = (tet ^ 2, fig * |-1 * 6) .j [|1] . q4             // answer: tetrachord in thirds, then RI
+S4  = (tet ^ 2 @ [@-1 1], fig * |-1 * 7) .j [|1] . q4   // subject: the same, top raised to the octave
 SJ  = HH, s3, S4                 // subject, four bars less the first eighth
 AN  = HH, s3, A4                 // answer: the last bar is a step lower
 
-// The countersubject, in sixteenths. Four seven-note cells, each after one
-// free note.
-v   = [0, -1, 0, -2, -1, -3, -2] || [1/4]
-u   = [0, -1, -2, -1, 0, -2, -1] || [1/4]
-w   = [0, -1, -2, -3, -2, -4, -3] || [1/4]
+// Neighbor figures, cut from the subject's head.
+nb  = h \ 3                       // [0,-1,0] the head's lower neighbor
+la  = nb \ -1                     // [-1,0] approach from the lower neighbor
+un  = (nb ^ -1) \ 1               // [0,1] step to the upper neighbor
+dn  = un, la                      // [0,1,-1,0] double neighbor (changing note)
+D   = tet ^ -1                    // [0,-1,-2,-3] the tetrachord falling
+
+// The countersubject, in sixteenths. Three seven-note cells, each after one
+// free note. Collapse the neighbors and each cell is the falling tetrachord
+// cut short: w reduces to D, v to D \ 1, u to D \ 2.
+v   = ([0], la * (D \ 1)) .j [|1/4]      // each step of the third approached from below
+u   = (D \ 1, dn * -1) .j [|1/4]         // the third, then a double neighbor back on -1
+w   = (D \ 1, dn * -3) .j [|1/4]         // the third, then a double neighbor on -3
 CSb = [-4 | 1/4], (v * [-2]), [-6 | 1/4], u, [-7 | 1/4], u, [-3 | 1/4], w, [-5 | 1/4], (w * [-2])
 CS  = v, CSb                     // three bars less the first sixteenth
 T4  = [-9 | 1/4], (u * [-3])     // its last half bar in the left hand
 
 // Other cells.
-x   = [0, 1, 0, -1, 0, 1, -1, 0] || [1/4]
-y   = [0, 1, -1, 0, -2, -1, -3, -2] || [1/4]
-lk  = [6, 7, 6, 5, 6, 7, 5, 6] || [1/4]                           // link into the countersubject
+x   = (un, nb, dn \ -1) .j [|1/4]         // reduces to [0]: 0 with every kind of neighbor
+y   = (un, la * (D \ 1)) .j [|1/4]        // v with an upper-neighbor start. Reduces to D \ 1
+lk  = x * [6]                                                     // link into the countersubject
 CR  = lk, [4 | 1/4], (CS * [11]), [1 | 1/4], (u * [7])            // countersubject in the right hand, m5-8
 E1  = (x * [-5]), [-7 | 1/4], v
 B2  = [10 | 1/4], (u * [6]), [3 | 1/4], (u * [9])

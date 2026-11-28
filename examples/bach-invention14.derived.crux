@@ -1,0 +1,81 @@
+// Bach, Invention No. 14 in B-flat major, BWV 785
+// #pitchRegime Major
+// #tonic 10
+// #tonicMidi 58
+// #lens diatonic
+// #keyFifths -2
+//
+//
+// #quanta 4n
+// #keyLane 1 I, 1:4 IV, 3 I, 8 V, 9:3 vi, 10:3 IV, 11 ii, 12 I, 13 IV, 14 I, 15:-1 IV, 15 I, 17 IV, 18:3 I
+//
+
+// The theme: a turn (H), then a broken chord (tt).
+H  = [0, 1, 2, 1, 0 | 2] || [1/8]
+tt = [4, 2, 7, 4] || [1/4]              // the broken chord
+T9 = H, tt                              // theme without its last note
+T  = T9, [2 | 1/4]                      // the ten-note theme
+Hi = H m [0]                            // inverted turn
+Tu = T9, [9 | 1/4]                      // theme, last note an octave higher
+
+// Thirds: the turn's rise stretched with ^ 2, in sixteenths.
+th = (H \ 2) ^ 2 .j [|1/4]              // [0, 2, 4]
+
+// Inversion. The strict form, T m [0], ends [-4, -2] and never occurs.
+// Bach inverts the first three notes of the chord, then closes with the
+// turn's last step (H \ -3, a step down) onto -6 (tonal inversion).
+A  = Hi, ((tt \ 1) ^ -1), ((H \ -3) * -6 .j [|1/4])
+
+// Two freer forms that close the subject (m3). XT zips the thirds with
+// themselves a third lower, like B in Invention No. 1. Y inverts it.
+XT = ((th * 5) z (th * 3)) \ 1          // [5, 3, 7, 5, 9]
+X  = H, XT
+Y  = Hi, (XT ^ -1 * 1)                  // [-4, -2, -6, -4, -8]
+Y9 = Y \ 1                              // Y without its last note (m10)
+
+// The subject: six units, three bars. Right hand at m1, left hand at m6.
+S  = T, (A * [4]), (T * [-4]), Y, (X * [-6]), (T9 * [-3])
+
+// Accompaniment to the first two theme entries (m1-2).
+// The chord rises from the low B-flat, then falls inverted and reversed.
+ch = ((H \ 2) ^ 2, [7]) .j [|1]        // [0, 2, 4, 7] the tonic triad and octave
+ar = [|1, |1, |1, |2]                   // three eighths and a held note
+B  = ([0], (ch * -7 . ar), [r | 2, r], ((ch ^ -1) * |-1 . ar), [r | 2]) || [1/2]
+
+// Episode cells, all built from the turn.
+U  = [r | 1/4], H, [3 | 1/2, r | 1/2]                 // m4, left hand
+W  = [0 | 1/2, r | 3/4], (Hi * [3])                   // m4, right hand
+V  = H, [7 | 3/4, 6 | 1/4, 5 | 1/4]                   // m12-13
+E  = H, [3 | 1/4]                                     // turn, then up a fourth (m5, m14-16, m19)
+K  = [0 | 1/4], (Hi * [2])                            // m14
+Q  = [0 | 1/4], (E * [2]), Hi                        // m14-16 sequence
+
+// Two cells without the turn.
+N  = [0, 2, 0, -2] || [1/2]                           // a note, the third above, the note, the third below (m9-11)
+G  = [-3 | 1/2, -10 | 1/2]                            // cadence, F and the F an octave below (m5, m19)
+
+// Right hand
+r1 = [r | 1/4], S
+r2 = (W * [2, 1, 0]), [-1 | 1/4], (Hi * [1]), [-3 | 1/2, r | 1/2]
+r3 = (B * [4]), ([r, -2, 0, 1, 3 | 2, r | 2] || [1/2])
+r4 = [r | 1/4], (Tu * [-3]), (Y9 * [3]), N, ([-1, 4, -1, -3] || [1/2]), [-2 | 1/4], (T9 * [-6]), [2 | 1/4], (Hi * [-1]), ([-5, -3, -7, -2] || [1/4])
+r5 = [-4 | 1/2, r | 3/4], (V * [-6, -3, 0]), (Hi * [7])
+r6 = (K * [3, 1]), (Q * [-1, -2, -3, -4]), [-5 | 1]
+r7 = [r | 1/4], T, (Hi * [4]), ([0, 3, 0, 3, -2] || [1/4]), (T * [-4]), Hi, [-4 | 1/2, 3 | 3/4], (Hi * [3]), [-3 | 1/2, 3 | 3/4], (E * [1]), (Hi * [2]), ([-3, 0, 1, -1] || [1/4])
+r8 = [0 | 4]
+
+// Left hand
+l1 = B, ([r, -7, -6, -4, -1 | 2, r | 2] || [1/2])
+l2 = (U * [0, -1]), [r | 1/4], (E * [-2]), (H * [-6]), G, [r | 1/4], (th ^ -1 * 1)
+l3 = [r | 1/4], (S * [-3])
+l4 = (N * [-1, -3]), [-2 | 1/4], (Tu * [-9]), (Y9 * [-1]), (N * [-4, -7])
+l5 = [-6 | 1/4], (V * [-13, -10, -7, -4])
+l6 = (Hi * [3]), (K * [-1]), (Q * [-3, -4, -5, -6])
+l7 = [-7 | 1/4], T, (A * [4]), (T * [-4]), A, ((T @ [@7 -1]) * -10), (A * [-6]), (H * [-7]), G
+l8 = [-7 | 4]
+
+// RH
+(r1, r2, r3, r4, r5, r6, r7, r8) * [7]
+!
+// LH
+l1, l2, l3, l4, l5, l6, l7, l8

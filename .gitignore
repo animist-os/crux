@@ -18,3 +18,5 @@ docs/atoms.json
 dist/crux-scripter.js
 .secrets/
 !.secrets/sandbox.env.example
+
+.claude
